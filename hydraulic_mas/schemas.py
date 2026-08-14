@@ -4,7 +4,8 @@ The requirements, research, and topology contracts are adapted from
 ``Paper_2_Current/schema.py`` at commit d33920a.  Sizing and simulation models
 are intentionally omitted because this project stops after topology validation.
 The topology contract is tightened so every selected component has one exact
-catalog key and every catalog port has an explicit disposition.
+generic class key and every catalog port has an explicit disposition. Sizing,
+manufacturer and procurement fields are intentionally absent.
 """
 
 from __future__ import annotations
@@ -398,18 +399,18 @@ class CatalogGap(BaseModel):
     reason: str
     related_function_ids: list[str] = Field(default_factory=list)
     chosen_workaround: str | None = None
+    scope: Literal["topology", "sizing"] = "topology"
     blocking: bool = False
 
 
 class PlannedComponent(BaseModel):
     id: str
-    catalog_key: str = Field(..., description="Exact key returned by a catalog tool.")
+    catalog_key: str = Field(..., description="Exact generic component-class key returned by a catalog tool.")
     comp_type: str
     role: str
     function_id: str | None = None
     configuration: list[str] = Field(default_factory=list)
-    selection_basis: str
-    requires_sizing_verification: bool = True
+    selection_basis: str = Field(..., description="Functional topology reason for selecting this class.")
 
 
 class ConnectionIntent(BaseModel):
@@ -448,7 +449,6 @@ class TopologyComponent(BaseModel):
     function_id: str | None = None
     configuration: list[str] = Field(default_factory=list)
     selection_basis: str
-    requires_sizing_verification: bool = True
 
 
 class Connection(BaseModel):
@@ -557,12 +557,8 @@ class FinalComponent(BaseModel):
     role: str
     function_id: str | None = None
     ports: list[str]
-    manufacturer: str | None = None
-    part_number: str | None = None
-    source_url: str | None = None
     configuration: list[str] = Field(default_factory=list)
     selection_basis: str
-    requires_sizing_verification: bool = True
 
 
 class ResearchAudit(BaseModel):

@@ -10,7 +10,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send, interrupt
 
 from .agents import AgentSuite, PROMPT_BY_AGENT, build_agent_suite
-from .catalog import CATALOG, catalog_type_reference, selected_catalog_reference, source_for_entry
+from .catalog import CATALOG, catalog_type_reference, selected_catalog_reference
 from .config import Settings
 from .models import build_chat_model
 from .requirements_quality import requirements_quality_issues
@@ -409,7 +409,7 @@ class Workflow:
             + _json(state["design_brief"])
             + "\n\nRESEARCH SYNTHESIS:\n"
             + _json(state["research_synthesis"])
-            + "\n\nSelect exact catalog keys with tools, then produce the component plan."
+            + "\n\nSelect generic functional class keys with tools, then produce the topology-only component plan."
         )
         previous_validation = state.get("topology_validation")
         if previous_validation and previous_validation.get("verdict") == "invalid":
@@ -453,7 +453,7 @@ class Workflow:
         payload = (
             "COMPONENT PLAN:\n"
             + plan.model_dump_json(indent=2)
-            + "\n\nEXACT SELECTED CATALOG METADATA AND PORTS:\n"
+            + "\n\nSELECTED GENERIC CLASS METADATA, STATES AND PORTS:\n"
             + selected_catalog_reference(keys)
             + "\n\nRESEARCH SYNTHESIS:\n"
             + _json(state["research_synthesis"])
@@ -492,7 +492,10 @@ class Workflow:
         combined_issues = [item.model_dump(mode="json") for item in deterministic.issues] + [
             item.model_dump(mode="json") for item in review.design_issues
         ]
-        blocking_gap = any(gap.get("blocking") for gap in state["topology"].get("catalog_gaps", []))
+        blocking_gap = any(
+            gap.get("blocking") and gap.get("scope", "topology") == "topology"
+            for gap in state["topology"].get("catalog_gaps", [])
+        )
         verdict = "invalid" if deterministic.verdict == "invalid" or review.verdict == "invalid" or blocking_gap else "valid"
         scope = repair_scope(combined_issues)
         summary = (
@@ -530,9 +533,6 @@ class Workflow:
         selected: list[FinalComponent] = []
         for component in topology.components:
             entry = CATALOG.get(component.catalog_key, {})
-            params = entry.get("params", {})
-            source = source_for_entry(entry) or {}
-            part_number = params.get("part_number")
             selected.append(
                 FinalComponent(
                     id=component.id,
@@ -542,12 +542,8 @@ class Workflow:
                     role=component.role,
                     function_id=component.function_id,
                     ports=list(entry.get("ports", [])),
-                    manufacturer=params.get("manufacturer"),
-                    part_number=str(part_number) if part_number is not None else None,
-                    source_url=source.get("url"),
                     configuration=component.configuration,
                     selection_basis=component.selection_basis,
-                    requires_sizing_verification=component.requires_sizing_verification,
                 )
             )
         warnings = validation.deterministic.issues + validation.design_review.design_issues
@@ -568,8 +564,10 @@ class Workflow:
             title=state["requirements"].get("title", "Hydraulic topology"),
             status=status,
             scope_statement=(
-                "Topology and catalog compatibility were validated. Dynamic simulation, detailed sizing, "
-                "thermal analysis, structural checks, risk assessment, and fabrication approval are outside this workflow."
+                "Validated scope: generic hydraulic component classes, functional valve behavior, and direct "
+                "port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line "
+                "selection, filtration, cooling, prime mover selection, simulation and fabrication approval are "
+                "explicitly deferred to the later sizing and engineering phases."
             ),
             design_narrative=topology.design_narrative,
             selected_components=selected,

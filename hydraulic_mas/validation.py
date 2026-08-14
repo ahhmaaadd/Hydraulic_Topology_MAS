@@ -3,40 +3,15 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Any, Iterable
 
-from .catalog import CATALOG, flow_rating, pressure_rating
-from .schemas import (
-    DeterministicValidation,
-    TopologyDesign,
-    TopologyIssue,
-    ValidationCheck,
-)
-
-
-EXTERNAL_PORT_TYPES = {
-    "electric_in",
-    "electrical_out",
-    "visual_or_signal",
-    "atmosphere",
-    "mechanical_input",
-}
-OPTIONAL_EXTERNAL_PORT_TYPES = {"electrical_out", "visual_or_signal", "atmosphere"}
-BLOCKABLE_BY_TYPE: dict[str, set[str]] = {
-    "manifold": {"A", "B", "X", "Y"},
-    "filter": {"IND"},
-    "level_temperature_gauge": {"OUT"},
-}
+from .catalog import CATALOG
+from .data.component_catalog_problems_7 import FORBIDDEN_TOPOLOGY_TYPES
+from .schemas import DeterministicValidation, TopologyDesign, TopologyIssue, ValidationCheck
 
 
 def _as_dict(value: Any) -> dict[str, Any]:
     if hasattr(value, "model_dump"):
         return value.model_dump(mode="json")
     return value
-
-
-def _max_pressure(requirements: dict[str, Any]) -> float | None:
-    quantity = (requirements.get("global_constraints") or {}).get("max_system_pressure") or {}
-    value = quantity.get("value")
-    return float(value) if isinstance(value, (int, float)) else None
 
 
 def _function_ids(requirements: dict[str, Any]) -> set[str]:
@@ -60,12 +35,17 @@ def _issue(
     )
 
 
-def _add_edge(graph: dict[tuple[str, str], set[tuple[str, str]]], a: tuple[str, str], b: tuple[str, str]) -> None:
+def _add_edge(
+    graph: dict[tuple[str, str], set[tuple[str, str]]],
+    a: tuple[str, str],
+    b: tuple[str, str],
+) -> None:
     graph[a].add(b)
     graph[b].add(a)
 
 
 def _internal_pairs(component: dict[str, Any], entry: dict[str, Any]) -> list[tuple[str, str]]:
+    """Possible functional flow paths used only for reachability checks."""
     comp_type = component.get("comp_type")
     ports = set(entry.get("ports", []))
     pairs: list[tuple[str, str]] = []
@@ -74,38 +54,24 @@ def _internal_pairs(component: dict[str, Any], entry: dict[str, Any]) -> list[tu
         if a in ports and b in ports:
             pairs.append((a, b))
 
-    if comp_type in {"pipe", "filter", "cooler", "suction_strainer"}:
-        add("IN", "OUT")
-    elif comp_type in {"check_valve", "sequence_valve"}:
-        add("P", "A")
-    elif comp_type == "pressure_comp_flow_control":
+    if comp_type in {"pressure_comp_flow_control", "one_way_flow_control"}:
         add("A", "B")
+    elif comp_type == "position_valve":
+        add("P", "A")
+    elif comp_type == "sequence_valve":
+        add("P", "A")
     elif comp_type == "pressure_reducing_valve":
         add("P", "A")
+        add("A", "T")
     elif comp_type == "pilot_check_valve":
         add("A1", "A2")
         add("B1", "B2")
-    elif comp_type == "flow_divider_combiner":
-        add("P", "A")
-        add("P", "B")
-    elif comp_type == "sequence_manifold":
-        add("P", "C_A")
-        add("P", "W_A")
-        add("T", "C_B")
-        add("T", "W_B")
-    elif comp_type == "manifold":
-        add("P", "A")
-        add("P", "B")
-        add("T", "Y")
+    elif comp_type == "single_pilot_check_valve":
+        add("V", "C")
     elif comp_type == "dcv":
-        # Possible-state connectivity, not simultaneous connectivity.
+        # Possible-state connectivity, never simultaneous-state connectivity.
         for a, b in (("P", "A"), ("P", "B"), ("T", "A"), ("T", "B")):
             add(a, b)
-    elif comp_type == "position_valve":
-        add("P", "A")
-        add("A", "T")
-    elif comp_type == "unloading_valve":
-        add("P", "T")
     return pairs
 
 
@@ -124,19 +90,29 @@ def _reachable(
     return seen
 
 
-def _rough_cylinder_force_kN(entry: dict[str, Any], pressure_bar: float | None) -> float | None:
-    if pressure_bar is None:
-        return None
-    area_cm2 = entry.get("params", {}).get("cap_area_cm2")
-    if not isinstance(area_cm2, (int, float)):
-        return None
-    return 0.01 * pressure_bar * float(area_cm2) * 0.90
+def _rigid_mechanical_synchronization(
+    design: dict[str, Any],
+    requirements: dict[str, Any],
+    components: list[dict[str, Any]],
+) -> bool:
+    text = " ".join(
+        [
+            str(requirements.get("restated_problem", "")),
+            str(design.get("design_narrative", "")),
+            str(design.get("function_implementations", [])),
+            str(design.get("design_decisions", [])),
+        ]
+    ).casefold()
+    if "rigid" not in text or not any(word in text for word in ("platen", "coupl", "structure")):
+        return False
+    return sum(component.get("comp_type") == "cylinder" for component in components) >= 2
 
 
 def validate_topology(
     topology: TopologyDesign | dict[str, Any],
     requirements: dict[str, Any],
 ) -> DeterministicValidation:
+    """Validate component classes and port topology, never sizing suitability."""
     design = _as_dict(topology)
     requirements = _as_dict(requirements)
     components = design.get("components") or []
@@ -148,20 +124,41 @@ def validate_topology(
 
     ids = [component.get("id") for component in components]
     component_by_id = {component.get("id"): component for component in components if component.get("id")}
-    duplicate_ids = sorted({component_id for component_id in ids if ids.count(component_id) > 1})
+    duplicate_ids = sorted({component_id for component_id in ids if component_id and ids.count(component_id) > 1})
+    missing_ids = [str(index) for index, component_id in enumerate(ids) if not component_id]
     if duplicate_ids:
         issues.append(_issue("DUPLICATE_COMPONENT_ID", f"Duplicate component ids: {duplicate_ids}", related=duplicate_ids))
-    checks.append(ValidationCheck(name="unique_component_ids", passed=not duplicate_ids, details=f"{len(ids)} component instances checked."))
+    if missing_ids:
+        issues.append(_issue("MISSING_COMPONENT_ID", f"Components at indexes {missing_ids} have no id."))
+    checks.append(
+        ValidationCheck(
+            name="unique_component_ids",
+            passed=not duplicate_ids and not missing_ids,
+            details=f"{len(ids)} generic component instances checked.",
+        )
+    )
 
     entry_by_id: dict[str, dict[str, Any]] = {}
+    forbidden: list[str] = []
     for component in components:
         component_id = component.get("id")
         key = component.get("catalog_key")
+        comp_type = component.get("comp_type")
+        if comp_type in FORBIDDEN_TOPOLOGY_TYPES:
+            forbidden.append(str(component_id))
+            issues.append(
+                _issue(
+                    "FORBIDDEN_TOPOLOGY_COMPONENT",
+                    f"{component_id!r} is type {comp_type!r}, which belongs to sizing/layout rather than topology.",
+                    scope="selection",
+                    related=[component_id, comp_type],
+                )
+            )
         if key not in CATALOG:
             issues.append(
                 _issue(
                     "UNKNOWN_CATALOG_KEY",
-                    f"Component {component_id!r} selects unknown catalog key {key!r}.",
+                    f"Component {component_id!r} selects unknown generic class key {key!r}.",
                     scope="selection",
                     related=[component_id, key],
                 )
@@ -169,25 +166,27 @@ def validate_topology(
             continue
         entry = CATALOG[key]
         entry_by_id[component_id] = entry
-        if component.get("comp_type") != entry.get("type"):
+        if comp_type != entry.get("type"):
             issues.append(
                 _issue(
                     "CATALOG_TYPE_MISMATCH",
-                    f"{component_id!r} says type {component.get('comp_type')!r}, but {key!r} is {entry.get('type')!r}.",
+                    f"{component_id!r} says type {comp_type!r}, but {key!r} is {entry.get('type')!r}.",
                     scope="selection",
                     related=[component_id, key],
                 )
             )
     checks.append(
         ValidationCheck(
-            name="catalog_identity",
-            passed=not any(item.code in {"UNKNOWN_CATALOG_KEY", "CATALOG_TYPE_MISMATCH"} for item in issues),
-            details="Every component must resolve to one exact supplied catalog entry.",
+            name="generic_catalog_identity_and_scope",
+            passed=not any(
+                item.code in {"UNKNOWN_CATALOG_KEY", "CATALOG_TYPE_MISMATCH", "FORBIDDEN_TOPOLOGY_COMPONENT"}
+                for item in issues
+            ),
+            details="Every instance must resolve to an allowed generic functional class; accessories and sizing hardware are forbidden.",
         )
     )
 
     used_ports: dict[str, set[str]] = defaultdict(set)
-    endpoint_lines: dict[str, set[str]] = defaultdict(set)
     port_graph: dict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
     edge_fingerprints: set[tuple[tuple[str, str], tuple[str, str], str]] = set()
     for index, connection in enumerate(connections):
@@ -214,14 +213,13 @@ def validate_topology(
                 issues.append(
                     _issue(
                         "INVALID_CATALOG_PORT",
-                        f"Connection {index}: {component_id!r} has no catalog port {port!r}; valid ports are {entry.get('ports', [])}.",
+                        f"Connection {index}: {component_id!r} has no port {port!r}; valid ports are {entry.get('ports', [])}.",
                         related=[component_id, port],
                     )
                 )
                 valid_connection = False
                 continue
             used_ports[component_id].add(port)
-            endpoint_lines[component_id].add(connection.get("line", "unspecified"))
             endpoints.append((component_id, port))
         if valid_connection and len(endpoints) == 2:
             if endpoints[0] == endpoints[1]:
@@ -240,91 +238,52 @@ def validate_topology(
             edge_fingerprints.add(fingerprint)
             _add_edge(port_graph, endpoints[0], endpoints[1])
 
-    external_ports: dict[str, set[str]] = defaultdict(set)
+    # All current generic catalog ports are hydraulic. External interfaces and
+    # terminations would hide an incomplete topology and are therefore errors.
     for item in external:
         component_id, port = item.get("component_id"), item.get("port")
-        entry = entry_by_id.get(component_id)
-        if entry is None or port not in entry.get("ports", []):
-            issues.append(_issue("INVALID_EXTERNAL_INTERFACE", f"Invalid external interface {component_id}.{port}.", related=[component_id, port]))
-            continue
-        port_type = entry.get("port_types", {}).get(port)
-        if port_type not in EXTERNAL_PORT_TYPES:
-            issues.append(
-                _issue(
-                    "HYDRAULIC_PORT_MARKED_EXTERNAL",
-                    f"{component_id}.{port} ({port_type}) cannot be satisfied by an external non-hydraulic interface.",
-                    related=[component_id, port],
-                )
+        issues.append(
+            _issue(
+                "NON_HYDRAULIC_INTERFACE_IN_TOPOLOGY",
+                f"External interface {component_id}.{port} is outside the topology-only output boundary.",
+                related=[component_id, port],
             )
-        external_ports[component_id].add(port)
-
-    terminated_ports: dict[str, set[str]] = defaultdict(set)
+        )
     for item in terminations:
         component_id, port = item.get("component_id"), item.get("port")
-        entry = entry_by_id.get(component_id)
-        if entry is None or port not in entry.get("ports", []):
-            issues.append(_issue("INVALID_PORT_TERMINATION", f"Invalid port termination {component_id}.{port}.", related=[component_id, port]))
-            continue
-        if port not in BLOCKABLE_BY_TYPE.get(entry.get("type"), set()):
-            issues.append(
-                _issue(
-                    "FUNCTIONAL_PORT_TERMINATED",
-                    f"{component_id}.{port} is a functional catalog port and may not be hidden with a termination.",
-                    related=[component_id, port],
-                )
+        issues.append(
+            _issue(
+                "FUNCTIONAL_PORT_TERMINATED",
+                f"Generic functional port {component_id}.{port} must be connected, not hidden by a termination.",
+                related=[component_id, port],
             )
-        terminated_ports[component_id].add(port)
+        )
 
     for component_id, entry in entry_by_id.items():
         for a, b in _internal_pairs(component_by_id[component_id], entry):
             _add_edge(port_graph, (component_id, a), (component_id, b))
         for port in entry.get("ports", []):
-            dispositions = sum(
-                port in values
-                for values in (used_ports[component_id], external_ports[component_id], terminated_ports[component_id])
-            )
-            if dispositions > 1:
+            if port not in used_ports[component_id]:
                 issues.append(
                     _issue(
-                        "MULTIPLE_PORT_DISPOSITIONS",
-                        f"{component_id}.{port} is both connected/external/terminated; choose exactly one disposition.",
+                        "UNCONNECTED_REQUIRED_PORT",
+                        f"Required generic port {component_id}.{port} ({entry.get('port_types', {}).get(port)}) is unconnected.",
                         related=[component_id, port],
                     )
                 )
-            elif dispositions == 0:
-                port_type = entry.get("port_types", {}).get(port)
-                if port_type in OPTIONAL_EXTERNAL_PORT_TYPES:
-                    issues.append(
-                        _issue(
-                            "OPTIONAL_PORT_UNDECLARED",
-                            f"Optional {component_id}.{port} ({port_type}) has no declared disposition.",
-                            severity="warning",
-                            related=[component_id, port],
-                        )
-                    )
-                else:
-                    issues.append(
-                        _issue(
-                            "UNCONNECTED_REQUIRED_PORT",
-                            f"Required catalog port {component_id}.{port} ({port_type}) is not connected or assigned an external interface.",
-                            related=[component_id, port],
-                        )
-                    )
     port_errors = {
         "UNKNOWN_CONNECTION_COMPONENT",
         "INVALID_CATALOG_PORT",
-        "INVALID_EXTERNAL_INTERFACE",
-        "HYDRAULIC_PORT_MARKED_EXTERNAL",
-        "INVALID_PORT_TERMINATION",
+        "SELF_CONNECTION",
+        "NON_HYDRAULIC_INTERFACE_IN_TOPOLOGY",
         "FUNCTIONAL_PORT_TERMINATED",
-        "MULTIPLE_PORT_DISPOSITIONS",
         "UNCONNECTED_REQUIRED_PORT",
     }
     checks.append(
         ValidationCheck(
-            name="exact_port_accounting",
+            name="direct_port_accounting",
             passed=not any(item.code in port_errors and item.severity == "error" for item in issues),
-            details="Every catalog port must be connected, external, or explicitly and physically terminable.",
+            details="Every generic hydraulic port must participate in at least one direct edge; repeated ports represent branches.",
         )
     )
 
@@ -334,33 +293,33 @@ def validate_topology(
             issues.append(
                 _issue(
                     "MISSING_POWER_UNIT_COMPONENT",
-                    f"No {required_type!r} is selected; the hydraulic power unit is incomplete.",
+                    f"No {required_type!r} is selected; the functional power supply is incomplete.",
                     scope="selection",
                     related=[required_type],
                 )
             )
-    if any(function.get("actuator_type") == "linear" for function in requirements.get("functions", [])):
+    linear_functions = [
+        function for function in requirements.get("functions", []) if function.get("actuator_type") == "linear"
+    ]
+    if linear_functions:
         if "cylinder" not in types_present:
             issues.append(_issue("MISSING_ACTUATOR", "A linear function exists but no cylinder is selected.", scope="selection"))
         if "dcv" not in types_present:
-            issues.append(_issue("MISSING_DIRECTIONAL_CONTROL", "A linear actuator exists but no DCV is selected.", scope="selection"))
+            issues.append(_issue("MISSING_DIRECTIONAL_CONTROL", "A linear function exists but no DCV is selected.", scope="selection"))
     checks.append(
         ValidationCheck(
-            name="minimum_power_and_control_inventory",
-            passed=not any(item.code.startswith("MISSING_") and item.severity == "error" for item in issues),
-            details="Tank, pump, relief, actuator, and directional-control inventory checked.",
+            name="minimum_functional_inventory",
+            passed=not any(
+                item.code in {"MISSING_POWER_UNIT_COMPONENT", "MISSING_ACTUATOR", "MISSING_DIRECTIONAL_CONTROL"}
+                for item in issues
+            ),
+            details="Tank, pump, relief, actuator and directional-control functions checked without accessories.",
         )
     )
 
     pump_pressure_nodes = [(cid, "P") for cid, entry in entry_by_id.items() if entry.get("type") == "pump"]
-    tank_return_nodes = [
-        (cid, port)
-        for cid, entry in entry_by_id.items()
-        if entry.get("type") == "tank"
-        for port in ("R", "D")
-        if port in entry.get("ports", [])
-    ]
-    tank_suction_nodes = [(cid, "S") for cid, entry in entry_by_id.items() if entry.get("type") == "tank" and "S" in entry.get("ports", [])]
+    tank_return_nodes = [(cid, "R") for cid, entry in entry_by_id.items() if entry.get("type") == "tank"]
+    tank_suction_nodes = [(cid, "S") for cid, entry in entry_by_id.items() if entry.get("type") == "tank"]
     pressure_reach = _reachable(port_graph, pump_pressure_nodes)
     return_reach = _reachable(port_graph, tank_return_nodes)
     suction_reach = _reachable(port_graph, tank_suction_nodes)
@@ -369,19 +328,16 @@ def validate_topology(
         comp_type = entry.get("type")
         if comp_type == "relief_valve":
             if (cid, "P") not in pressure_reach:
-                issues.append(_issue("RELIEF_NOT_ON_PRESSURE_LINE", f"Relief valve {cid} P is not reachable from pump pressure.", scope="safety", related=[cid]))
+                issues.append(_issue("RELIEF_NOT_ON_PRESSURE_LINE", f"Relief valve {cid}.P is not reachable from Pump.P.", scope="safety", related=[cid]))
             if (cid, "T") not in return_reach:
-                issues.append(_issue("RELIEF_NO_TANK_RETURN", f"Relief valve {cid} T has no return path to tank.", scope="safety", related=[cid]))
+                issues.append(_issue("RELIEF_NO_TANK_RETURN", f"Relief valve {cid}.T has no path to Tank.R.", scope="safety", related=[cid]))
         elif comp_type == "dcv":
             if (cid, "P") not in pressure_reach:
-                issues.append(_issue("DCV_NO_PRESSURE_SUPPLY", f"DCV {cid} P is not reachable from pump pressure.", related=[cid]))
+                issues.append(_issue("DCV_NO_PRESSURE_SUPPLY", f"DCV {cid}.P is not reachable from Pump.P.", related=[cid]))
             if (cid, "T") not in return_reach:
-                issues.append(_issue("DCV_NO_TANK_RETURN", f"DCV {cid} T has no return path to tank.", related=[cid]))
-        elif comp_type == "pump":
-            if (cid, "S") not in suction_reach:
-                issues.append(_issue("PUMP_NO_SUCTION_PATH", f"Pump {cid} S is not reachable from tank suction.", related=[cid]))
-            if "L" in entry.get("ports", []) and (cid, "L") not in return_reach:
-                issues.append(_issue("PUMP_CASE_DRAIN_NOT_TO_TANK", f"Pump {cid} case drain L is not reachable to tank return/drain.", related=[cid]))
+                issues.append(_issue("DCV_NO_TANK_RETURN", f"DCV {cid}.T has no path to Tank.R.", related=[cid]))
+        elif comp_type == "pump" and (cid, "S") not in suction_reach:
+            issues.append(_issue("PUMP_NO_SUCTION_PATH", f"Pump {cid}.S is not reachable from Tank.S.", related=[cid]))
 
     dcv_work_nodes = [
         (cid, port)
@@ -393,7 +349,7 @@ def validate_topology(
     for cid, entry in entry_by_id.items():
         if entry.get("type") != "cylinder":
             continue
-        for port in ("A", "B"):
+        for port in ("Cap", "Rod"):
             if (cid, port) not in work_reach:
                 issues.append(_issue("ACTUATOR_PORT_NOT_CONTROLLED", f"Cylinder {cid}.{port} is not reachable from a DCV work port.", related=[cid, port]))
     connectivity_codes = {
@@ -402,106 +358,43 @@ def validate_topology(
         "DCV_NO_PRESSURE_SUPPLY",
         "DCV_NO_TANK_RETURN",
         "PUMP_NO_SUCTION_PATH",
-        "PUMP_CASE_DRAIN_NOT_TO_TANK",
         "ACTUATOR_PORT_NOT_CONTROLLED",
     }
     checks.append(
         ValidationCheck(
-            name="hydraulic_path_reachability",
+            name="functional_path_reachability",
             passed=not any(item.code in connectivity_codes for item in issues),
-            details="Suction, pressure, relief, return, drain, and both actuator work paths checked.",
+            details="Suction, pressure, relief, return and both actuator work paths checked across possible valve states.",
         )
     )
 
-    max_pressure = _max_pressure(requirements)
-    high_pressure_lines = {"pressure", "work", "pilot"}
-    if max_pressure is not None:
-        for cid, entry in entry_by_id.items():
-            rating = pressure_rating(entry)
-            if rating is None or not endpoint_lines[cid].intersection(high_pressure_lines):
-                continue
-            if rating + 1e-9 < max_pressure:
-                issues.append(
-                    _issue(
-                        "PRESSURE_RATING_TOO_LOW",
-                        f"{cid} is exposed to the {max_pressure:g} bar envelope but its catalog rating is {rating:g} bar.",
-                        scope="selection",
-                        related=[cid],
-                    )
-                )
-    checks.append(
-        ValidationCheck(
-            name="catalog_pressure_envelope",
-            passed=not any(item.code == "PRESSURE_RATING_TOO_LOW" for item in issues),
-            details="Known catalog pressure ratings were compared with the stated system ceiling on high-pressure paths.",
-        )
-    )
-
-    pump_flow = sum(
-        float(entry.get("params", {}).get("flow_lpm", 0) or 0)
-        for entry in entry_by_id.values()
-        if entry.get("type") == "pump"
-    )
-    if pump_flow > 0:
-        for cid, entry in entry_by_id.items():
-            if entry.get("type") not in {"dcv", "relief_valve", "pilot_check_valve", "sequence_valve", "flow_divider_combiner"}:
-                continue
-            rating = flow_rating(entry)
-            if rating is not None and rating + 1e-9 < pump_flow:
-                issues.append(
-                    _issue(
-                        "FLOW_RATING_TOO_LOW",
-                        f"{cid} is rated {rating:g} L/min but selected pump flow can reach {pump_flow:g} L/min.",
-                        scope="selection",
-                        related=[cid],
-                    )
-                )
-    checks.append(
-        ValidationCheck(
-            name="basic_catalog_flow_compatibility",
-            passed=not any(item.code == "FLOW_RATING_TOO_LOW" for item in issues),
-            details="Known controlling-valve flow ratings were compared with selected catalog pump flow.",
-        )
-    )
-
-    max_system_pressure = _max_pressure(requirements)
-    cylinders_by_function: dict[str, list[tuple[str, dict[str, Any]]]] = defaultdict(list)
+    cylinders_by_function: dict[str, list[str]] = defaultdict(list)
     for component in components:
-        cid = component.get("id")
-        entry = entry_by_id.get(cid)
-        if entry and entry.get("type") == "cylinder" and component.get("function_id"):
-            cylinders_by_function[component["function_id"]].append((cid, entry))
-    for function in requirements.get("functions", []):
+        if component.get("comp_type") == "cylinder" and component.get("function_id"):
+            cylinders_by_function[component["function_id"]].append(component["id"])
+    for function in linear_functions:
         fid = function.get("id")
-        selected = cylinders_by_function.get(fid, [])
-        if function.get("actuator_type") == "linear" and not selected:
-            issues.append(_issue("FUNCTION_HAS_NO_ACTUATOR", f"Function {fid!r} has no cylinder assigned by function_id.", scope="selection", related=[fid]))
-            continue
-        travel = (function.get("total_travel") or {}).get("value")
-        if isinstance(travel, (int, float)):
-            short = [cid for cid, entry in selected if isinstance(entry.get("params", {}).get("stroke_mm"), (int, float)) and entry["params"]["stroke_mm"] < travel]
-            if short:
-                issues.append(_issue("CYLINDER_STROKE_TOO_SHORT", f"Function {fid!r} needs {travel:g} mm but selected cylinder(s) are too short: {short}.", scope="selection", related=[fid, *short]))
-        force = (function.get("peak_force") or {}).get("value")
-        if isinstance(force, (int, float)) and selected:
-            capacity = sum(filter(None, (_rough_cylinder_force_kN(entry, max_system_pressure) for _, entry in selected)))
-            if capacity and capacity + 1e-9 < force:
-                issues.append(_issue("CYLINDER_FORCE_CAPACITY_TOO_LOW", f"Function {fid!r} needs {force:g} kN; rough selected cap-end capacity at the pressure ceiling is {capacity:.2f} kN.", scope="selection", related=[fid, *(cid for cid, _ in selected)]))
-    checks.append(
-        ValidationCheck(
-            name="basic_actuator_catalog_compatibility",
-            passed=not any(item.code in {"FUNCTION_HAS_NO_ACTUATOR", "CYLINDER_STROKE_TOO_SHORT", "CYLINDER_FORCE_CAPACITY_TOO_LOW"} for item in issues),
-            details="Function assignment, stroke, and rough cap-end force were checked where data were available.",
-        )
-    )
+        if not cylinders_by_function.get(fid):
+            issues.append(
+                _issue(
+                    "FUNCTION_HAS_NO_ACTUATOR",
+                    f"Linear function {fid!r} has no generic cylinder assigned by function_id.",
+                    scope="selection",
+                    related=[fid],
+                )
+            )
 
     drivers = {item.get("capability") for item in requirements.get("derived_design_drivers", [])}
     required_capability_types = {
-        "synchronization": {"flow_divider_combiner"},
         "pressure_compensation_load_independence": {"pressure_comp_flow_control"},
-        "load_holding": {"pilot_check_valve"},
-        "counterbalance_overrunning": {"pilot_check_valve"},
-        "two_speed_force_switching": {"unloading_valve", "position_valve", "sequence_valve", "sequence_manifold"},
+        "load_holding": {"pilot_check_valve", "single_pilot_check_valve"},
+        "counterbalance_overrunning": {"pilot_check_valve", "single_pilot_check_valve"},
+        "two_speed_force_switching": {
+            "position_valve",
+            "sequence_valve",
+            "one_way_flow_control",
+            "pressure_comp_flow_control",
+        },
         "pressure_limiting_stall": {"relief_valve"},
     }
     for capability, acceptable_types in required_capability_types.items():
@@ -509,42 +402,76 @@ def validate_topology(
             issues.append(
                 _issue(
                     "MISSING_DRIVER_CAPABILITY",
-                    f"Derived driver {capability!r} has none of the available implementing types {sorted(acceptable_types)}.",
+                    f"Derived topology driver {capability!r} has none of the implementing classes {sorted(acceptable_types)}.",
                     scope="selection",
                     related=[capability],
                 )
             )
+    if "synchronization" in drivers and not _rigid_mechanical_synchronization(design, requirements, components):
+        issues.append(
+            _issue(
+                "MISSING_SYNCHRONIZATION_MECHANISM",
+                "Synchronization is required but the topology does not document two cylinders acting on the stated rigid shared structure.",
+                scope="selection",
+                related=["synchronization"],
+            )
+        )
 
     sequence = (requirements.get("operational_logic") or {}).get("sequence") or []
     interlocks = (requirements.get("operational_logic") or {}).get("interlocks") or []
-    if (len(sequence) > 1 or interlocks) and not types_present.intersection({"sequence_valve", "sequence_manifold", "position_valve"}):
-        issues.append(_issue("SEQUENCE_NOT_IMPLEMENTED", "The requirements contain ordered/interlocked functions but no hydraulic sequencing component is selected.", scope="selection"))
-
-    original_text = (requirements.get("restated_problem") or "").casefold()
-    no_electrical_sensing = "no electrical" in original_text or "without using an electrical pressure switch" in original_text
-    if no_electrical_sensing:
-        offenders = [
-            cid
-            for cid, entry in entry_by_id.items()
-            if entry.get("params", {}).get("electrical_pressure_switch") is True
-            or "pressure switch" in str(entry.get("summary", "")).casefold()
-        ]
-        if offenders:
-            issues.append(_issue("FORBIDDEN_ELECTRICAL_PRESSURE_SENSING", f"Electrical pressure sensing is forbidden, but selected entries imply it: {offenders}.", scope="selection", related=offenders))
+    sequenced_function_ids = {
+        function_id
+        for step in sequence
+        for function_id in (step.get("function_ids") or [])
+        if function_id
+    }
+    if (len(sequenced_function_ids) > 1 or interlocks) and not types_present.intersection({"sequence_valve", "position_valve"}):
+        issues.append(
+            _issue(
+                "SEQUENCE_NOT_IMPLEMENTED",
+                "Multiple functions are ordered/interlocked but no hydraulic sequence or position-changeover valve is selected.",
+                scope="selection",
+            )
+        )
 
     implemented_ids = {item.get("function_id") for item in design.get("function_implementations", [])}
     missing_implementations = sorted(_function_ids(requirements) - implemented_ids)
     if missing_implementations:
-        issues.append(_issue("MISSING_FUNCTION_TRACEABILITY", f"No function_implementation is provided for: {missing_implementations}.", scope="requirements", related=missing_implementations))
-    blocking_gaps = [gap for gap in design.get("catalog_gaps", []) if gap.get("blocking")]
+        issues.append(
+            _issue(
+                "MISSING_FUNCTION_TRACEABILITY",
+                f"No function_implementation is provided for: {missing_implementations}.",
+                scope="requirements",
+                related=missing_implementations,
+            )
+        )
+    blocking_gaps = [
+        gap
+        for gap in design.get("catalog_gaps", [])
+        if gap.get("blocking") and gap.get("scope", "topology") == "topology"
+    ]
     if blocking_gaps:
-        issues.append(_issue("BLOCKING_CATALOG_GAP", "The design records at least one blocking catalog gap.", scope="selection", related=[gap.get("capability") for gap in blocking_gaps]))
-
+        issues.append(
+            _issue(
+                "BLOCKING_TOPOLOGY_CATALOG_GAP",
+                "The design records at least one blocking generic topology-class gap.",
+                scope="selection",
+                related=[gap.get("capability") for gap in blocking_gaps],
+            )
+        )
+    coverage_codes = {
+        "FUNCTION_HAS_NO_ACTUATOR",
+        "MISSING_DRIVER_CAPABILITY",
+        "MISSING_SYNCHRONIZATION_MECHANISM",
+        "SEQUENCE_NOT_IMPLEMENTED",
+        "MISSING_FUNCTION_TRACEABILITY",
+        "BLOCKING_TOPOLOGY_CATALOG_GAP",
+    }
     checks.append(
         ValidationCheck(
-            name="requirement_and_driver_coverage",
-            passed=not any(item.code in {"MISSING_DRIVER_CAPABILITY", "SEQUENCE_NOT_IMPLEMENTED", "FORBIDDEN_ELECTRICAL_PRESSURE_SENSING", "MISSING_FUNCTION_TRACEABILITY", "BLOCKING_CATALOG_GAP"} for item in issues),
-            details="Derived drivers, sequence constraints, explicit prohibitions, function traceability, and catalog gaps checked.",
+            name="topology_requirement_coverage",
+            passed=not any(item.code in coverage_codes for item in issues),
+            details="Functional assignment, behavior drivers, hydraulic sequencing and topology-scoped gaps checked; all sizing checks are deferred.",
         )
     )
 
@@ -568,4 +495,3 @@ def repair_scope(issues: list[dict[str, Any]] | list[TopologyIssue]) -> str:
     if all(item.get("scope") == "wiring" for item in errors):
         return "wiring"
     return "selection"
-

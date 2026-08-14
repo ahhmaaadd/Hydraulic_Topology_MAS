@@ -1,0 +1,598 @@
+{
+  "problem_id": "P7-04",
+  "title": "Hydraulic requirements for load-switched two-speed machine slide",
+  "status": "validated_with_warnings",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Open-circuit hydraulic topology for a machine-slide feed using a catalog-workaround hi-lo supply. Tank.S supplies two fixed-displacement pumps. The high-flow pump feeds the combined pressure line through an unpiloted pilot-operated check used as a plain isolation check, and also feeds a pressure-threshold sequence-valve bypass to tank used as the unavailable unloading-valve workaround. The low-flow pump feeds the combined pressure line directly. The combined pressure line supplies a tandem-center 4/3 DCV and a main relief valve to tank. The DCV drives a double-acting cylinder directly for powered advance and return. All selected hydraulic ports are connected; no electrical or mechanical-drive interfaces are added.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "Open-circuit reservoir boundary providing suction to both pumps and common return for valve returns, relief flow, bypass/unloading flow, and pilot return.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "Tank.S is reused as common suction source for HighFlowPump.S and LowFlowPump.S.",
+        "Tank.R is reused as common sink for ReliefValve.T, DCV.T, SequenceUnloader.A, SequenceUnloader.T, and IsolationCheck.X."
+      ],
+      "selection_basis": "Required open-circuit hydraulic supply/return boundary."
+    },
+    {
+      "id": "HighFlowPump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "High-flow/low-pressure branch of hi-lo supply for rapid approach; unloaded to tank after load-caused pressure rise.",
+      "function_id": "move_machine_slide",
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed-displacement pump instance for the rapid-approach flow portion.",
+        "Outlet feeds the isolation check and the pressure-triggered bypass/unloading path."
+      ],
+      "selection_basis": "Supports simple hi-lo fixed-displacement approach requested by the brief; exact displacement and pressure capability are sizing tasks."
+    },
+    {
+      "id": "LowFlowPump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "Low-flow branch that remains connected to the combined pressure line for slower working feed after high-flow branch unloading.",
+      "function_id": "move_machine_slide",
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed-displacement pump instance for working-feed flow.",
+        "Outlet connects directly to the combined pressure line feeding the DCV and relief valve."
+      ],
+      "selection_basis": "Provides the residual feed flow after pressure-triggered high-flow branch unloading; exact displacement is a sizing task."
+    },
+    {
+      "id": "IsolationCheck",
+      "catalog_key": "GENERIC_SINGLE_PILOT_OPERATED_CHECK",
+      "name": "Pilot-Operated Check Valve",
+      "comp_type": "single_pilot_check_valve",
+      "role": "Catalog workaround for a plain check valve isolating the combined pressure line from the unloaded high-flow branch.",
+      "function_id": "move_machine_slide",
+      "ports": [
+        "V",
+        "C",
+        "X"
+      ],
+      "configuration": [
+        "V connects to HighFlowPump.P branch and C connects to the combined pressure line so V-to-C is free flow during approach.",
+        "Pilot X is returned to Tank.R so C-to-V reverse flow remains blocked for check-only workaround behavior."
+      ],
+      "selection_basis": "Closest available class for one-way high-flow branch isolation because a plain check_valve class is not available."
+    },
+    {
+      "id": "SequenceUnloader",
+      "catalog_key": "GENERIC_SEQUENCE_VALVE_WITH_REVERSE_CHECK",
+      "name": "Hydraulic Sequence Valve with Reverse Check",
+      "comp_type": "sequence_valve",
+      "role": "Catalog workaround for pressure-operated unloading/bypass of the high-flow pump branch to tank when load pressure rises at workpiece contact.",
+      "function_id": "move_machine_slide",
+      "ports": [
+        "P",
+        "A",
+        "T"
+      ],
+      "configuration": [
+        "P connects to the high-flow pump branch upstream of IsolationCheck.",
+        "A connects to Tank.R as the bypass/unloading outlet.",
+        "T drain connects to Tank.R.",
+        "Threshold behavior represents the load-caused approach-to-feed transition; setting is deferred to sizing/commissioning."
+      ],
+      "selection_basis": "Only available pressure-triggered hydraulic valve suitable as a catalog-level workaround for load-responsive high-flow branch bypass without an electrical pressure switch."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "Main system pressure limiter to tank for the combined pressure line.",
+      "function_id": "move_machine_slide",
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "P connects to the combined pressure line fed by LowFlowPump.P and IsolationCheck.C.",
+        "T connects directly to Tank.R.",
+        "Pressure limit corresponds to the stated maximum system pressure requirement; exact setting validation is a sizing/commissioning task."
+      ],
+      "selection_basis": "Required safety function for overpressure protection and pressure limiting."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "Directional control valve for powered cylinder extension, neutral, and powered retraction.",
+      "function_id": "move_machine_slide",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "P receives combined pump pressure line from LowFlowPump.P and IsolationCheck.C.",
+        "T returns directly to Tank.R.",
+        "A drives Cylinder.Cap for slide advance in the extend state.",
+        "B drives Cylinder.Rod for slide return in the retract state.",
+        "Neutral provides P-to-T pump unloading with A and B blocked; not relied on for hose-burst- or leakage-safe holding."
+      ],
+      "selection_basis": "Provides bidirectional actuator control with a neutral unloading path compatible with fixed-displacement pumps."
+    },
+    {
+      "id": "Cylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Linear actuator for machine slide fast approach, working feed, and full return.",
+      "function_id": "move_machine_slide",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap port connected to DCV.A for extension/advance through the workpiece.",
+        "Rod port connected to DCV.B for retraction/return.",
+        "Stroke/travel realization and areas are deferred to sizing."
+      ],
+      "selection_basis": "Required powered linear actuator for the stated slide motion and return."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "HighFlowPump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Common reservoir suction to high-flow pump."
+    },
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "LowFlowPump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Common reservoir suction to low-flow pump."
+    },
+    {
+      "from_component": "HighFlowPump",
+      "from_port": "P",
+      "to_component": "IsolationCheck",
+      "to_port": "V",
+      "line": "pressure",
+      "notes": "High-flow pump branch feeds the free-flow direction of the isolation check."
+    },
+    {
+      "from_component": "HighFlowPump",
+      "from_port": "P",
+      "to_component": "SequenceUnloader",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "High-flow pump branch also feeds the pressure-triggered bypass/unloader inlet."
+    },
+    {
+      "from_component": "IsolationCheck",
+      "from_port": "C",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Checked high-flow branch outlet connects to the combined pressure line feeding the DCV."
+    },
+    {
+      "from_component": "LowFlowPump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Low-flow pump outlet connects directly to the combined pressure line feeding the DCV."
+    },
+    {
+      "from_component": "IsolationCheck",
+      "from_port": "C",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Checked high-flow contribution is connected to the combined pressure line protected by the relief valve."
+    },
+    {
+      "from_component": "LowFlowPump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Low-flow pump outlet is connected to the combined pressure line protected by the relief valve."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief valve discharges overpressure flow directly to tank return."
+    },
+    {
+      "from_component": "SequenceUnloader",
+      "from_port": "A",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Sequence/unloader bypass outlet returns high-flow branch flow to tank after threshold opens."
+    },
+    {
+      "from_component": "SequenceUnloader",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "drain",
+      "notes": "Sequence/unloader drain returns directly to tank."
+    },
+    {
+      "from_component": "IsolationCheck",
+      "from_port": "X",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "pilot",
+      "notes": "Pilot port is returned to tank so the pilot-operated check behaves as an uncommanded check valve."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "DCV tank port returns actuator flow and neutral unloading flow to tank."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "Cylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "DCV work port A drives cylinder cap end for extension/advance."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "B",
+      "to_component": "Cylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "DCV work port B drives cylinder rod end for retraction/return."
+    }
+  ],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "move_machine_slide",
+      "component_ids": [
+        "Tank",
+        "HighFlowPump",
+        "LowFlowPump",
+        "DCV",
+        "Cylinder"
+      ],
+      "circuit_pattern": "Open-circuit supply with 4/3 directional control of a double-acting cylinder.",
+      "how_requirements_met": "Tank supplies both pumps; combined pump pressure feeds DCV.P; DCV.A connects to Cylinder.Cap for powered advance and DCV.B connects to Cylinder.Rod for powered return."
+    },
+    {
+      "function_id": "move_machine_slide",
+      "component_ids": [
+        "HighFlowPump",
+        "LowFlowPump",
+        "SequenceUnloader",
+        "IsolationCheck"
+      ],
+      "circuit_pattern": "Catalog-workaround hi-lo hydraulic two-speed feed with pressure-triggered unloading.",
+      "how_requirements_met": "Both pump flows combine during low-load approach through LowFlowPump.P and IsolationCheck.C. When resisting load raises pressure, SequenceUnloader opens the high-flow branch to Tank.R and IsolationCheck blocks reverse flow from the combined pressure line, leaving LowFlowPump to provide slower working feed."
+    },
+    {
+      "function_id": "move_machine_slide",
+      "component_ids": [
+        "ReliefValve",
+        "Tank"
+      ],
+      "circuit_pattern": "Relief-limited open-circuit pressure supply.",
+      "how_requirements_met": "ReliefValve.P is connected to the combined pressure line and ReliefValve.T returns to Tank.R, providing system pressure limiting during overpressure or stall conditions."
+    },
+    {
+      "function_id": "move_machine_slide",
+      "component_ids": [
+        "DCV"
+      ],
+      "circuit_pattern": "4/3 tandem-center directional valve control.",
+      "how_requirements_met": "DCV extend state connects P-A and B-T; retract state connects P-B and A-T; neutral connects P-T with A and B blocked for fixed-pump neutral unloading, while not being treated as safety-rated load holding."
+    },
+    {
+      "function_id": "move_machine_slide",
+      "component_ids": [
+        "Cylinder"
+      ],
+      "circuit_pattern": "Double-acting linear actuation.",
+      "how_requirements_met": "Cylinder converts hydraulic flow to linear slide motion; Cap side is used for advance and Rod side for return. Bore, rod, stroke, and speed/force sizing are deferred."
+    },
+    {
+      "function_id": "no_electrical_pressure_switch_for_speed_change",
+      "component_ids": [
+        "SequenceUnloader"
+      ],
+      "circuit_pattern": "Hydraulic pressure-threshold speed change.",
+      "how_requirements_met": "The approach-to-working-feed phase change is performed by a hydraulic pressure-threshold valve connected to the high-flow pump branch rather than by an electrical pressure switch."
+    },
+    {
+      "function_id": "conditional_overrunning_load_holding",
+      "component_ids": [],
+      "circuit_pattern": null,
+      "how_requirements_met": "No load-holding element is selected in the current topology because no suspended, overrunning, no-creep, hose-burst retention, or power-loss holding requirement is stated. If later orientation or load data show vertical/inclined/aiding-gravity/overrunning behavior, suitable actuator load holding must be added."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use two fixed-displacement pump instances as a hi-lo supply.",
+      "rationale": "Combined flow supports fast approach, and the low-flow pump remains as the working-feed source after the high-flow branch is unloaded. The brief prefers a simple fixed-displacement supply and gives no explicit standby efficiency requirement.",
+      "driven_by": [
+        "move_machine_slide",
+        "load_dependent_approach_to_working_feed_speed_change"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884234/chapter-9-relief-and-unloading-pressure-controls"
+      ]
+    },
+    {
+      "decision": "Use a 4/3 tandem-center DCV for actuator control.",
+      "rationale": "It provides extend, retract, and neutral states. Tandem-center neutral gives pump-to-tank unloading compatible with fixed-displacement pumps, while the blocked work ports are not treated as safety-rated holding.",
+      "driven_by": [
+        "move_machine_slide"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves",
+        "https://www.mobilehydraulictips.com/from-the-basic-to-advanced-selecting-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Use a double-acting cylinder directly connected to DCV work ports.",
+      "rationale": "A double-acting actuator provides powered advance and powered return for the machine slide. The normal hookup uses DCV.A to the cap end and DCV.B to the rod end.",
+      "driven_by": [
+        "move_machine_slide"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Implement load-responsive fast-to-feed transition hydraulically with a hi-lo topology.",
+      "rationale": "Both pump flows combine at low load. Load-pressure rise opens a pressure-threshold high-flow bypass to tank so the low-flow pump alone continues working feed. This avoids an electrical pressure-switch-commanded changeover.",
+      "driven_by": [
+        "move_machine_slide",
+        "no_electrical_pressure_switch_for_speed_change"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884234/chapter-9-relief-and-unloading-pressure-controls",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884184/chapter-14-sequence-valves-and-reducing-valves"
+      ]
+    },
+    {
+      "decision": "Use GENERIC_SEQUENCE_VALVE_WITH_REVERSE_CHECK as the high-flow unloading workaround.",
+      "rationale": "The catalog does not include an unloading_valve. The sequence valve is the closest available pressure-triggered hydraulic element for representing high-flow branch bypass to tank, but detailed validation is required.",
+      "driven_by": [
+        "move_machine_slide",
+        "no_electrical_pressure_switch_for_speed_change"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884234/chapter-9-relief-and-unloading-pressure-controls",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884184/chapter-14-sequence-valves-and-reducing-valves"
+      ]
+    },
+    {
+      "decision": "Use GENERIC_SINGLE_PILOT_OPERATED_CHECK as the high-flow branch isolation workaround.",
+      "rationale": "The catalog does not include a plain check valve. Connecting V to the high-flow branch, C to the combined line, and X to tank preserves free V-to-C flow and blocks reverse C-to-V flow for the intended check-only behavior.",
+      "driven_by": [
+        "move_machine_slide"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884234/chapter-9-relief-and-unloading-pressure-controls"
+      ]
+    },
+    {
+      "decision": "Provide a main relief valve from the combined pressure line to tank.",
+      "rationale": "The relief valve limits system pressure by diverting excess flow from the pressure line to tank; its final setting must satisfy the pressure ceiling and sizing calculations.",
+      "driven_by": [
+        "move_machine_slide",
+        "limit_system_pressure_20_bar"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/02%3A_Power_Units/2.01%3A_Operation_of_a_Hydraulic_Power_Unit",
+        "https://www.relatedfluidpower.com/wp-content/uploads/Related-Fluid-Brochure-for-web.pdf"
+      ]
+    },
+    {
+      "decision": "Do not add actuator load-holding valves in this topology.",
+      "rationale": "The stated load is resistive and no no-creep, suspended-load, hose-burst, power-loss holding, or overrunning-load requirement is stated. This must be revisited if slide orientation or load data change.",
+      "driven_by": [
+        "conditional_overrunning_load_holding"
+      ],
+      "evidence_urls": [
+        "https://www.mobilehydraulictips.com/from-the-basic-to-advanced-selecting-directional-control-valves"
+      ]
+    }
+  ],
+  "catalog_gaps": [
+    {
+      "capability": "Pressure-operated high-flow pump unloading to tank for a hi-lo circuit.",
+      "needed_component_class": "unloading_valve",
+      "reason": "The best functional match for the load-caused fast-to-feed transition is a pressure-operated unloading valve, but unloading_valve is not an available catalog type. The selected sequence valve can represent a pressure-threshold bypass only as a catalog workaround and must be validated by the detailed designer.",
+      "related_function_ids": [
+        "move_machine_slide",
+        "no_electrical_pressure_switch_for_speed_change"
+      ],
+      "chosen_workaround": "GENERIC_SEQUENCE_VALVE_WITH_REVERSE_CHECK used as SequenceUnloader with P on the high-flow branch and A returning to tank.",
+      "scope": "topology",
+      "blocking": false
+    },
+    {
+      "capability": "Plain one-way isolation check after the high-flow pump branch.",
+      "needed_component_class": "check_valve",
+      "reason": "A hi-lo pump circuit normally uses a plain check valve to prevent the low-flow/high-pressure branch from backfeeding the unloaded high-flow branch, but check_valve is not an available catalog type.",
+      "related_function_ids": [
+        "move_machine_slide"
+      ],
+      "chosen_workaround": "GENERIC_SINGLE_PILOT_OPERATED_CHECK used as IsolationCheck with V-to-C free flow and X returned to tank so reverse flow remains blocked.",
+      "scope": "topology",
+      "blocking": false
+    }
+  ],
+  "assumptions": [
+    "SequenceUnloader senses the pressure at its P port internally; no external pilot port is available in the selected catalog metadata.",
+    "Returning IsolationCheck.X to Tank.R is acceptable as the catalog workaround for keeping the pilot-operated check uncommanded.",
+    "The combined pressure line is represented by repeated direct component-to-component edges rather than by a manifold or tee component.",
+    "Exact cylinder areas, pump displacements, relief setting, sequence/unloader setting, and speed/force verification are sizing tasks."
+  ],
+  "open_issues": [
+    "Slide orientation and overrunning-load risk are unspecified. If later found vertical, inclined with aiding gravity, or otherwise overrunning, add suitable actuator load holding; DCV neutral alone is not sufficient for hose-burst- or leakage-safe holding.",
+    "Neutral behavior, emergency-stop behavior, duty cycle, contamination control, cooling, and return-speed expectations are unspecified and may affect later detailed design outside this topology selection.",
+    "The sequence-valve-as-unloader and pilot-check-as-plain-check workarounds require detailed hydraulic validation because the exact unloading_valve and check_valve classes are absent from the catalog.",
+    "Cylinder bore/rod area must be calculated so the required force plus losses is achieved without exceeding the pressure ceiling; pump flows must be selected so combined and low-flow-only operation meet the target approach and working-feed speeds.",
+    "The hydraulic switchover pressure must be derived from actuator area and transition load so unloading does not occur prematurely but switches promptly at workpiece contact."
+  ],
+  "research_audit": {
+    "searches_used": 3,
+    "rounds_used": 1,
+    "selected_unique_sources": 9,
+    "extracted_documents": 9,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 30,
+    "rejected_by_reason": {
+      "lower_rank": 28,
+      "low_quality_source": 11
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "The accumulated evidence is sufficient to proceed with a safe, unambiguous hydraulic topology. The findings include cited guidance for the open-circuit power unit, relief-to-tank overpressure protection, return/filtration/reservoir path, double-acting cylinder with 4-way directional control and neutral-center choices, and a purely hydraulic load-pressure-dependent hi-lo pump/unloading-valve pattern for fast/slow force switching without an electrical pressure switch. Remaining uncertainties are implementation/sizing details rather than topology blockers.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Covered with cited connection guidance for reservoir-to-pump suction, pump outlet to pressure/supply line, relief valve from pressure line/manifold P to tank, directional valve return to reservoir, return-line filtration, and cooling/reservoir functions. Evidence includes textbook and technical citations with explicit excerpts for pump suction/supply, return line, relief valve operation, return filtration, and reservoir/cooling functions.",
+        "evidence_task_ids": [
+          "task_power_unit_relief_return_topology"
+        ]
+      },
+      {
+        "need_id": "function_move_machine_slide_directional_control",
+        "status": "covered",
+        "rationale": "Covered with cited guidance that a double-acting cylinder uses one 4-way directional valve to extend/retract, with A-to-cap and B-to-rod port hookup. Evidence also supports a 3-position 4-way valve for neutral behavior and discusses open-center/tandem-center neutral choices for fixed-displacement pump systems, including leakage/creep limitations relevant to safe neutral design.",
+        "evidence_task_ids": [
+          "task_cylinder_directional_control_neutral"
+        ]
+      },
+      {
+        "need_id": "function_move_machine_slide_motion_profile",
+        "status": "covered",
+        "rationale": "Covered for topology purposes by cited hi-lo circuit guidance: a two-pump arrangement with relief valve, unloading valve, and check valve can provide fast approach, high-force work stroke, and fast return. The evidence supports the essential components and placement principles for automatic pressure-based transition from high-flow/low-pressure travel to low-flow/high-pressure feed. Exact speeds are a sizing task based on cylinder area and pump flow, not a missing topology claim.",
+        "evidence_task_ids": [
+          "task_two_speed_load_dependent_switching"
+        ]
+      },
+      {
+        "need_id": "driver_two_speed_force_switching",
+        "status": "covered",
+        "rationale": "Covered with cited evidence for a purely hydraulic, load-pressure-dependent switching pattern. The hi-lo circuit evidence states that an unloading valve diverts the high-volume/low-pressure pump to tank when system pressure rises above its setting, and that a check valve after the high-volume pump isolates the high-pressure circuit. This directly supports automatic fast/slow switching from load pressure without an electrical pressure switch; the specific 2.5 kN and 12.5 kN transition pressures can be set by cylinder sizing and unloading-valve setting.",
+        "evidence_task_ids": [
+          "task_two_speed_load_dependent_switching"
+        ]
+      },
+      {
+        "need_id": "driver_pressure_limiting_stall",
+        "status": "covered",
+        "rationale": "Covered with cited evidence that a relief valve opens above a preset limit and returns excess fluid to reservoir to maintain safe pressure, plus a catalog example of relief protection from pressure port P to tank T. This supports a main relief valve set to the required 20 bar to limit stall pressure. Achieving 12.5 kN at 20 bar is a cylinder-area sizing requirement, not a separate missing topology pattern.",
+        "evidence_task_ids": [
+          "task_power_unit_relief_return_topology"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Exact actuator bore/rod sizing, pump flow rates, and valve settings must still be calculated to achieve approximately 1.5 m/min at 2.5 kN, 0.5 m/min at 12.5 kN, and 12.5 kN at no more than 20 bar.",
+      "If the slide has vertical or overrunning loads, additional load-holding/counterbalance provisions may be required; the current evidence flags this generally but the machine orientation/load case is unspecified.",
+      "Return filtration, cooling capacity, reservoir sizing, and contamination class are design-sizing/specification tasks not fully resolved by topology research."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "valid",
+    "deterministic": {
+      "verdict": "valid",
+      "issues": [],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "8 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class; accessories and sizing hardware are forbidden."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every generic hydraulic port must participate in at least one direct edge; repeated ports represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator and directional-control functions checked without accessories."
+        },
+        {
+          "name": "functional_path_reachability",
+          "passed": true,
+          "details": "Suction, pressure, relief, return and both actuator work paths checked across possible valve states."
+        },
+        {
+          "name": "topology_requirement_coverage",
+          "passed": true,
+          "details": "Functional assignment, behavior drivers, hydraulic sequencing and topology-scoped gaps checked; all sizing checks are deferred."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "valid",
+      "design_issues": [
+        {
+          "code": "CATALOG_WORKAROUND_UNLOADING_VALIDATION",
+          "severity": "warning",
+          "scope": "selection",
+          "description": "The hydraulic two-speed concept is functionally appropriate, but the selected SequenceUnloader is a sequence-valve workaround for a true hi-lo unloading valve. The topology is acceptable only if this generic sequence-valve implementation can act as a stable pressure-threshold bypass/unloader for the high-flow pump branch after workpiece-contact pressure rise, rather than reclosing/hunting or reintroducing high-flow feed. This is a functional validation item for the workaround, not a sizing issue.",
+          "related": [
+            "SequenceUnloader",
+            "IsolationCheck",
+            "HighFlowPump",
+            "LowFlowPump",
+            "move_machine_slide"
+          ]
+        }
+      ],
+      "summary": "No blocking functional topology errors found. The circuit provides open-circuit suction/return paths, combined hi-lo pump supply, pressure limiting to tank, powered extend/retract through a 4/3 DCV and double-acting cylinder, and a hydraulic load-pressure-caused fast-approach to slow-feed transition without an electrical pressure switch. Load holding is not required for the stated resistive, orientation-unspecified slide duty. The only concern is the recorded catalog workaround for the unloading valve, which must truly support stable high-flow branch unloading."
+    },
+    "repair_scope": "none",
+    "topology_round": 1,
+    "summary": "Deterministic validation: valid. Engineering review: valid. No blocking functional topology errors found. The circuit provides open-circuit suction/return paths, combined hi-lo pump supply, pressure limiting to tank, powered extend/retract through a 4/3 DCV and double-acting cylinder, and a hydraulic load-pressure-caused fast-approach to slow-feed transition without an electrical pressure switch. Load holding is not required for the stated resistive, orientation-unspecified slide duty. The only concern is the recorded catalog workaround for the unloading valve, which must truly support stable high-flow branch unloading."
+  }
+}

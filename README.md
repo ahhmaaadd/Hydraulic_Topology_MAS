@@ -10,10 +10,12 @@ For each problem it:
 3. ranks sources, extracts the best unique documents, and verifies claim-level
    evidence before creating targeted follow-ups;
 4. synthesizes buildable circuit patterns with citations;
-5. lets a catalog-aware designer inspect and select exact component keys using
-   tools;
-6. builds exact port-to-port connections;
-7. runs deterministic catalog/netlist checks plus an LLM engineering review;
+5. lets a catalog-aware designer inspect and select generic functional class
+   keys using tools;
+6. builds direct component-to-component port connections, with shared endpoints
+   representing branches;
+7. runs deterministic class/port/path checks plus a topology-only LLM
+   engineering review;
 8. repairs selection or wiring errors until valid or the configured repair
    limit is reached; and
 9. prints every stage and the final selected components/connections in detail.
@@ -25,12 +27,25 @@ frontend are deliberately not included.
 
 ## What “validated” means
 
-A valid result means the topology is structurally and behaviorally coherent at
-the available catalog level. It does **not** mean fabrication-ready. Detailed
-sizing, dynamic simulation, pressure-loss and thermal analysis, cylinder
-buckling, fatigue, hose routing, functional safety, and formal risk assessment
-remain downstream work. Every selected part carries a
-`requires_sizing_verification` flag.
+A valid result means the generic component functions, valve states and direct
+port connectivity are structurally and behaviorally coherent. It does **not**
+mean fabrication-ready. Pump and cylinder sizing, pressure/flow ratings,
+reservoir volume, line selection, filters, cooling, prime mover, dynamic
+simulation, pressure-loss and thermal analysis, structural checks, hose routing,
+functional safety and formal risk assessment remain downstream work.
+
+The runtime catalog contains only topology-changing classes. It deliberately
+excludes manifolds, tees, pipes/hoses, filters/strainers, coolers, gauges,
+temperature/level devices, breathers, motors, couplings, shafts and pressure
+switches. Branches use repeated endpoints, for example:
+
+```text
+Tank.S -> Pump.S
+Pump.P -> Relief Valve.P
+Relief Valve.T -> Tank.R
+Pump.P -> DCV.P
+DCV.T -> Tank.R
+```
 
 ## Install on Windows PowerShell
 
@@ -171,10 +186,11 @@ python -m pytest
 | --- | --- |
 | `hydraulic_mas/graph.py` | LangGraph nodes, edges, research loop, and repair routing |
 | `hydraulic_mas/schemas.py` | Pydantic contracts through final topology |
-| `hydraulic_mas/prompts.py` | Adapted prompts plus research-coverage and exact-selection rules |
-| `hydraulic_mas/catalog.py` | Read-only catalog index and designer tools |
-| `hydraulic_mas/validation.py` | Deterministic catalog, port, path, rating, and requirement checks |
+| `hydraulic_mas/prompts.py` | Adapted prompts plus research coverage and topology-only selection rules |
+| `hydraulic_mas/catalog.py` | Read-only generic class index and designer tools |
+| `hydraulic_mas/validation.py` | Deterministic generic-key, port, path, scope, and function checks |
 | `hydraulic_mas/terminal.py` | Detailed Rich terminal rendering |
+| `CHANGES.md` | Run diagnosis and this topology-only revision record |
 | `docs/ARCHITECTURE.md` | Design decisions and boundaries |
 | `docs/FLOW.md` | Exact execution and state flow |
 

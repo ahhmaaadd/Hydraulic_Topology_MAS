@@ -23,7 +23,7 @@ NODE_TITLES = {
     "research_failure": "Research Gate Blocked",
     "synthesize_research": "8. Research Synthesizer",
     "curate_design_brief": "9. Design-Brief Curator",
-    "plan_components": "10. Catalog-Aware Component Designer",
+    "plan_components": "10. Generic Topology Component Designer",
     "build_netlist": "11. Port-Level Netlist Builder",
     "validate_topology": "12. Deterministic + Engineering Validator",
     "finalize_topology": "13. Final Topology Output",
@@ -53,6 +53,7 @@ class TerminalReporter:
             f"{settings.max_documents_per_search} documents per search",
         )
         budget.add_row("Topology repair limit", str(settings.max_topology_rounds))
+        budget.add_row("Output boundary", "generic component classes + direct hydraulic port connections; sizing deferred")
         self.console.print(budget)
 
     def node_update(self, update: dict[str, Any]) -> None:
@@ -169,23 +170,36 @@ class TerminalReporter:
         style = "green" if status == "validated" else "yellow" if status == "validated_with_warnings" else "red"
         self.console.print(Panel(str(output.get("design_narrative", "")), title=f"Final status: {status}", border_style=style))
 
-        components = Table("ID", "Catalog key", "Type", "Role", "Manufacturer", "Sizing check", show_lines=True)
-        for component in output.get("selected_components", []):
+        selected = output.get("selected_components", [])
+        components = Table("ID", "Component class", "Generic key", "Type", "Functional role", show_lines=True)
+        for component in selected:
             components.add_row(
                 str(component.get("id")),
+                str(component.get("name")),
                 str(component.get("catalog_key")),
                 str(component.get("comp_type")),
                 str(component.get("role")),
-                str(component.get("manufacturer") or "—"),
-                "required" if component.get("requires_sizing_verification") else "not flagged",
             )
         self.console.print(components)
 
-        connections = Table("From", "To", "Line", "Notes", show_lines=True)
+        name_counts: dict[str, int] = {}
+        for component in selected:
+            name = str(component.get("name") or component.get("id"))
+            name_counts[name] = name_counts.get(name, 0) + 1
+        labels: dict[str, str] = {}
+        for component in selected:
+            component_id = str(component.get("id"))
+            name = str(component.get("name") or component_id)
+            labels[component_id] = name if name_counts[name] == 1 else f"{name} [{component_id}]"
+
+        self.console.print("[bold]Direct port-to-port topology[/bold]")
+        connections = Table("Connection", "Line", "Purpose", show_lines=True)
         for connection in output.get("connections", []):
+            from_id = str(connection.get("from_component"))
+            to_id = str(connection.get("to_component"))
             connections.add_row(
-                f"{connection.get('from_component')}.{connection.get('from_port')}",
-                f"{connection.get('to_component')}.{connection.get('to_port')}",
+                f"{labels.get(from_id, from_id)}.{connection.get('from_port')} -> "
+                f"{labels.get(to_id, to_id)}.{connection.get('to_port')}",
                 str(connection.get("line")),
                 str(connection.get("notes") or ""),
             )

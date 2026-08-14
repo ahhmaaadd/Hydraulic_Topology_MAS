@@ -58,11 +58,13 @@ stateDiagram-v2
 
 1. `curate_design_brief` compresses the full spec into circuit-changing facts.
 2. `plan_components` runs a LangChain tool-using agent. It must list catalog
-   types, search/shortlist entries, inspect chosen details, and return exact keys.
+   types, search/shortlist generic classes, inspect chosen states/ports, and
+   return exact generic keys.
    All tool calls and results are printed in the terminal.
-3. `build_netlist` receives only the selected catalog metadata and exact ports.
-   It creates component edges, external interfaces, terminations, function
-   implementations, and evidence-linked decisions.
+3. `build_netlist` receives only the selected class metadata and exact ports. It
+   creates direct component edges, function implementations and evidence-linked
+   decisions. Repeated endpoints represent branches; no manifold or tee is
+   inserted.
 
 The component plan and netlist are separate on purpose: component choice is a
 design judgment; exact port accounting is a mechanical construction task.
@@ -87,18 +89,19 @@ Routing is deterministic:
 
 ## 6. Final terminal output
 
-`finalize_topology` enriches every selected instance from catalog facts:
-manufacturer, part number/status, source URL, ports, role, and sizing-verification
-flag. It prints:
+`finalize_topology` enriches every selected instance only with its generic class
+name, key, type, ports and functional role. It prints:
 
 - final status and narrative;
 - selected-component table;
-- exact connection table;
-- external interfaces and terminations;
+- direct connections in `Component.port -> Component.port` form;
 - function coverage and design decisions;
 - complete research coverage;
 - every deterministic check and engineering issue; and
 - the complete machine-readable JSON.
+
+The final scope statement explicitly defers all component sizing, ratings,
+accessories, line selection, cooling, simulation and fabrication decisions.
 
 Unless `--no-save` is used, the same JSON is written below `runs/`.
 

@@ -7,37 +7,53 @@ from hydraulic_mas.validation import validate_topology
 
 def requirements() -> dict:
     return {
-        "title": "Horizontal slide",
-        "restated_problem": "Move a horizontal slide and limit system pressure.",
+        "title": "Two-stage horizontal slide",
+        "restated_problem": "Move a horizontal slide, change feed by position, and limit system pressure.",
         "functions": [
             {
                 "id": "slide",
                 "actuator_type": "linear",
                 "orientation": "horizontal",
                 "load_type": "resistive",
-                "total_travel": {"value": 300, "unit": "mm"},
-                "peak_force": {"value": 10, "unit": "kN"},
+                "total_travel": {"value": 350, "unit": "mm"},
+                "peak_force": {"value": 35, "unit": "kN"},
                 "holding": {},
             }
         ],
-        "global_constraints": {"max_system_pressure": {"value": 100, "unit": "bar"}},
+        "global_constraints": {"max_system_pressure": {"value": 70, "unit": "bar"}},
         "operational_logic": {"sequence": [], "interlocks": []},
-        "derived_design_drivers": [{"capability": "pressure_limiting_stall"}],
+        "derived_design_drivers": [
+            {"capability": "pressure_limiting_stall"},
+            {"capability": "pressure_compensation_load_independence"},
+            {"capability": "two_speed_force_switching"},
+        ],
     }
 
 
 def valid_topology() -> dict:
     components = [
-        ("T1", "ENGINEERED_Industrial_Reservoir_30L", "tank", "reservoir", None),
-        ("SS1", "ENGINEERED_SuctionScreen", "suction_strainer", "inlet protection", None),
-        ("P1", "Danfoss_GearMe_GR1_3p2cc_1450", "pump", "supply", None),
-        ("RV1", "REXROTH_DBD6_Relief_50L_350bar", "relief_valve", "overpressure protection", None),
-        ("DV1", "REXROTH_4WE6_4_3_Tandem_80L", "dcv", "directional control", "slide"),
-        ("CY1", "Parker_HMI_50_28x300_P100", "cylinder", "slide actuator", "slide"),
-        ("FB1", "ENGINEERED_FillerBreather", "breather", "reservoir breather", None),
+        ("Tank", "GENERIC_TANK", "tank", "reservoir boundary", None),
+        ("Pump", "GENERIC_FIXED_DISPLACEMENT_PUMP", "pump", "hydraulic supply", None),
+        ("ReliefValve", "GENERIC_RELIEF_VALVE", "relief_valve", "overpressure protection", None),
+        ("DCV", "GENERIC_4_3_SOLENOID_TANDEM_DCV", "dcv", "bidirectional control", "slide"),
+        (
+            "FeedControl",
+            "GENERIC_PRESSURE_COMPENSATED_ONE_WAY_FLOW_CONTROL",
+            "pressure_comp_flow_control",
+            "load-independent cutting-feed control",
+            "slide",
+        ),
+        (
+            "PositionBypass",
+            "GENERIC_POSITION_OPERATED_BYPASS",
+            "position_valve",
+            "rapid-to-feed changeover",
+            "slide",
+        ),
+        ("Cylinder", "GENERIC_DOUBLE_ACTING_CYLINDER", "cylinder", "slide actuator", "slide"),
     ]
     return {
-        "design_narrative": "Simple open-circuit slide topology.",
+        "design_narrative": "A direct, topology-only two-stage slide circuit with shared-port branches.",
         "components": [
             {
                 "id": component_id,
@@ -46,32 +62,30 @@ def valid_topology() -> dict:
                 "role": role,
                 "function_id": function_id,
                 "configuration": [],
-                "selection_basis": "Test fixture catalog selection.",
-                "requires_sizing_verification": True,
+                "selection_basis": "Required functional topology class.",
             }
             for component_id, key, comp_type, role, function_id in components
         ],
         "connections": [
-            {"from_component": "T1", "from_port": "S", "to_component": "SS1", "to_port": "IN", "line": "suction"},
-            {"from_component": "SS1", "from_port": "OUT", "to_component": "P1", "to_port": "S", "line": "suction"},
-            {"from_component": "P1", "from_port": "P", "to_component": "DV1", "to_port": "P", "line": "pressure"},
-            {"from_component": "P1", "from_port": "P", "to_component": "RV1", "to_port": "P", "line": "pressure"},
-            {"from_component": "RV1", "from_port": "T", "to_component": "T1", "to_port": "R", "line": "return"},
-            {"from_component": "DV1", "from_port": "T", "to_component": "T1", "to_port": "R", "line": "return"},
-            {"from_component": "P1", "from_port": "L", "to_component": "T1", "to_port": "D", "line": "drain"},
-            {"from_component": "DV1", "from_port": "A", "to_component": "CY1", "to_port": "A", "line": "work"},
-            {"from_component": "DV1", "from_port": "B", "to_component": "CY1", "to_port": "B", "line": "work"},
-            {"from_component": "T1", "from_port": "B", "to_component": "FB1", "to_port": "T", "line": "vent"},
+            {"from_component": "Tank", "from_port": "S", "to_component": "Pump", "to_port": "S", "line": "suction"},
+            {"from_component": "Pump", "from_port": "P", "to_component": "ReliefValve", "to_port": "P", "line": "pressure"},
+            {"from_component": "ReliefValve", "from_port": "T", "to_component": "Tank", "to_port": "R", "line": "return"},
+            {"from_component": "Pump", "from_port": "P", "to_component": "DCV", "to_port": "P", "line": "pressure"},
+            {"from_component": "DCV", "from_port": "T", "to_component": "Tank", "to_port": "R", "line": "return"},
+            {"from_component": "DCV", "from_port": "A", "to_component": "Cylinder", "to_port": "Cap", "line": "work"},
+            {"from_component": "Cylinder", "from_port": "Rod", "to_component": "FeedControl", "to_port": "A", "line": "work"},
+            {"from_component": "FeedControl", "from_port": "B", "to_component": "DCV", "to_port": "B", "line": "work"},
+            {"from_component": "Cylinder", "from_port": "Rod", "to_component": "PositionBypass", "to_port": "P", "line": "work"},
+            {"from_component": "PositionBypass", "from_port": "A", "to_component": "DCV", "to_port": "B", "line": "work"},
         ],
-        "external_interfaces": [
-            {"component_id": "FB1", "port": "AIR", "external_system": "atmosphere", "domain": "atmosphere"}
-        ],
+        "external_interfaces": [],
         "port_terminations": [],
         "function_implementations": [
             {
                 "function_id": "slide",
-                "component_ids": ["DV1", "CY1"],
-                "how_requirements_met": "DV1 commands both CY1 chambers.",
+                "component_ids": ["DCV", "FeedControl", "PositionBypass", "Cylinder"],
+                "circuit_pattern": "position-operated rapid bypass around compensated feed control",
+                "how_requirements_met": "The open bypass gives rapid approach; its position trip leaves the compensated feed path.",
             }
         ],
         "design_decisions": [],
@@ -81,20 +95,38 @@ def valid_topology() -> dict:
     }
 
 
-def test_valid_catalog_netlist_passes() -> None:
+def test_valid_generic_problem_one_topology_passes() -> None:
     report = validate_topology(valid_topology(), requirements())
     assert report.verdict == "valid", [issue.model_dump() for issue in report.issues]
     assert all(check.passed for check in report.checks)
 
 
+def test_problem_one_uses_direct_shared_port_connections() -> None:
+    edges = {
+        (
+            item["from_component"],
+            item["from_port"],
+            item["to_component"],
+            item["to_port"],
+        )
+        for item in valid_topology()["connections"]
+    }
+    assert ("Pump", "P", "ReliefValve", "P") in edges
+    assert ("Pump", "P", "DCV", "P") in edges
+    assert ("DCV", "A", "Cylinder", "Cap") in edges
+    assert ("Cylinder", "Rod", "FeedControl", "A") in edges
+    assert ("Cylinder", "Rod", "PositionBypass", "P") in edges
+    assert not any(component["comp_type"] in {"manifold", "tee"} for component in valid_topology()["components"])
+
+
 def test_invalid_port_and_missing_relief_are_rejected() -> None:
     design = deepcopy(valid_topology())
-    design["connections"][7]["from_port"] = "C"
-    design["components"] = [item for item in design["components"] if item["id"] != "RV1"]
+    design["connections"][5]["from_port"] = "C"
+    design["components"] = [item for item in design["components"] if item["id"] != "ReliefValve"]
     design["connections"] = [
         item
         for item in design["connections"]
-        if item["from_component"] != "RV1" and item["to_component"] != "RV1"
+        if item["from_component"] != "ReliefValve" and item["to_component"] != "ReliefValve"
     ]
     report = validate_topology(design, requirements())
     codes = {issue.code for issue in report.issues}
@@ -103,3 +135,27 @@ def test_invalid_port_and_missing_relief_are_rejected() -> None:
     assert "MISSING_POWER_UNIT_COMPONENT" in codes
 
 
+def test_accessory_or_sizing_component_is_rejected() -> None:
+    design = deepcopy(valid_topology())
+    design["components"].append(
+        {
+            "id": "Cooler",
+            "catalog_key": "NOT_A_GENERIC_CLASS",
+            "comp_type": "cooler",
+            "role": "out-of-scope accessory",
+            "configuration": [],
+            "selection_basis": "Should never be selected in topology phase.",
+        }
+    )
+    report = validate_topology(design, requirements())
+    codes = {issue.code for issue in report.issues}
+    assert "FORBIDDEN_TOPOLOGY_COMPONENT" in codes
+
+
+def test_sizing_values_do_not_affect_topology_verdict() -> None:
+    req = requirements()
+    req["functions"][0]["total_travel"]["value"] = 100000
+    req["functions"][0]["peak_force"]["value"] = 100000
+    req["global_constraints"]["max_system_pressure"]["value"] = 1
+    report = validate_topology(valid_topology(), req)
+    assert report.verdict == "valid", [issue.model_dump() for issue in report.issues]

@@ -1,0 +1,632 @@
+{
+  "problem_id": "P7-06",
+  "title": "Wide Rigid Platen Two-Point Hydraulic Drive Requirements",
+  "status": "unresolved",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Port-level repaired topology implementing the revised series/volume-coupled two-cylinder platen circuit. The open hydraulic power path is Tank.S to Pump.S; Pump.P branches directly to ReliefValve.P and DCV.P; ReliefValve.T and DCV.T return directly to Tank.R. One common 4/3 tandem-center DCV commands the complete actuator circuit. DCV.A connects to LeftCylinder.Cap, LeftCylinder.Rod connects directly to RightCylinder.Cap as the bidirectional synchronizing transfer path, and RightCylinder.Rod connects to DCV.B. In extend, pump flow through DCV.P-A drives the left cap end and left rod-end discharge feeds the right cap end while the right rod end exhausts through DCV.B-T. In retract, pump flow through DCV.P-B drives the right rod end and right cap-end discharge feeds the left rod end while the left cap end exhausts through DCV.A-T. No parallel uncontrolled cylinder work branches, tees, manifolds, hoses, filters, gauges, flow controls, sequence valves, position valves, load-holding valves, electrical interfaces, or mechanical-drive interfaces are instantiated.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "Open-circuit reservoir boundary for pump suction and hydraulic returns.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "Use S as pump suction source.",
+        "Use R as common return sink for relief valve discharge and DCV tank return."
+      ],
+      "selection_basis": "Required open-circuit suction and return boundary."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "Common hydraulic pressure source for both advance and return.",
+      "function_id": "same_pump_advance_and_return",
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed-displacement positive-displacement supply; displacement, flow, and drive power are deferred to sizing.",
+        "Same pump supplies both advance and return strokes through the common DCV."
+      ],
+      "selection_basis": "The brief prefers a fixed-displacement pump where it can satisfy pressure, flow, synchronization, and return-speed requirements."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "Main system overpressure protection.",
+      "function_id": "system_overpressure_protection",
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Normally closed P-to-T pressure limiter.",
+        "Set and verify in sizing/setting phase so system pressure does not exceed the required 80 bar maximum."
+      ],
+      "selection_basis": "Required to limit maximum system pressure and protect against stall or blocked flow."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "Single common directional command valve for the series-coupled platen cylinders.",
+      "function_id": "common_platen_directional_control",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "One common valve controls both left and right drive points; no independent left/right directional valve is provided.",
+        "Extend state: P-A and B-T, driving the series path from LeftCylinder.Cap through LeftCylinder.Rod to RightCylinder.Cap, with RightCylinder.Rod exhausting to tank through B-T.",
+        "Retract state: P-B and A-T, driving RightCylinder.Rod and transferring RightCylinder.Cap discharge to LeftCylinder.Rod, with LeftCylinder.Cap exhausting to tank through A-T.",
+        "Neutral state: P-T with A and B blocked; unloads the fixed pump while not representing special no-creep or power-loss holding protection.",
+        "Solenoid operation is a valve property only; electrical controls are outside this hydraulic topology."
+      ],
+      "selection_basis": "Four-way bidirectional control is required for double-acting cylinders; one common 3-position valve prevents independent directional operation and supports the series-coupled extend/retract paths."
+    },
+    {
+      "id": "LeftCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Left linear drive point and upstream actuator in the extend-direction series synchronization path.",
+      "function_id": "left_platen_drive",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Double-acting actuator with Cap and Rod ports.",
+        "Cap port connected to DCV.A.",
+        "Rod port directly connected to RightCylinder.Cap as the bidirectional synchronizing transfer path.",
+        "Mechanically joined to RightCylinder by the same rigid platen as a design condition.",
+        "Effective area matching, travel, force, leakage, and timing checks are deferred to sizing without inventing a per-side load split."
+      ],
+      "selection_basis": "Provides powered left-side extension/retraction and participates in the series hydraulic volume-coupling that prevents the prior uncontrolled parallel-cylinder topology."
+    },
+    {
+      "id": "RightCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Right linear drive point and downstream actuator in the extend-direction series synchronization path.",
+      "function_id": "right_platen_drive",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Double-acting actuator with Cap and Rod ports.",
+        "Cap port directly connected to LeftCylinder.Rod as the bidirectional synchronizing transfer path.",
+        "Rod port connected to DCV.B.",
+        "Mechanically joined to LeftCylinder by the same rigid platen as a design condition.",
+        "Effective area matching, travel, force, leakage, and timing checks are deferred to sizing without inventing a per-side load split."
+      ],
+      "selection_basis": "Provides powered right-side extension/retraction and participates in the series hydraulic volume-coupling that prevents the prior uncontrolled parallel-cylinder topology."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Reservoir suction outlet supplies the fixed-displacement pump suction inlet."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branches directly to the main relief valve pressure port."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure feeds the common directional valve pressure port for both advance and return states."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief valve overpressure discharge returns directly to tank."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Directional valve tank port returns actuator exhaust and neutral unload flow directly to tank."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "LeftCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "DCV A work port connects to the left cylinder cap end; it supplies left cap flow during advance and receives left cap exhaust during return."
+    },
+    {
+      "from_component": "LeftCylinder",
+      "from_port": "Rod",
+      "to_component": "RightCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Left cylinder rod end connects directly to right cylinder cap end as the bidirectional inter-cylinder synchronizing transfer path."
+    },
+    {
+      "from_component": "RightCylinder",
+      "from_port": "Rod",
+      "to_component": "DCV",
+      "to_port": "B",
+      "line": "work",
+      "notes": "Right cylinder rod end connects to DCV B; it exhausts through B during advance and receives pump flow through B during return."
+    }
+  ],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "left_platen_drive",
+      "component_ids": [
+        "LeftCylinder",
+        "RightCylinder",
+        "DCV",
+        "Pump",
+        "Tank"
+      ],
+      "circuit_pattern": "Series/volume-coupled two-cylinder platen drive with DCV.A to LeftCylinder.Cap, LeftCylinder.Rod to RightCylinder.Cap, and RightCylinder.Rod to DCV.B.",
+      "how_requirements_met": "In extend, Pump flow through DCV.P-A pressurizes LeftCylinder.Cap; LeftCylinder.Rod discharge is forced into RightCylinder.Cap through the direct transfer path. In retract, RightCylinder.Cap discharge drives LeftCylinder.Rod while LeftCylinder.Cap exhausts through DCV.A-T to Tank. This provides powered left-side platen motion as part of a series-coupled two-actuator topology; geometry, force, volume ratio, leakage, and timing are deferred to sizing."
+    },
+    {
+      "function_id": "right_platen_drive",
+      "component_ids": [
+        "RightCylinder",
+        "LeftCylinder",
+        "DCV",
+        "Pump",
+        "Tank"
+      ],
+      "circuit_pattern": "Series/volume-coupled two-cylinder platen drive with DCV.A to LeftCylinder.Cap, LeftCylinder.Rod to RightCylinder.Cap, and RightCylinder.Rod to DCV.B.",
+      "how_requirements_met": "In extend, LeftCylinder.Rod discharge feeds RightCylinder.Cap through the direct transfer path while RightCylinder.Rod exhausts through DCV.B-T. In retract, Pump flow through DCV.P-B pressurizes RightCylinder.Rod; RightCylinder.Cap discharge feeds LeftCylinder.Rod through the same transfer path. This provides powered right-side platen motion as part of the series-coupled actuator topology; geometry, force, volume ratio, leakage, and timing are deferred to sizing."
+    },
+    {
+      "function_id": "synchronization_safety",
+      "component_ids": [
+        "LeftCylinder",
+        "RightCylinder",
+        "DCV"
+      ],
+      "circuit_pattern": "Hydraulic actuator series connection plus rigid platen design condition.",
+      "how_requirements_met": "The prior uncontrolled parallel A-to-cap and B-to-rod work branches are removed. The only actuator work path is a series hydraulic path: DCV.A to LeftCylinder.Cap, LeftCylinder.Rod to RightCylinder.Cap, and RightCylinder.Rod to DCV.B. Motion of one drive point hydraulically displaces fluid into or out of the other drive point, and both cylinders are mechanically joined by the rigid platen design condition. Matching effective areas, leakage allowances, and allowable differential displacement are sizing/validation tasks."
+    },
+    {
+      "function_id": "common_platen_directional_control",
+      "component_ids": [
+        "DCV",
+        "LeftCylinder",
+        "RightCylinder"
+      ],
+      "circuit_pattern": "Single 4/3 tandem-center DCV controlling the complete series-coupled actuator path.",
+      "how_requirements_met": "One common 4/3 DCV provides extend, neutral, and retract states for the entire actuator path. No separate left and right directional valves are selected, so the two drive points cannot be directionally commanded independently."
+    },
+    {
+      "function_id": "no_independent_drive_point_operation",
+      "component_ids": [
+        "DCV",
+        "LeftCylinder",
+        "RightCylinder"
+      ],
+      "circuit_pattern": "Single continuous series work circuit controlled by one DCV.",
+      "how_requirements_met": "The two actuators are not supplied by independent parallel DCV work branches. They are part of one continuous series work circuit, eliminating separate left/right valve commands and removing the previously invalid uncontrolled parallel-cylinder arrangement."
+    },
+    {
+      "function_id": "same_pump_advance_and_return",
+      "component_ids": [
+        "Pump",
+        "DCV",
+        "LeftCylinder",
+        "RightCylinder"
+      ],
+      "circuit_pattern": "Fixed-displacement pump feeding one bidirectional DCV for both strokes.",
+      "how_requirements_met": "Pump.P feeds DCV.P for both extend and retract states. The DCV routes the same fixed-displacement pump supply to A for advance and to B for return, reversing the series-coupled actuator path without using a separate return pump."
+    },
+    {
+      "function_id": "fastest_same_pump_return",
+      "component_ids": [
+        "Pump",
+        "DCV",
+        "LeftCylinder",
+        "RightCylinder",
+        "Tank"
+      ],
+      "circuit_pattern": "Direct same-pump retraction path with no intentional return-stroke throttling.",
+      "how_requirements_met": "Retract state routes pump flow directly through DCV.P-B to RightCylinder.Rod, through the series transfer path from RightCylinder.Cap to LeftCylinder.Rod, and out LeftCylinder.Cap through DCV.A-T to Tank.R. No return-stroke flow-control throttling, sequence valve, position bypass, or holding valve is selected."
+    },
+    {
+      "function_id": "system_overpressure_protection",
+      "component_ids": [
+        "Pump",
+        "ReliefValve",
+        "Tank"
+      ],
+      "circuit_pattern": "Open hydraulic power unit with main relief valve from pump pressure branch to tank.",
+      "how_requirements_met": "Pump.P is connected directly to ReliefValve.P, and ReliefValve.T returns directly to Tank.R. When pressure exceeds the relief setting, the valve opens P-to-T to limit pressure; the final setting must keep system pressure at or below 80 bar."
+    },
+    {
+      "function_id": "advance_speed_requirement",
+      "component_ids": [
+        "Pump",
+        "DCV",
+        "LeftCylinder",
+        "RightCylinder"
+      ],
+      "circuit_pattern": "Unthrottled series-coupled actuator path sized for required advance motion.",
+      "how_requirements_met": "No adjustable or load-independent speed-control valve is selected. The required 500 mm in 5 s advance is to be achieved by pump and cylinder sizing through the series-coupled actuator path."
+    },
+    {
+      "function_id": "sequence_and_interlocks",
+      "component_ids": [
+        "DCV",
+        "LeftCylinder",
+        "RightCylinder"
+      ],
+      "circuit_pattern": "Simultaneous common-command motion, not a pressure-triggered or position-triggered sequence.",
+      "how_requirements_met": "The left and right drive functions are not ordered as separate hydraulic phases and are not independently sequenced. They move as a coupled series actuator path under one DCV command; therefore no sequence valve or position-changeover valve is required for this selected topology."
+    },
+    {
+      "function_id": "no_special_holding_requirement",
+      "component_ids": [
+        "DCV"
+      ],
+      "circuit_pattern": "Tandem-center DCV with no actuator-mounted holding valves.",
+      "how_requirements_met": "No pilot checks, single pilot checks, hose-burst valves, or special load-holding components are selected. DCV neutral unloads P-to-T while blocking A and B, but this is not represented as special no-creep or power-loss holding protection."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use the catalog fixed-displacement pump rather than a variable-delivery supply.",
+      "rationale": "The brief prioritizes simplicity and does not require variable-delivery standby efficiency. Displacement, flow, and drive power are deferred to sizing; the same pump supplies both advance and return strokes through the common DCV.",
+      "driven_by": [
+        "same_pump_advance_and_return",
+        "left_platen_drive",
+        "right_platen_drive"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/02%3A_Power_Units/2.01%3A_Operation_of_a_Hydraulic_Power_Unit",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-pumps-motors/article/21884136/engineering-essentials-fundamentals-of-hydraulic-pumps",
+        "https://www.powermotiontech.com/hydraulics/reservoirs-accessories/article/21882642/fundamentals-of-hydraulic-reservoirs"
+      ]
+    },
+    {
+      "decision": "Keep the main relief valve connected directly from pump pressure to tank return.",
+      "rationale": "A relief valve on the pump pressure side provides overpressure and stall protection by opening from P to T at its setting. Its setting is a sizing/setting task and must be verified so system pressure does not exceed 80 bar.",
+      "driven_by": [
+        "system_overpressure_protection"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/02%3A_Power_Units/2.01%3A_Operation_of_a_Hydraulic_Power_Unit",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-pumps-motors/article/21884136/engineering-essentials-fundamentals-of-hydraulic-pumps"
+      ]
+    },
+    {
+      "decision": "Use one common 4/3 tandem-center DCV for the complete platen actuator circuit.",
+      "rationale": "Double-acting cylinders require four-way bidirectional control. One common valve provides extend, neutral, and retract states for the series-coupled circuit and prevents independent left/right directional operation. Tandem center unloads the fixed pump in neutral while blocking work ports without claiming special holding performance.",
+      "driven_by": [
+        "common_platen_directional_control",
+        "left_platen_drive",
+        "right_platen_drive",
+        "same_pump_advance_and_return",
+        "no_independent_drive_point_operation"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves",
+        "https://www.mobilehydraulictips.com/from-the-basic-to-advanced-selecting-directional-control-valves",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884338/book-2-chapter-22-synchronizing-cylinder-movement"
+      ]
+    },
+    {
+      "decision": "Change the actuator work circuit from common parallel branches to a series/volume-coupled cylinder circuit.",
+      "rationale": "The invalid topology used simple parallel A-to-cap and B-to-rod branches, which allowed uncontrolled flow sharing. The repaired topology connects DCV.A to LeftCylinder.Cap, LeftCylinder.Rod directly to RightCylinder.Cap, and RightCylinder.Rod to DCV.B so actuator chamber displacement is transferred through a single continuous work path rather than through independent parallel branches.",
+      "driven_by": [
+        "synchronization_safety",
+        "left_platen_drive",
+        "right_platen_drive",
+        "no_independent_drive_point_operation"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884338/book-2-chapter-22-synchronizing-cylinder-movement"
+      ]
+    },
+    {
+      "decision": "Do not add a hydraulic sequence valve or position-operated changeover valve.",
+      "rationale": "The selected left and right drive motions are simultaneous and command-selected by the common DCV, not pressure-triggered or position-triggered multi-actuator phases. The research synthesis also records no supported catalog connection logic for automatic phase transitions or explicit hydraulic interlocks.",
+      "driven_by": [
+        "sequence_and_interlocks",
+        "left_platen_drive",
+        "right_platen_drive",
+        "common_platen_directional_control"
+      ],
+      "evidence_urls": []
+    },
+    {
+      "decision": "Do not add flow controls for the repaired topology.",
+      "rationale": "No adjustable or load-independent speed-control requirement is stated for topology selection. Pump/cylinder sizing is the intended way to achieve the advance time, and omitting throttling preserves the fastest same-pump return path.",
+      "driven_by": [
+        "advance_speed_requirement",
+        "fastest_same_pump_return",
+        "left_platen_drive",
+        "right_platen_drive"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/pneumatics/pneumatic-valves/article/21884324/book-2-chapter-10-flow-control-circuits"
+      ]
+    },
+    {
+      "decision": "Do not add pilot checks or load-holding valves.",
+      "rationale": "No static holding, power-loss holding, no-creep, or hose-burst retention requirement is stated. Adding holding valves would introduce topology not driven by the requirements.",
+      "driven_by": [
+        "no_special_holding_requirement"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves",
+        "https://www.mobilehydraulictips.com/from-the-basic-to-advanced-selecting-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Represent hydraulic branches and transfer paths only with direct component-port edges.",
+      "rationale": "The build rules require direct component-to-component edges and prohibit insertion of manifolds, tees, hoses, line components, filters, gauges, motors, couplings, or shafts. Reusing Pump.P and Tank.R represents supply and return branching; the inter-cylinder transfer is represented by a direct LeftCylinder.Rod to RightCylinder.Cap work edge.",
+      "driven_by": [
+        "system_overpressure_protection",
+        "left_platen_drive",
+        "right_platen_drive",
+        "synchronization_safety"
+      ],
+      "evidence_urls": []
+    }
+  ],
+  "catalog_gaps": [],
+  "assumptions": [
+    "All selected hydraulic ports are functional and connected; no hydraulic port is capped.",
+    "Branching is represented by repeated component-port endpoints rather than by separate tee, manifold, line, or hose components.",
+    "The rigid platen mechanically joins the two cylinders as a design condition, but no mechanical interface or platen component is instantiated in this hydraulic topology.",
+    "Relief valve pressure setting, pump displacement, reservoir capacity, line sizing, cylinder bore/rod/stroke, volume ratio, and flow requirements are sizing or setting tasks, not topology tasks.",
+    "Solenoid actuation of the DCV is treated as a property of the selected generic valve class; no electrical interface is represented."
+  ],
+  "open_issues": [
+    "Sizing/setting phase must select compatible cylinder effective areas for the series volume-coupled synchronization path and verify travel, leakage effects, force capacity, 500 mm in 5 s advance, fastest same-pump return, and maximum 80 bar system pressure without inventing a per-side load split.",
+    "The applicable standard/normal synchronization tolerance is not identified; final acceptance criteria for allowable left-right differential displacement/racking must be defined before validation.",
+    "Platen stiffness, off-center loading, actuator mounting geometry, and individual load sharing remain unspecified and must be resolved before final validation of racking risk.",
+    "Power source, prime mover, filtration, cooling, gauges, reservoir accessories, hoses, pipes, manifolds, and electrical controls are outside the permitted topology catalog and are not represented.",
+    "Cylinder LeftCylinder.Rod is not reachable from a DCV work port.",
+    "Cylinder RightCylinder.Cap is not reachable from a DCV work port.",
+    "Multiple functions are ordered/interlocked but no hydraulic sequence or position-changeover valve is selected.",
+    "The proposed LeftCylinder.Rod-to-RightCylinder.Cap series connection only enforces a chamber-volume relationship, not a proven equal-displacement synchronizer to the required normal/applicable tolerance. Equal 500 mm platen motion would depend on effective-area matching, leakage control, initialization/rephasing, and the rigid platen resisting any mismatch; those are deferred rather than implemented as a topology function. With unequal load sharing or internal leakage, the circuit can accumulate differential motion/racking and does not provide the positive synchronization evidence required by the brief.",
+    "The inter-cylinder transfer volume between LeftCylinder.Rod and RightCylinder.Cap is not directly protected by the main relief valve. In this series topology that line is neither a normal pump-pressure branch nor a normal tank-return branch; it can be pressurized through cylinder area ratios or external/platen loads while the pump relief only senses Pump.P/DCV.P. Therefore the topology does not ensure the stated maximum system pressure of 80 bar for all work volumes in the actuator circuit."
+  ],
+  "research_audit": {
+    "searches_used": 3,
+    "rounds_used": 1,
+    "selected_unique_sources": 9,
+    "extracted_documents": 9,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 25,
+    "rejected_by_reason": {
+      "lower_rank": 30,
+      "low_quality_source": 9
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "Evidence is strong for the basic open hydraulic power unit, main pressure relief/stall limiting, double-acting cylinder directional-control pattern, neutral-center options, basic flow-control placement, and two-cylinder synchronization using a common directional valve plus a motor-type flow divider if needed. However, critical requirements for automatic motion-phase transitions and explicit multi-actuator sequencing/interlocks are not yet supported with cited connection logic. The topology cannot be finalized safely and unambiguously until those claims are researched.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Findings include cited engineering guidance for an open-circuit power unit: reservoir-to-pump suction path with suction filtration/strainer, pump outlet pressure line, relief valve from high-pressure side to tank, actuator return path, return filtration, and reservoir return. Relief valve safety function and placement are supported by verified excerpts from Engineering LibreTexts and Power & Motion Tech.",
+        "evidence_task_ids": [
+          "task_power_unit_relief_return_topology"
+        ]
+      },
+      {
+        "need_id": "function_left_platen_drive_directional_control",
+        "status": "covered",
+        "rationale": "Findings support a double-acting cylinder controlled by a 3-position, 4-way directional valve, with normal A-to-cap and B-to-rod hookup, plus supported center-condition options. For the left side as one of the paired platen cylinders, a common valve work-port branch to both cylinders is supported by cited synchronization-cylinder guidance.",
+        "evidence_task_ids": [
+          "task_two_cylinder_directional_control_pattern"
+        ]
+      },
+      {
+        "need_id": "function_left_platen_drive_motion_profile",
+        "status": "covered",
+        "rationale": "Findings support speed-control principles for the left platen side: pressure-compensated flow control for accurate speed, meter-in placement for resistive controlled advance, meter-out for overrunning loads, and avoidance of unnecessary throttling for fastest return. But the need explicitly requires multi-speed regulation and automatic phase-transition pattern. The accumulated evidence does not cite a topology for automatically switching between rapid approach, controlled/slow advance or pressing, and return based on position, pressure, limit valve, sequence valve, pressure switch, or equivalent control logic.",
+        "evidence_task_ids": [
+          "task_motion_speed_return_profile"
+        ]
+      },
+      {
+        "need_id": "function_right_platen_drive_directional_control",
+        "status": "covered",
+        "rationale": "Same evidence as the left side supports the right platen side: double-acting cylinder, 3-position 4-way directional valve, A-to-cap/B-to-rod connection, and shared work-port branches for simultaneous command of both cylinders.",
+        "evidence_task_ids": [
+          "task_two_cylinder_directional_control_pattern"
+        ]
+      },
+      {
+        "need_id": "function_right_platen_drive_motion_profile",
+        "status": "covered",
+        "rationale": "Findings support general speed-control placement and component classes for controlled advance and fast return, but do not support an automatic multi-speed phase-transition circuit for the right side. The missing claim is how the circuit automatically changes phases/speeds in synchrony with the left side using valves or electrohydraulic logic.",
+        "evidence_task_ids": [
+          "task_motion_speed_return_profile"
+        ]
+      },
+      {
+        "need_id": "system_sequence_and_interlocks",
+        "status": "covered",
+        "rationale": "The common directional valve and shared work-port branching reduce the risk of independently commanding the two platen cylinders, and flow-divider evidence supports synchronized motion. However, the findings do not provide cited guidance for explicit sequence/interlock topology: how preconditions are enforced, how forbidden states are blocked, how phase transitions are gated, or what hydraulic/electrohydraulic components should be placed where to implement such interlocks.",
+        "evidence_task_ids": [
+          "task_two_cylinder_directional_control_pattern"
+        ]
+      },
+      {
+        "need_id": "driver_synchronization",
+        "status": "covered",
+        "rationale": "Findings include cited connection guidance for branching a common directional valve to multiple cylinders and, where tighter synchronization is required, placing a motor-type flow divider between the directional valve and the cylinders. The source also warns that simpler separate pump/valve approaches may let cylinders get out of phase, which supports the selected synchronization topology principles.",
+        "evidence_task_ids": [
+          "task_motion_speed_return_profile",
+          "task_two_cylinder_directional_control_pattern"
+        ]
+      },
+      {
+        "need_id": "driver_pressure_limiting_stall",
+        "status": "covered",
+        "rationale": "Findings support a main relief valve connected from pump pressure/supply to tank and set to the required maximum system pressure, with cited evidence that a fixed-displacement pump at stall/load blockage rises to the relief setting and excess flow is routed to tank. This covers the 80 bar stall pressure-limiting topology, with a heat/cooling caveat noted.",
+        "evidence_task_ids": [
+          "task_power_unit_relief_return_topology"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Missing cited topology for automatic multi-speed phase transition: rapid approach to slow/controlled advance/press and transition to return or stop based on limit/position/pressure conditions.",
+      "Missing cited interlock pattern showing how hydraulic or electrohydraulic logic enforces preconditions and prevents forbidden states between the two platen drive sides and/or phases.",
+      "Existing evidence supports flow-control speed regulation but not the automatic switching logic needed to implement the requested ordered phases."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "invalid",
+    "deterministic": {
+      "verdict": "invalid",
+      "issues": [
+        {
+          "code": "ACTUATOR_PORT_NOT_CONTROLLED",
+          "severity": "error",
+          "scope": "wiring",
+          "description": "Cylinder LeftCylinder.Rod is not reachable from a DCV work port.",
+          "related": [
+            "LeftCylinder",
+            "Rod"
+          ]
+        },
+        {
+          "code": "ACTUATOR_PORT_NOT_CONTROLLED",
+          "severity": "error",
+          "scope": "wiring",
+          "description": "Cylinder RightCylinder.Cap is not reachable from a DCV work port.",
+          "related": [
+            "Cap",
+            "RightCylinder"
+          ]
+        },
+        {
+          "code": "SEQUENCE_NOT_IMPLEMENTED",
+          "severity": "error",
+          "scope": "selection",
+          "description": "Multiple functions are ordered/interlocked but no hydraulic sequence or position-changeover valve is selected.",
+          "related": []
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "6 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class; accessories and sizing hardware are forbidden."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every generic hydraulic port must participate in at least one direct edge; repeated ports represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator and directional-control functions checked without accessories."
+        },
+        {
+          "name": "functional_path_reachability",
+          "passed": false,
+          "details": "Suction, pressure, relief, return and both actuator work paths checked across possible valve states."
+        },
+        {
+          "name": "topology_requirement_coverage",
+          "passed": false,
+          "details": "Functional assignment, behavior drivers, hydraulic sequencing and topology-scoped gaps checked; all sizing checks are deferred."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "invalid",
+      "design_issues": [
+        {
+          "code": "SYNC_SERIES_VOLUME_COUPLING_NOT_POSITIVE",
+          "severity": "error",
+          "scope": "safety",
+          "description": "The proposed LeftCylinder.Rod-to-RightCylinder.Cap series connection only enforces a chamber-volume relationship, not a proven equal-displacement synchronizer to the required normal/applicable tolerance. Equal 500 mm platen motion would depend on effective-area matching, leakage control, initialization/rephasing, and the rigid platen resisting any mismatch; those are deferred rather than implemented as a topology function. With unequal load sharing or internal leakage, the circuit can accumulate differential motion/racking and does not provide the positive synchronization evidence required by the brief.",
+          "related": [
+            "LeftCylinder",
+            "RightCylinder",
+            "DCV",
+            "synchronization_safety",
+            "left_platen_drive",
+            "right_platen_drive"
+          ]
+        },
+        {
+          "code": "INTERSTAGE_PRESSURE_NOT_RELIEVED",
+          "severity": "error",
+          "scope": "safety",
+          "description": "The inter-cylinder transfer volume between LeftCylinder.Rod and RightCylinder.Cap is not directly protected by the main relief valve. In this series topology that line is neither a normal pump-pressure branch nor a normal tank-return branch; it can be pressurized through cylinder area ratios or external/platen loads while the pump relief only senses Pump.P/DCV.P. Therefore the topology does not ensure the stated maximum system pressure of 80 bar for all work volumes in the actuator circuit.",
+          "related": [
+            "ReliefValve",
+            "LeftCylinder.Rod",
+            "RightCylinder.Cap",
+            "system_overpressure_protection"
+          ]
+        },
+        {
+          "code": "SYNC_ACCEPTANCE_CRITERION_UNRESOLVED",
+          "severity": "warning",
+          "scope": "requirements",
+          "description": "The brief requires synchronization to the applicable standard/normal tolerance, but the topology does not identify the applicable tolerance or include a component/arrangement whose synchronization accuracy can be accepted against it. This reinforces the synchronization gap and must be resolved before final acceptance.",
+          "related": [
+            "synchronization_safety",
+            "left_platen_drive",
+            "right_platen_drive"
+          ]
+        }
+      ],
+      "summary": "The basic open-circuit pump, tank, common DCV, and main pump relief concept supports bidirectional actuation with a shared pump and no independent left/right commands. However, the proposed series cylinder circuit does not topologically guarantee the required platen synchronization and leaves the inter-cylinder work volume without direct overpressure protection, so the topology cannot be declared functionally valid."
+    },
+    "repair_scope": "selection",
+    "topology_round": 4,
+    "summary": "Deterministic validation: invalid. Engineering review: invalid. The basic open-circuit pump, tank, common DCV, and main pump relief concept supports bidirectional actuation with a shared pump and no independent left/right commands. However, the proposed series cylinder circuit does not topologically guarantee the required platen synchronization and leaves the inter-cylinder work volume without direct overpressure protection, so the topology cannot be declared functionally valid."
+  }
+}
