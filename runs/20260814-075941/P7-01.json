@@ -1,0 +1,1154 @@
+{
+  "problem_id": "P7-01",
+  "title": "Horizontal machine-tool slide hydraulic system requirements",
+  "status": "unresolved",
+  "scope_statement": "Topology and catalog compatibility were validated. Dynamic simulation, detailed sizing, thermal analysis, structural checks, risk assessment, and fabrication approval are outside this workflow.",
+  "design_narrative": "Repaired port-level topology for the horizontal machine-tool slide using the revised component plan. The design is an open-circuit hydraulic system: tank_01 supplies pump_01 through suction_strainer_01; pump pressure passes through pipe_set_01 to manifold_01.P, where it tees to relief_01, pressure_gauge_01 and dcv_01.P. relief_01 discharges directly to tank_01.R on a dedicated unrestricted return path that bypasses cooler_01 and return_filter_01. Normal DCV return, neutral unload flow and the position-valve tank/drain outlet return through manifold_01.T, cooler_01, return_filter_01 and tank_01.R. During extension, dcv_01 supplies manifold_01.A. The cap-end supply has two parallel paths to cylinder_01.A: a continuously available pressure-compensated feed path through flow_control_feed_01 and a mechanically tripped rapid-bypass path through position_valve_01 from P to A. position_valve_01.T is connected only as a tank/drain outlet, not as a pressurized feed outlet. At 250 mm slide advance, the external cam actuates position_valve_01.MECH to close/drop out the rapid bypass while the feed-control path remains connected, reducing the chance of supply interruption during changeover. During retract, dcv_01 supplies cylinder_01.B through manifold_01.B while cylinder_01.A exhausts through check_valve_return_01 to manifold_01.A and then through the DCV A-to-T path. Pump case drain, tank breathing/accessories, cooler fan power, return-filter indication and mechanical cam input are explicitly represented at listed catalog ports. No electric motor or coupling is instantiated because the selected pump metadata exposes no shaft port; this remains a catalog metadata gap.",
+  "selected_components": [
+    {
+      "id": "tank_01",
+      "catalog_key": "ENGINEERED_Industrial_Reservoir_80L",
+      "name": "ENGINEERED_Industrial_Reservoir_80L",
+      "comp_type": "tank",
+      "role": "Industrial baffled reservoir for suction supply, normal return collection, dedicated relief return collection, case drain collection, breathing and reservoir accessory mounting.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R",
+        "D",
+        "B"
+      ],
+      "manufacturer": "Engineered for benchmark",
+      "part_number": null,
+      "source_url": null,
+      "configuration": [
+        "S is the suction outlet to suction_strainer_01.IN.",
+        "R receives normal filtered return from return_filter_01.OUT and dedicated direct relief return from relief_01.T as separately arranged reservoir return entries/diffusers.",
+        "D receives pump_01.L low-pressure case drain.",
+        "B provides the breather/accessory mounting node for breather_01 and level_temp_01.",
+        "80 L usable volume; final residence time, deaeration and thermal balance require verification."
+      ],
+      "selection_basis": "80 L reservoir gives about 3.2 times the selected 25.056 L/min pump flow and better residence/thermal margin than smaller catalog reservoirs while avoiding unnecessary oversizing.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "breather_01",
+      "catalog_key": "ENGINEERED_FillerBreather",
+      "name": "Filtered filler-breather",
+      "comp_type": "breather",
+      "role": "Filtered tank breathing and filling accessory.",
+      "function_id": null,
+      "ports": [
+        "T",
+        "AIR"
+      ],
+      "manufacturer": "Engineered for benchmark",
+      "part_number": null,
+      "source_url": null,
+      "configuration": [
+        "T connects to tank_01.B.",
+        "AIR breathes to atmosphere through 10 micron media.",
+        "Verify breathing capacity for cylinder differential volume and return transients."
+      ],
+      "selection_basis": "Only catalog breather; appropriate for an open stationary reservoir.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "level_temp_01",
+      "catalog_key": "ENGINEERED_LevelTempGauge",
+      "name": "Reservoir level/temperature gauge",
+      "comp_type": "level_temperature_gauge",
+      "role": "Reservoir oil level and temperature indication.",
+      "function_id": null,
+      "ports": [
+        "T",
+        "OUT"
+      ],
+      "manufacturer": "Engineered for benchmark",
+      "part_number": null,
+      "source_url": null,
+      "configuration": [
+        "T connects to the reservoir accessory/gauge mounting area represented by tank_01.B.",
+        "OUT is visual or maintenance signal indication only."
+      ],
+      "selection_basis": "Only catalog level/temperature gauge; provides service and thermal commissioning indication.",
+      "requires_sizing_verification": false
+    },
+    {
+      "id": "suction_strainer_01",
+      "catalog_key": "ENGINEERED_SuctionScreen",
+      "name": "Reservoir suction screen",
+      "comp_type": "suction_strainer",
+      "role": "Coarse submerged suction screen upstream of pump inlet.",
+      "function_id": null,
+      "ports": [
+        "IN",
+        "OUT"
+      ],
+      "manufacturer": "Engineered for benchmark",
+      "part_number": null,
+      "source_url": null,
+      "configuration": [
+        "IN from tank_01.S.",
+        "OUT to pump_01.S.",
+        "Catalog sizing rule requires rated flow at least 2 times pump flow; verify cold-oil pressure drop and pump inlet margin."
+      ],
+      "selection_basis": "Only catalog suction strainer; protects the open-circuit gear pump inlet.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "pump_01",
+      "catalog_key": "Danfoss_GearMe_GR2_19p2cc_1450",
+      "name": "Danfoss_GearMe_GR2_19p2cc_1450",
+      "comp_type": "pump",
+      "role": "Fixed-displacement catalog pressure-flow source for the slide hydraulic circuit.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "S",
+        "P",
+        "L"
+      ],
+      "manufacturer": "Danfoss Power Solutions",
+      "part_number": "configure to order",
+      "source_url": "https://www.danfoss.com/en/products/dps/pumps/mobile-pumps/gear-pumps/gearme-gear-pumps/",
+      "configuration": [
+        "19.2 cm3/rev at 1450 rpm; catalog calculated flow 25.056 L/min; 250 bar pressure rating.",
+        "S from suction_strainer_01.OUT; P to the main pressure line/manifold; L to tank_01.D low-pressure drain.",
+        "No separate electric_motor or coupling is selected because this pump catalog entry exposes no shaft input port.",
+        "Final driven pump package must preserve the selected flow envelope or provide an approved speed/flow adjustment for exact approach timing."
+      ],
+      "selection_basis": "Smallest catalog pump above the approximately 23.6 L/min rapid-approach cap-flow target. On the selected cylinder annulus, 25.056 L/min gives calculated retract speed above 70 mm/s before losses.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "manifold_01",
+      "catalog_key": "ENGINEERED_Manifold_Baseplate",
+      "name": "Hydraulic manifold/baseplate",
+      "comp_type": "manifold",
+      "role": "Main pressure, normal return, work and accessory galleries for relief branch, gauge, DCV, bypass/feed branches and check bypass.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B",
+        "X",
+        "Y"
+      ],
+      "manufacturer": "Engineered for benchmark",
+      "part_number": null,
+      "source_url": null,
+      "configuration": [
+        "P is the main pressure gallery downstream of pump_01.",
+        "T is the normal DCV/unload return gallery to cooler_01 and return_filter_01 and also receives the low-pressure tank/drain outlet from position_valve_01.T.",
+        "A is the DCV A/extension work gallery feeding flow_control_feed_01.A and position_valve_01.P, and receiving cap-end retract exhaust through check_valve_return_01.",
+        "B is the DCV B/rod-end work gallery.",
+        "X and Y are unused by this non-piloted topology and are capped with rated plugs.",
+        "Relief discharge is not routed through manifold_01.T; relief_01.T goes directly to tank_01.R."
+      ],
+      "selection_basis": "Only catalog manifold; provides compact pressure-rated integration and gallery routing for the selected valves.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "relief_01",
+      "catalog_key": "REXROTH_DBD6_Relief_50L_350bar",
+      "name": "Rexroth DBD6 adjustable direct relief",
+      "comp_type": "relief_valve",
+      "role": "Main overpressure protection from pump pressure gallery directly to reservoir.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "P",
+        "T"
+      ],
+      "manufacturer": "Bosch Rexroth",
+      "part_number": "DBD6, pressure range to suit",
+      "source_url": "https://www.boschrexroth.com/media/79340aa5-c19f-42da-8b94-e1e6b497eb0b",
+      "configuration": [
+        "P connected to manifold_01.P immediately downstream of pump_01.",
+        "T connected directly to tank_01.R by a dedicated unrestricted low-backpressure return that bypasses cooler_01 and return_filter_01.",
+        "Set, test and lock so actual maximum system pressure including relief override, tolerance and direct-return backpressure never exceeds 70 bar.",
+        "50 L/min rating exceeds the selected 25.056 L/min pump flow."
+      ],
+      "selection_basis": "Only catalog relief valve; adjustable 5-350 bar range includes the required pressure ceiling and flow rating exceeds selected pump flow.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "pressure_gauge_01",
+      "catalog_key": "ENGINEERED_PressureGauge_400bar",
+      "name": "Glycerine-filled pressure gauge and test coupling",
+      "comp_type": "pressure_gauge",
+      "role": "Pressure indication/test point for relief commissioning and diagnostics.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "P"
+      ],
+      "manufacturer": "Engineered for benchmark",
+      "part_number": null,
+      "source_url": null,
+      "configuration": [
+        "P connects to manifold_01.P near the relief branch.",
+        "Use during setup to verify the 70 bar maximum-pressure constraint."
+      ],
+      "selection_basis": "Only catalog pressure gauge/test coupling.",
+      "requires_sizing_verification": false
+    },
+    {
+      "id": "dcv_01",
+      "catalog_key": "REXROTH_4WE6_4_3_Tandem_80L",
+      "name": "Rexroth 4WE6 4/3 tandem-centre solenoid DCV",
+      "comp_type": "dcv",
+      "role": "Bidirectional directional control for extend, neutral unload and retract.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "manufacturer": "Bosch Rexroth",
+      "part_number": "4WE6.../EG24",
+      "source_url": "https://www.boschrexroth.com/media/2ef9f5e4-8434-4aac-9ffc-ca7c8617844a",
+      "configuration": [
+        "P from manifold_01.P.",
+        "T to manifold_01.T normal return gallery.",
+        "A to manifold_01.A extension/cap-side work gallery.",
+        "B to manifold_01.B rod-end work gallery.",
+        "Catalog states: energize a gives P-A and B-T; energize b gives P-B and A-T; neutral gives P-T open with A/B blocked.",
+        "24 VDC solenoid commands are supplied by external machine controls; no pressure switch is used for rapid-to-feed changeover. Solenoid terminals are not listed catalog ports and are not fabricated in this topology."
+      ],
+      "selection_basis": "Only catalog DCV; 80 L/min and 350 bar ratings exceed selected flow and pressure. Tandem centre unloads the fixed-displacement pump in neutral.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "cylinder_01",
+      "catalog_key": "Parker_HMI_100_56x350_P70",
+      "name": "Parker_HMI_100_56x350_P70",
+      "comp_type": "cylinder",
+      "role": "Double-acting linear actuator for the horizontal machine-tool slide.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "manufacturer": "Parker Hannifin",
+      "part_number": "100 CJJ HMI ... 350 mm",
+      "source_url": "https://www.parker.com/content/dam/Parker-com/Literature/Atlas-Cylinder/PDF/HY08-M1151_HMI.pdf",
+      "configuration": [
+        "100 mm bore, 56 mm rod, 350 mm stroke, 210 bar rated.",
+        "A is the cap-end port connected to the feed-control outlet, rapid-bypass outlet and rapid-return check bypass.",
+        "B is the rod-end port connected to manifold_01.B/DCV B.",
+        "Mount slide cam/target so position_valve_01.MECH trips at exactly 250 mm advance from the start position.",
+        "Cap area 78.5398 cm2; annulus area 53.9097 cm2."
+      ],
+      "selection_basis": "Required 350 mm stroke and largest catalog bore available. Peak 40.25 kN cutting load requires about 51 bar ideal cap pressure before losses, giving the best catalog pressure margin below the 70 bar ceiling.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "position_valve_01",
+      "catalog_key": "ENGINEERED_Cam3_2_PositionValve_60L",
+      "name": "Roller-cam 3/2 hydraulic position valve",
+      "comp_type": "position_valve",
+      "role": "Mechanically tripped rapid-bypass/dropout valve for automatic rapid-to-feed changeover at 250 mm.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "P",
+        "A",
+        "T",
+        "MECH"
+      ],
+      "manufacturer": "Engineered for benchmark",
+      "part_number": null,
+      "source_url": null,
+      "configuration": [
+        "Use as a rapid-bypass/dropout element only; do not use T as a pressurized cutting-feed outlet.",
+        "P from manifold_01.A/DCV A extension supply upstream of flow_control_feed_01.",
+        "A to cylinder_01.A cap-end node downstream of flow_control_feed_01, forming a parallel bypass around the pressure-compensated feed path.",
+        "T to manifold_01.T as the catalog tank/drain outlet for the 3/2 valve build.",
+        "MECH actuated by slide cam/roller at exactly 250 mm advance.",
+        "Before 250 mm, specified supplier build must provide open rapid bypass P-to-A for rapid approach.",
+        "At 250 mm, specified supplier build must close/drop out the rapid bypass so cap-end supply continues through flow_control_feed_01.",
+        "60 L/min and 315 bar ratings exceed expected branch flow and pressure envelope."
+      ],
+      "selection_basis": "Only catalog mechanically tripped position valve; used in the supported bypass/dropout role rather than the rejected undocumented P-to-T pressure-selector role. Supplier build/state confirmation remains required.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "flow_control_feed_01",
+      "catalog_key": "REXROTH_2FRM6_0p2_32L",
+      "name": "Rexroth 2FRM6 pressure-compensated flow control",
+      "comp_type": "pressure_comp_flow_control",
+      "role": "Continuously available adjustable load-independent cutting-feed metering path on cap-end supply.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "manufacturer": "Bosch Rexroth",
+      "part_number": "2FRM6...QRV, flow range to suit",
+      "source_url": "https://www.boschrexroth.com/media/207e3965-8721-4689-aab8-da8b9dbfd323",
+      "configuration": [
+        "A from manifold_01.A/DCV A extension supply, in parallel with the rapid-bypass path through position_valve_01.",
+        "B to cylinder_01.A cap-end node.",
+        "Set approximately 3.93 to 7.85 L/min for 0.5 to 1.0 m/min extension speed on the 100 mm bore cylinder.",
+        "During rapid approach, position_valve_01 bypass supplies higher flow around this valve; during feed, bypass closes/dropouts and this valve meters cap-end flow.",
+        "Verify compensator differential pressure and 2% catalog pressure-stability performance over 29.75 to 40.25 kN cutting resistance under the 70 bar system ceiling."
+      ],
+      "selection_basis": "Catalog pressure- and temperature-compensated two-way flow control directly matches the load-independent adjustable feed requirement; 0.2-32 L/min range covers the required feed flow.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "check_valve_return_01",
+      "catalog_key": "ENGINEERED_Check_80L_350bar",
+      "name": "Engineered seated check valve 80 L/min",
+      "comp_type": "check_valve",
+      "role": "Free-flow cap-end exhaust bypass around feed and rapid-bypass paths during rapid retract.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "P",
+        "A"
+      ],
+      "manufacturer": "Engineered for benchmark",
+      "part_number": null,
+      "source_url": null,
+      "configuration": [
+        "P connected to cylinder_01.A cap-end node.",
+        "A connected to manifold_01.A/DCV A work gallery.",
+        "Allows cap-end exhaust from cylinder A to the DCV A-to-T path during retract.",
+        "Blocks reverse bypass during extension so extension supply uses the rapid-bypass/feed-control arrangement.",
+        "80 L/min and 350 bar ratings exceed expected return exhaust and pressure envelope."
+      ],
+      "selection_basis": "Only catalog check valve; provides low-restriction reverse-flow path for rapid retract and prevents unwanted extension bypass through the retract path.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "return_filter_01",
+      "catalog_key": "HYDAC_RFM_60Lpm_10um",
+      "name": "HYDAC_RFM_60Lpm_10um",
+      "comp_type": "filter",
+      "role": "Normal return-line filtration before oil returns to reservoir.",
+      "function_id": null,
+      "ports": [
+        "IN",
+        "OUT",
+        "IND"
+      ],
+      "manufacturer": "HYDAC",
+      "part_number": "configure to order",
+      "source_url": "https://www.hydac.com/shop/en/filtration-technology/return-line-filters-tank-mounted",
+      "configuration": [
+        "IN from cooler_01.OUT on the normal DCV/unload return path.",
+        "OUT to tank_01.R.",
+        "IND to maintenance/control indication; not used as a pressure switch for sequencing.",
+        "Do not place this filter in relief_01 discharge path."
+      ],
+      "selection_basis": "60 L/min option gives margin for normal return peaks over the selected pump flow while avoiding the larger 110 L/min option; relief discharge is excluded to avoid safety backpressure.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "cooler_01",
+      "catalog_key": "HYDAC_ACLN_Cooler_42Lpm_5kW",
+      "name": "HYDAC_ACLN_Cooler_42Lpm_5kW",
+      "comp_type": "cooler",
+      "role": "Normal return-line oil cooling for fixed-pump throttling/feed heat.",
+      "function_id": null,
+      "ports": [
+        "IN",
+        "OUT",
+        "FAN"
+      ],
+      "manufacturer": "HYDAC",
+      "part_number": "select from AC-LN curves after ambient check",
+      "source_url": "https://www.hydac.com/download/ac-ln-aca-ln-acaf-ln-1-7-air-cooler-industry-1000451721-en.pdf",
+      "configuration": [
+        "IN from manifold_01.T normal return gallery.",
+        "OUT to return_filter_01.IN.",
+        "FAN supplied by external plant electrical/thermostatic control.",
+        "Do not place cooler in relief_01 discharge path; provide cooler bypass/protection as required by supplier for cold oil and return surges."
+      ],
+      "selection_basis": "42 L/min, 5 kW option provides flow and heat margin over smaller cooler options for the selected 25.056 L/min fixed pump, subject to final thermal verification.",
+      "requires_sizing_verification": true
+    },
+    {
+      "id": "pipe_set_01",
+      "catalog_key": "ENGINEERED_Tube_LineSet_DN16_350bar",
+      "name": "ENGINEERED_Tube_LineSet_DN16_350bar",
+      "comp_type": "pipe",
+      "role": "Engineered DN16 steel tube/line set for pressure, work, normal return, dedicated relief return, drain, suction and accessory hydraulic connections.",
+      "function_id": "machine_tool_slide_motion",
+      "ports": [
+        "IN",
+        "OUT"
+      ],
+      "manufacturer": "Engineered for benchmark",
+      "part_number": null,
+      "source_url": null,
+      "configuration": [
+        "IN and OUT are explicitly used on the main pump-to-manifold pressure run.",
+        "The engineered line-set item also represents layout-specific tubes/fittings for suction, pump pressure, DCV work lines, rapid-bypass/feed branches, check bypass, normal return through cooler/filter, dedicated relief return, pump case drain and gauge/test branch.",
+        "Suction run may require larger or shorter plumbing after inlet-loss verification.",
+        "Dedicated relief return must be short, unrestricted, independently routed to tank and sized so backpressure cannot cause system pressure to exceed 70 bar."
+      ],
+      "selection_basis": "DN16 selected over DN12 to reduce pressure drop and cover selected pump plus transient return flows; pressure rating greatly exceeds the 70 bar system ceiling.",
+      "requires_sizing_verification": true
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "tank_01",
+      "from_port": "S",
+      "to_component": "suction_strainer_01",
+      "to_port": "IN",
+      "line": "suction",
+      "notes": "Reservoir suction outlet to coarse submerged suction screen inlet."
+    },
+    {
+      "from_component": "suction_strainer_01",
+      "from_port": "OUT",
+      "to_component": "pump_01",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Protected pump suction inlet; verify cold-oil inlet restriction."
+    },
+    {
+      "from_component": "pump_01",
+      "from_port": "P",
+      "to_component": "pipe_set_01",
+      "to_port": "IN",
+      "line": "pressure",
+      "notes": "Pump pressure outlet into engineered main pressure line-set run."
+    },
+    {
+      "from_component": "pipe_set_01",
+      "from_port": "OUT",
+      "to_component": "manifold_01",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Main pressure run into manifold pressure gallery."
+    },
+    {
+      "from_component": "pump_01",
+      "from_port": "L",
+      "to_component": "tank_01",
+      "to_port": "D",
+      "line": "drain",
+      "notes": "Pump case drain routed directly to low-pressure reservoir drain connection."
+    },
+    {
+      "from_component": "manifold_01",
+      "from_port": "P",
+      "to_component": "relief_01",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Main pressure gallery tee to relief inlet."
+    },
+    {
+      "from_component": "relief_01",
+      "from_port": "T",
+      "to_component": "tank_01",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Dedicated direct relief return to reservoir; bypasses normal return gallery, cooler and return filter."
+    },
+    {
+      "from_component": "manifold_01",
+      "from_port": "P",
+      "to_component": "pressure_gauge_01",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Gauge/test branch near relief for commissioning and diagnostics."
+    },
+    {
+      "from_component": "manifold_01",
+      "from_port": "P",
+      "to_component": "dcv_01",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Directional valve pressure supply from manifold gallery."
+    },
+    {
+      "from_component": "dcv_01",
+      "from_port": "T",
+      "to_component": "manifold_01",
+      "to_port": "T",
+      "line": "return",
+      "notes": "Directional valve return and tandem-centre unload flow to normal return gallery."
+    },
+    {
+      "from_component": "dcv_01",
+      "from_port": "A",
+      "to_component": "manifold_01",
+      "to_port": "A",
+      "line": "work",
+      "notes": "DCV A work port to extension/cap-end work gallery."
+    },
+    {
+      "from_component": "dcv_01",
+      "from_port": "B",
+      "to_component": "manifold_01",
+      "to_port": "B",
+      "line": "work",
+      "notes": "DCV B work port to rod-end work gallery."
+    },
+    {
+      "from_component": "manifold_01",
+      "from_port": "A",
+      "to_component": "flow_control_feed_01",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Continuously available pressure-compensated feed path inlet from DCV A/manifold A."
+    },
+    {
+      "from_component": "flow_control_feed_01",
+      "from_port": "B",
+      "to_component": "cylinder_01",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Metered cutting-feed branch outlet to cylinder cap-end node."
+    },
+    {
+      "from_component": "manifold_01",
+      "from_port": "A",
+      "to_component": "position_valve_01",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Extension supply to mechanically tripped rapid-bypass/dropout valve inlet."
+    },
+    {
+      "from_component": "position_valve_01",
+      "from_port": "A",
+      "to_component": "cylinder_01",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Rapid approach bypass outlet to the same cylinder cap-end node, in parallel with flow_control_feed_01."
+    },
+    {
+      "from_component": "position_valve_01",
+      "from_port": "T",
+      "to_component": "manifold_01",
+      "to_port": "T",
+      "line": "drain",
+      "notes": "Position-valve tank/drain outlet to normal low-pressure return gallery; not used as a pressurized feed outlet."
+    },
+    {
+      "from_component": "cylinder_01",
+      "from_port": "A",
+      "to_component": "check_valve_return_01",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Cap-end node to check-valve inlet for free cap-end exhaust during retract."
+    },
+    {
+      "from_component": "check_valve_return_01",
+      "from_port": "A",
+      "to_component": "manifold_01",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Check-valve outlet to DCV A/manifold A gallery; permits retract exhaust to A-to-T path and blocks extension bypass."
+    },
+    {
+      "from_component": "manifold_01",
+      "from_port": "B",
+      "to_component": "cylinder_01",
+      "to_port": "B",
+      "line": "work",
+      "notes": "Rod-end work connection; exhausts during extend and is pressure-fed during retract."
+    },
+    {
+      "from_component": "manifold_01",
+      "from_port": "T",
+      "to_component": "cooler_01",
+      "to_port": "IN",
+      "line": "return",
+      "notes": "Normal DCV/unload return gallery and position-valve drain flow to cooler inlet; relief discharge is excluded from this path."
+    },
+    {
+      "from_component": "cooler_01",
+      "from_port": "OUT",
+      "to_component": "return_filter_01",
+      "to_port": "IN",
+      "line": "return",
+      "notes": "Cooled normal return oil to return filter inlet."
+    },
+    {
+      "from_component": "return_filter_01",
+      "from_port": "OUT",
+      "to_component": "tank_01",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Filtered normal return oil to reservoir return inlet."
+    },
+    {
+      "from_component": "tank_01",
+      "from_port": "B",
+      "to_component": "breather_01",
+      "to_port": "T",
+      "line": "vent",
+      "notes": "Reservoir breather/accessory connection to filler-breather tank port."
+    },
+    {
+      "from_component": "tank_01",
+      "from_port": "B",
+      "to_component": "level_temp_01",
+      "to_port": "T",
+      "line": "unspecified",
+      "notes": "Reservoir accessory/gauge mounting represented at shared tank accessory node; physical detail resolved in reservoir layout."
+    }
+  ],
+  "external_interfaces": [
+    {
+      "component_id": "breather_01",
+      "port": "AIR",
+      "external_system": "Atmosphere",
+      "domain": "atmosphere",
+      "notes": "Filtered tank breathing path."
+    },
+    {
+      "component_id": "level_temp_01",
+      "port": "OUT",
+      "external_system": "Operator or maintenance visual/signal indication",
+      "domain": "signal",
+      "notes": "Reservoir level and oil temperature indication."
+    },
+    {
+      "component_id": "position_valve_01",
+      "port": "MECH",
+      "external_system": "Machine slide cam/roller target at 250 mm advance",
+      "domain": "mechanical",
+      "notes": "Mechanical position signal that trips the rapid-bypass/dropout valve at the specified approach distance."
+    },
+    {
+      "component_id": "return_filter_01",
+      "port": "IND",
+      "external_system": "Maintenance indicator or machine control input",
+      "domain": "signal",
+      "notes": "Return-filter clogging indication; not used as sequencing pressure switch."
+    },
+    {
+      "component_id": "cooler_01",
+      "port": "FAN",
+      "external_system": "Plant electrical supply or thermostatic fan controller",
+      "domain": "electrical",
+      "notes": "Cooler fan power/control external to hydraulic topology."
+    }
+  ],
+  "port_terminations": [
+    {
+      "component_id": "manifold_01",
+      "port": "X",
+      "disposition": "capped",
+      "reason": "No external pilot-operated components are selected; pilot gallery is not required and must be closed with a rated plug."
+    },
+    {
+      "component_id": "manifold_01",
+      "port": "Y",
+      "disposition": "capped",
+      "reason": "No external valve drain gallery is required beyond the connected component drain/return paths in this non-piloted topology; unused manifold drain gallery port must be closed with a rated plug."
+    }
+  ],
+  "function_implementations": [
+    {
+      "function_id": "machine_tool_slide_motion",
+      "component_ids": [
+        "tank_01",
+        "suction_strainer_01",
+        "pump_01",
+        "manifold_01",
+        "dcv_01",
+        "cylinder_01",
+        "pipe_set_01"
+      ],
+      "circuit_pattern": "Open-circuit pump source feeding a double-acting slide cylinder through a 4/3 tandem-centre DCV.",
+      "how_requirements_met": "The reservoir and suction screen supply the fixed-displacement pump; pump pressure feeds the manifold and DCV; the DCV selects extend, neutral unload, or retract; the double-acting 350 mm stroke cylinder drives the horizontal slide. External machine controls command extend and retract, while pump-drive packaging is recorded as a catalog metadata gap because pump_01 has no shaft port."
+    },
+    {
+      "function_id": "machine_tool_slide_motion",
+      "component_ids": [
+        "relief_01",
+        "pressure_gauge_01",
+        "manifold_01",
+        "tank_01",
+        "pipe_set_01"
+      ],
+      "circuit_pattern": "Main relief valve from pressure gallery to dedicated direct tank return with pressure gauge verification.",
+      "how_requirements_met": "The relief tees from manifold_01.P and discharges directly to tank_01.R on a dedicated unrestricted return that bypasses cooler_01 and return_filter_01. The relief must be set, derated for override/tolerance/backpressure, tested and locked so measured maximum system pressure cannot exceed 70 bar."
+    },
+    {
+      "function_id": "machine_tool_slide_motion",
+      "component_ids": [
+        "pump_01",
+        "position_valve_01",
+        "cylinder_01",
+        "dcv_01",
+        "manifold_01"
+      ],
+      "circuit_pattern": "Mechanically tripped rapid-bypass/dropout path in parallel with a continuously available feed path.",
+      "how_requirements_met": "During approach, dcv_01 supplies manifold_01.A. Before the 250 mm cam trip, the specified position_valve_01 build provides an open P-to-A rapid bypass from manifold_01.A to cylinder_01.A. Pump flow is close to the required rapid-approach cap-flow target; final approach timing must be commissioned."
+    },
+    {
+      "function_id": "machine_tool_slide_motion",
+      "component_ids": [
+        "position_valve_01",
+        "flow_control_feed_01",
+        "cylinder_01"
+      ],
+      "circuit_pattern": "Position-valve rapid-bypass dropout around pressure-compensated feed control at 250 mm.",
+      "how_requirements_met": "At 250 mm, the slide cam actuates position_valve_01.MECH to close/drop out the rapid bypass. Because flow_control_feed_01 remains continuously connected between manifold_01.A and cylinder_01.A, the feed path does not depend on routing pressurized flow through position_valve_01.T."
+    },
+    {
+      "function_id": "machine_tool_slide_motion",
+      "component_ids": [
+        "flow_control_feed_01",
+        "cylinder_01",
+        "relief_01"
+      ],
+      "circuit_pattern": "Single pressure-compensated adjustable cutting-feed inlet-metering branch.",
+      "how_requirements_met": "flow_control_feed_01 meters approximately 3.93-7.85 L/min for 0.5-1.0 m/min extension and is the only intended metering element in the cutting-feed branch. It provides pressure-compensated feed-speed stability only if supplier data or test results prove sufficient minimum compensator differential remains below the 70 bar pressure ceiling."
+    },
+    {
+      "function_id": "machine_tool_slide_motion",
+      "component_ids": [
+        "position_valve_01",
+        "flow_control_feed_01",
+        "cylinder_01"
+      ],
+      "circuit_pattern": "No-stop changeover workaround using continuously connected feed path plus rapid-bypass dropout.",
+      "how_requirements_met": "The topology removes the prior unproven P-to-T pressurized selector usage. The feed path is present before, during and after position-valve actuation, while the position valve acts only as a bypass/dropout element. Final no-dwell proof still requires supplier confirmation of bypass state/overlap and commissioning at the 250 mm cam point."
+    },
+    {
+      "function_id": "machine_tool_slide_motion",
+      "component_ids": [
+        "dcv_01",
+        "check_valve_return_01",
+        "cylinder_01",
+        "pump_01",
+        "manifold_01"
+      ],
+      "circuit_pattern": "DCV retract state with check-valve cap-end exhaust bypass around metering elements.",
+      "how_requirements_met": "In retract, dcv_01 supplies cylinder rod end through manifold_01.B while cap-end oil exits cylinder_01.A through check_valve_return_01 to manifold_01.A and then through the DCV A-to-T path. This bypasses the feed and rapid-bypass paths for low restriction; selected pump flow on the annulus gives calculated retract speed above 70 mm/s before losses."
+    },
+    {
+      "function_id": "contamination_control",
+      "component_ids": [
+        "suction_strainer_01",
+        "return_filter_01",
+        "breather_01",
+        "tank_01"
+      ],
+      "circuit_pattern": "Open-circuit suction inlet protection, filtered breathing and normal return-line filtration.",
+      "how_requirements_met": "The suction screen protects the pump inlet, the breather filters reservoir breathing air, and normal DCV/unload return flow passes through the 10 micron return filter before tank return."
+    },
+    {
+      "function_id": "thermal_management",
+      "component_ids": [
+        "cooler_01",
+        "level_temp_01",
+        "tank_01",
+        "return_filter_01"
+      ],
+      "circuit_pattern": "Normal return-line air-oil cooling with reservoir temperature indication.",
+      "how_requirements_met": "Normal DCV/unload return flow passes through cooler_01 before filtration and tank return; level_temp_01 provides temperature indication for commissioning and maintenance. Relief discharge bypasses this path."
+    },
+    {
+      "function_id": "machine_tool_slide_motion",
+      "component_ids": [
+        "pump_01"
+      ],
+      "circuit_pattern": "Catalog hydraulic pressure-flow source with external driven pump package metadata gap.",
+      "how_requirements_met": "pump_01 is selected as the catalog hydraulic pressure-flow source. No electric motor or coupling is instantiated because the pump catalog metadata has no shaft input port; strict motor-pump drive representation is handled as a catalog metadata gap rather than an invalid port connection."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use an open-circuit fixed-displacement hydraulic power unit with reservoir suction, suction strainer, return filtration and normal return cooling.",
+      "rationale": "This is the supported stationary hydraulic topology for a single-cylinder slide. Return filtration and reservoir accessories support contamination control; cooling addresses heat from fixed-pump operation and throttled feed.",
+      "driven_by": [
+        "machine_tool_slide_motion",
+        "contamination_control",
+        "thermal_management"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-pumps-motors/article/21148816/open-versus-closed-circuit-filtration-for-hydraulics-performance"
+      ]
+    },
+    {
+      "decision": "Route the main relief valve directly from pressure gallery to reservoir, bypassing cooler and return filter.",
+      "rationale": "Relief valves limit maximum system pressure by diverting oil to tank. A dedicated direct tank return prevents cooler/filter backpressure, cold-oil restriction or filter clogging from adding uncontrolled outlet pressure to the relief setting.",
+      "driven_by": [
+        "machine_tool_slide_motion",
+        "limit_system_pressure_to_70_bar"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/12%3A_Pressure/12.01%3A_Pressure_in_a_Hydraulic_System",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21887951/understanding-pressure-control-valves"
+      ]
+    },
+    {
+      "decision": "Use the selected 4/3 tandem-centre DCV for extend, neutral unload and retract.",
+      "rationale": "A double-acting cylinder controlled by a 3-position 4-way directional valve is the supported pattern for bidirectional cylinder actuation; the selected tandem centre unloads pump flow in neutral while blocking A and B.",
+      "driven_by": [
+        "machine_tool_slide_motion",
+        "rapid_return"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/04%3A_Basic_Cylinder_Circuits/4.03%3A_Function_and_Appliction_of_a_4_3_DCV"
+      ]
+    },
+    {
+      "decision": "Use position_valve_01 only as a mechanically tripped rapid-bypass/dropout element, not as a P-to-T pressurized feed selector.",
+      "rationale": "The supported research pattern is a position-operated bypass around a feed-control valve. The repaired topology connects position_valve_01.P to the extension supply, A to the cap-end rapid bypass and T to low-pressure return/drain, while the feed path remains continuously connected through flow_control_feed_01.",
+      "driven_by": [
+        "machine_tool_slide_motion",
+        "position_based_approach_to_feed_changeover",
+        "no_stop_changeover"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21884996/engineering-essentials-types-of-speed-control-circuits"
+      ]
+    },
+    {
+      "decision": "Keep the pressure-compensated feed path continuously available in parallel with the rapid bypass.",
+      "rationale": "The cap-end feed path no longer depends on an undocumented transient selector state. During position-valve transition, flow_control_feed_01 remains connected from manifold_01.A to cylinder_01.A, so a momentary position-valve underlap does not by itself remove the feed path.",
+      "driven_by": [
+        "machine_tool_slide_motion",
+        "no_stop_changeover",
+        "load_independent_adjustable_cutting_feed"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21884996/engineering-essentials-types-of-speed-control-circuits",
+        "https://fluidpowerjournal.com/the-versatile-remedy-pressure-compensated-flow-control-valves"
+      ]
+    },
+    {
+      "decision": "Use a pressure-compensated flow control for adjustable load-independent cutting feed, but treat minimum compensator differential under the 70 bar ceiling as a blocking verification gap.",
+      "rationale": "Pressure-compensated flow-control valves are the catalog-supported component class for the 0.5-1.0 m/min feed requirement, but the selected catalog data does not publish minimum differential or loss data. Without that data, maintaining compensation at 40.25 kN below 70 bar cannot be proven from metadata alone.",
+      "driven_by": [
+        "load_independent_adjustable_cutting_feed",
+        "machine_tool_slide_motion"
+      ],
+      "evidence_urls": [
+        "https://fluidpowerjournal.com/the-versatile-remedy-pressure-compensated-flow-control-valves",
+        "https://www.sunhydraulics.com/model/FDEA",
+        "https://www.sunhydraulics.com/about/highlights/precise-cost-effective-control-motors-cylinders"
+      ]
+    },
+    {
+      "decision": "Add a check-valve bypass from the cylinder cap-end node back to DCV A/manifold A for rapid retract.",
+      "rationale": "A check valve in parallel with metering elements permits low-restriction reverse flow during return/retract while blocking the bypass during extension.",
+      "driven_by": [
+        "rapid_return",
+        "machine_tool_slide_motion"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21884996/engineering-essentials-types-of-speed-control-circuits"
+      ]
+    },
+    {
+      "decision": "Do not instantiate an electric motor or coupling in this port-level topology.",
+      "rationale": "The selected pump metadata exposes only S, P and L. Adding a motor or coupling would create unsatisfied or invalid mechanical shaft ports. The hydraulic source is retained as the catalog pump, and strict electromechanical drive packaging is recorded as a catalog metadata gap.",
+      "driven_by": [
+        "machine_tool_slide_motion"
+      ],
+      "evidence_urls": []
+    }
+  ],
+  "catalog_gaps": [
+    {
+      "capability": "Catalog-proven pressure-compensator minimum differential at 40.25 kN under a 70 bar hard ceiling",
+      "needed_component_class": "Pressure-compensated flow control with documented minimum regulation differential low enough for the selected 100 mm cylinder under the 70 bar ceiling, or a larger-bore 350 mm stroke cylinder",
+      "reason": "The selected largest-bore 350 mm stroke cylinder needs about 51 bar ideal cap pressure at the 40.25 kN peak cutting load before cylinder friction, DCV/line losses and the pressure_comp_flow_control regulation differential. The catalog flow-control entry states pressure-compensated regulation and 2% pressure stability but does not expose minimum compensator differential or loss data. Without that data, load-independent cutting feed under the 70 bar maximum cannot be proven from catalog metadata alone.",
+      "related_function_ids": [
+        "machine_tool_slide_motion"
+      ],
+      "chosen_workaround": "Use the largest available 350 mm stroke cylinder and a single pressure-compensated feed-control element in the feed branch; require supplier data or test proof that regulation is maintained below 70 bar. If verification fails, the available catalog lacks a larger 350 mm stroke actuator or lower-drop compensated valve and the requirement is blocking.",
+      "blocking": true
+    },
+    {
+      "capability": "Guaranteed mechanically tripped rapid-bypass dropout with no dwell at 250 mm",
+      "needed_component_class": "Position-actuated hydraulic bypass/dropout valve with documented normally open rapid bypass, closed/dropout feed state, rated T drain, and transition behavior suitable for no-stop machine-tool slide changeover",
+      "reason": "The catalog position_valve entry provides a mechanically tripped 3/2 valve for stroke-position speed change and exposes P, A, T and MECH, but it does not publish detailed spool states or transition timing. The repaired plan no longer uses T as a pressurized feed outlet and keeps the compensated feed path continuously available, but final proof of no-stop changeover requires supplier confirmation of the rapid-bypass/dropout build and commissioning at the 250 mm cam point.",
+      "related_function_ids": [
+        "machine_tool_slide_motion"
+      ],
+      "chosen_workaround": "Use position_valve_01 only as the rapid-bypass/dropout device in parallel with the always-connected feed path; specify a normally open P-to-A rapid bypass that closes at cam trip with T used only as tank/drain, then verify no dwell during commissioning.",
+      "blocking": false
+    },
+    {
+      "capability": "Strict electromechanical pump drive representation with valid shaft ports",
+      "needed_component_class": "Packaged motor-pump unit or pump catalog entry with mechanical shaft input compatible with electric_motor/coupling ports",
+      "reason": "Catalog pump entries expose only S, P and L hydraulic ports. Available electric_motor and coupling entries expose mechanical/electrical ports that cannot be connected to the selected pump because no pump shaft port exists. Selecting motor/coupling would create invalid unsatisfied mechanical ports.",
+      "related_function_ids": [
+        "machine_tool_slide_motion"
+      ],
+      "chosen_workaround": "Do not instantiate electric_motor or coupling in this component plan. Treat pump_01 as the catalog hydraulic source with externally provided stationary driven-pump packaging to be specified when compatible catalog metadata is available.",
+      "blocking": false
+    },
+    {
+      "capability": "External cycle controller for end-of-cut retract command",
+      "needed_component_class": "Industrial controller / end-of-cut sensing / relay logic / DCV solenoid wiring / motor starter and protection",
+      "reason": "The hydraulic catalog includes the DCV but not the machine controller or end-of-cut sensing/logic. The 250 mm rapid-to-feed changeover is hydraulic/mechanical, but completing the following 100 mm cutting stroke and commanding retract requires external machine-cycle logic or mechanical machine stops/sensors.",
+      "related_function_ids": [
+        "machine_tool_slide_motion"
+      ],
+      "chosen_workaround": "Record external machine-control responsibility for DCV extend/retract commands and acceptance-test the 100 mm feed completion and full retract sequence with the actual controller. No non-listed DCV solenoid ports are fabricated in this topology.",
+      "blocking": false
+    },
+    {
+      "capability": "Exact 250 mm approach in 5 s with catalog-only flow setting while preserving feed pressure margin",
+      "needed_component_class": "Approach-flow control or variable pump-drive package with documented low-loss behavior during feed, or a pump catalog key at the exact required approach flow",
+      "reason": "The selected 25.056 L/min pump is the smallest catalog pump that also meets retract speed; the ideal cap-flow target for 50 mm/s on the 100 mm bore cylinder is about 23.6 L/min. Adding another metering valve in series with the feed path would reduce pressure margin for the 70 bar cutting-feed requirement. The final approach time must therefore be trimmed by pump-drive setup, actual volumetric efficiency/losses, or a supplier-approved low-loss approach control not separately proven in catalog metadata.",
+      "related_function_ids": [
+        "machine_tool_slide_motion"
+      ],
+      "chosen_workaround": "Use the selected pump and rapid-bypass path, then commission approach timing. If exact 5.0 s approach is mandatory with tight tolerance, require compatible catalog data for pump speed adjustment or a low-loss approach metering arrangement.",
+      "blocking": false
+    }
+  ],
+  "assumptions": [
+    "Manifold P, T, A and B ports represent shared internal galleries; tees are modeled as multiple edges at the same catalog port.",
+    "Cylinder_01.A is used as the shared cap-end node for the feed-control outlet, rapid-bypass outlet and retract check-valve bypass; tees are represented by multiple explicit edges at that port.",
+    "Position_valve_01 is used as a rapid-bypass/dropout element only: P receives extension supply, A feeds the cap-end rapid bypass, T is connected to low-pressure tank/return, and MECH receives the slide cam input.",
+    "Tank_01.R accepts both normal filtered return and dedicated direct relief return as separate physical return entries/diffusers in reservoir layout, with the relief path kept unrestricted.",
+    "Tank_01.B is used as a shared reservoir accessory/vent abstraction for the breather and level/temperature gauge because the supplied tank metadata has no separate gauge port.",
+    "Pipe_set_01 has only IN and OUT ports; it is explicitly inserted in the main pump-to-manifold pressure run and otherwise represents the engineered line-set family used for the other direct hydraulic connections shown.",
+    "The DCV internal spool connections are functional states, not separate external ports; port-level topology connects only P, T, A and B.",
+    "External plant controls provide DCV solenoid extend/retract commands, end-of-cut retract command, interlocks, cooler fan control and acceptance-test cycle logic; DCV solenoid terminals are not listed catalog ports and are not fabricated.",
+    "Flow-control setting, relief setting and cam position are preliminary and must be commissioned on the actual machine."
+  ],
+  "open_issues": [
+    "Obtain supplier data or perform instrumented testing to prove flow_control_feed_01 remains pressure-compensated at the 40.25 kN peak cutting load with total system pressure never exceeding 70 bar.",
+    "Confirm the supplied position_valve_01 build provides a normally open P-to-A rapid bypass that closes or drops out at the 250 mm mechanical cam point, with T used only as a tank/drain connection and no pressurized P-to-T feed function.",
+    "Set and lock relief_01 so measured worst-case system pressure, including direct-return backpressure, relief override and tolerance, cannot exceed 70 bar in any operating state.",
+    "Commission flow_control_feed_01 for 0.5-1.0 m/min cutting feed and verify feed speed stability over the 29.75-40.25 kN cutting-load range.",
+    "Commission rapid-approach timing; selected pump flow is close to but above the ideal 23.6 L/min cap-flow target, so actual timing depends on installed pump speed, volumetric efficiency and hydraulic losses.",
+    "Acceptance testing of the complete approach/feed/retract cycle must include external control logic or position sensing that commands retract after the 100 mm cutting-feed stroke.",
+    "Thermal balance is important because the fixed-displacement pump supplies more flow than feed demand during cutting; verify cooler_01 capacity, reservoir size, return-filter cold-start differential pressure and any needed cooler/filter bypass protection for the actual duty cycle.",
+    "Detailed line routing, suction velocity, fittings, surge pressure, direct relief return sizing, manifold proof test, guarding and any need for larger suction plumbing remain downstream detailed-design tasks.",
+    "Update catalog/CAD metadata if strict electromechanical validation must include pump shaft input, motor, coupling, motor starter and DCV solenoid terminals.",
+    "The design records at least one blocking catalog gap.",
+    "The topology relies on flow_control_feed_01 maintaining pressure-compensated, load-independent cutting-feed flow while the peak cutting load requires about 51 bar ideal cap-end pressure before cylinder friction, valve/line losses, and the flow-control compensator differential. With a hard maximum system pressure of 70 bar, the design has an acknowledged blocking catalog gap: the selected pressure-compensated flow control does not document the minimum regulating differential/loss needed to prove feed stability over 29.75–40.25 kN without exceeding 70 bar. The requested load-independent cutting feed therefore cannot be declared satisfied.",
+    "The rapid-to-feed changeover depends on position_valve_01 being a normally open P-to-A bypass before 250 mm and then becoming a closed/dropout bypass at the cam point while not connecting the cylinder cap-end node to T. The recorded catalog gap says the 3/2 position valve states and transition behavior are not published. If the actuated 3/2 state connects A-to-T, the cap end would be dumped to tank in parallel with the feed valve and cutting feed/force would fail. Treating this component as a no-leak two-way bypass/dropout valve is an unproven catalog capability, and it is central to the required automatic no-stop changeover.",
+    "The rapid-approach branch has no positive speed-setting element. With the selected 25.056 L/min fixed pump and 100 mm bore cap area, the ideal rapid-extension speed is about 53 mm/s, giving about 4.7 s for 250 mm rather than the specified 5 s / 50 mm/s criterion. The proposal relies on losses, pump-drive adjustment, or later commissioning, but no valid topology element is provided to set or regulate the rapid approach speed while preserving the feed-pressure margin. The stated approach timing acceptance criterion is therefore not covered by the topology."
+  ],
+  "research_audit": {
+    "searches_used": 4,
+    "rounds_used": 1,
+    "selected_unique_sources": 12,
+    "extracted_documents": 11,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 40,
+    "rejected_by_reason": {
+      "lower_rank": 38,
+      "low_quality_source": 14
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "The accumulated findings provide cited engineering support for all critical topology decisions: open-circuit power unit with reservoir, pump, suction protection, return filtration, and main relief to tank; double-acting cylinder with 4/3 directional control and neutral hold; rapid/feed/return sequencing using cam- or limit-switch-operated valves, bypasses, checks, or regeneration dropout; and pressure-compensated flow control for load-independent cutting feed. The topology designer can combine these supported patterns without needing an identical pre-existing machine-tool-slide schematic.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Findings include cited guidance for an open hydraulic circuit flow path: reservoir to pump, pump outlet to control/actuator circuit, return line to reservoir, return-line filtration, reservoir inlet screen instead of suction-line filtration for open-circuit pumps, and a relief valve connected to divert excess pressure/flow back to reservoir. Relief valve function, adjustability, and overpressure protection are supported by textbook and technical citations.",
+        "evidence_task_ids": [
+          "task_system_power_relief_open_circuit"
+        ]
+      },
+      {
+        "need_id": "function_machine_tool_slide_motion_directional_control",
+        "status": "covered",
+        "rationale": "Findings support the actuator/control pattern of a double-acting cylinder controlled by a 3-position, 4-way directional control valve providing extend, retract, and neutral/hold behavior. The cited source explicitly states the 4/3 DCV functions include extending, retracting, and holding the cylinder rod in neutral. Meter-in/meter-out placement principles for resistive and overrunning loads are also cited.",
+        "evidence_task_ids": [
+          "task_slide_actuator_directional_control"
+        ]
+      },
+      {
+        "need_id": "function_machine_tool_slide_motion_motion_profile",
+        "status": "covered",
+        "rationale": "Findings support multi-speed slide motion and automatic phase transition using a cam-operated 2-way bypass valve in parallel with a meter-out flow-control valve: rapid motion occurs while the bypass is open, closing it slows to feed speed, and cam positioning obtains the required speed sequence. A check valve in parallel supports rapid return. Additional regenerative rapid-traverse/dropout evidence supports rapid advance followed by lower-speed full-force work when needed.",
+        "evidence_task_ids": [
+          "task_pressure_compensated_feed_control",
+          "task_rapid_feed_return_changeover"
+        ]
+      },
+      {
+        "need_id": "driver_pressure_compensation_load_independence",
+        "status": "covered",
+        "rationale": "Findings directly support pressure-compensated flow-control valves for maintaining constant cylinder/actuator speed despite changing load or pressure drop. Manufacturer and technical citations support pressure-compensated adjustable flow controls with reverse-flow check for meter-in or meter-out use, and 3-way pressure-compensated priority/proportional flow control for fixed-displacement pump circuits where actuator speed must remain constant regardless of load.",
+        "evidence_task_ids": [
+          "task_pressure_compensated_feed_control"
+        ]
+      },
+      {
+        "need_id": "driver_two_speed_force_switching",
+        "status": "covered",
+        "rationale": "Findings support automatic fast/slow and low/high-force switching. A cam-operated 2-way bypass in parallel with a feed-control valve gives position-based rapid-to-feed transition. Regenerative circuit evidence supports rapid advance with reduced force, then position-limit-switch dropout to tank for full force at lower speed; pressure-actuated dropout is also described with cautions. These cited patterns cover automatic change from rapid approach to adjustable cutting feed and the associated force increase.",
+        "evidence_task_ids": [
+          "task_rapid_feed_return_changeover"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Exact manufacturer valve symbols, port labels, center-spool configuration, and electrical/cam actuation details should be confirmed during schematic drafting from selected component datasheets.",
+      "Pressure-compensated flow-control sizing details, especially minimum compensator pressure differential and heat generation/bypass flow handling, are not yet sourced but are component-selection/sizing issues rather than topology blockers.",
+      "No source is specific to exactly 70 bar or this exact machine-tool slide; however relief-valve adjustability and maximum-pressure protection topology are adequately supported."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "invalid",
+    "deterministic": {
+      "verdict": "invalid",
+      "issues": [
+        {
+          "code": "BLOCKING_CATALOG_GAP",
+          "severity": "error",
+          "scope": "selection",
+          "description": "The design records at least one blocking catalog gap.",
+          "related": [
+            "Catalog-proven pressure-compensator minimum differential at 40.25 kN under a 70 bar hard ceiling"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "16 component instances checked."
+        },
+        {
+          "name": "catalog_identity",
+          "passed": true,
+          "details": "Every component must resolve to one exact supplied catalog entry."
+        },
+        {
+          "name": "exact_port_accounting",
+          "passed": true,
+          "details": "Every catalog port must be connected, external, or explicitly and physically terminable."
+        },
+        {
+          "name": "minimum_power_and_control_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control inventory checked."
+        },
+        {
+          "name": "hydraulic_path_reachability",
+          "passed": true,
+          "details": "Suction, pressure, relief, return, drain, and both actuator work paths checked."
+        },
+        {
+          "name": "catalog_pressure_envelope",
+          "passed": true,
+          "details": "Known catalog pressure ratings were compared with the stated system ceiling on high-pressure paths."
+        },
+        {
+          "name": "basic_catalog_flow_compatibility",
+          "passed": true,
+          "details": "Known controlling-valve flow ratings were compared with selected catalog pump flow."
+        },
+        {
+          "name": "basic_actuator_catalog_compatibility",
+          "passed": true,
+          "details": "Function assignment, stroke, and rough cap-end force were checked where data were available."
+        },
+        {
+          "name": "requirement_and_driver_coverage",
+          "passed": false,
+          "details": "Derived drivers, sequence constraints, explicit prohibitions, function traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "invalid",
+      "design_issues": [
+        {
+          "code": "ERR_BLOCKING_FEED_COMPENSATION_MARGIN_UNPROVEN",
+          "severity": "error",
+          "scope": "selection",
+          "description": "The topology relies on flow_control_feed_01 maintaining pressure-compensated, load-independent cutting-feed flow while the peak cutting load requires about 51 bar ideal cap-end pressure before cylinder friction, valve/line losses, and the flow-control compensator differential. With a hard maximum system pressure of 70 bar, the design has an acknowledged blocking catalog gap: the selected pressure-compensated flow control does not document the minimum regulating differential/loss needed to prove feed stability over 29.75–40.25 kN without exceeding 70 bar. The requested load-independent cutting feed therefore cannot be declared satisfied.",
+          "related": [
+            "flow_control_feed_01",
+            "cylinder_01",
+            "relief_01",
+            "machine_tool_slide_motion"
+          ]
+        },
+        {
+          "code": "ERR_UNSUPPORTED_POSITION_VALVE_DROPOUT_STATE",
+          "severity": "error",
+          "scope": "selection",
+          "description": "The rapid-to-feed changeover depends on position_valve_01 being a normally open P-to-A bypass before 250 mm and then becoming a closed/dropout bypass at the cam point while not connecting the cylinder cap-end node to T. The recorded catalog gap says the 3/2 position valve states and transition behavior are not published. If the actuated 3/2 state connects A-to-T, the cap end would be dumped to tank in parallel with the feed valve and cutting feed/force would fail. Treating this component as a no-leak two-way bypass/dropout valve is an unproven catalog capability, and it is central to the required automatic no-stop changeover.",
+          "related": [
+            "position_valve_01",
+            "flow_control_feed_01",
+            "cylinder_01",
+            "machine_tool_slide_motion"
+          ]
+        },
+        {
+          "code": "ERR_RAPID_APPROACH_SPEED_NOT_CONTROLLED_TO_CRITERION",
+          "severity": "error",
+          "scope": "requirements",
+          "description": "The rapid-approach branch has no positive speed-setting element. With the selected 25.056 L/min fixed pump and 100 mm bore cap area, the ideal rapid-extension speed is about 53 mm/s, giving about 4.7 s for 250 mm rather than the specified 5 s / 50 mm/s criterion. The proposal relies on losses, pump-drive adjustment, or later commissioning, but no valid topology element is provided to set or regulate the rapid approach speed while preserving the feed-pressure margin. The stated approach timing acceptance criterion is therefore not covered by the topology.",
+          "related": [
+            "pump_01",
+            "position_valve_01",
+            "cylinder_01",
+            "machine_tool_slide_motion"
+          ]
+        },
+        {
+          "code": "WARN_NO_STOP_CHANGEOVER_REQUIRES_DYNAMIC_PROOF",
+          "severity": "warning",
+          "scope": "requirements",
+          "description": "Keeping the compensated feed path continuously connected reduces the chance of a hydraulic dead spot during changeover, but the topology still needs dynamic proof that the cam actuation, valve overlap/underlap, line compliance, and flow-control response do not produce a momentary slide dwell at 250 mm. This is especially important because the no-stop transition is an explicit requirement.",
+          "related": [
+            "position_valve_01",
+            "flow_control_feed_01",
+            "cylinder_01",
+            "machine_tool_slide_motion"
+          ]
+        },
+        {
+          "code": "WARN_END_OF_CUT_RETRACT_CONTROL_EXTERNAL",
+          "severity": "warning",
+          "scope": "requirements",
+          "description": "The hydraulic topology provides extend and retract paths through the DCV, but the 100 mm cutting-feed completion and subsequent retract command are assigned to external machine controls not represented in the hydraulic topology. This is acceptable only if the machine control system provides the required end-of-cut sensing/logic and is included in acceptance testing of the full 250 mm approach + 100 mm feed + 350 mm retract cycle.",
+          "related": [
+            "dcv_01",
+            "cylinder_01",
+            "machine_tool_slide_motion"
+          ]
+        },
+        {
+          "code": "WARN_FEED_HEAT_BYPASSES_COOLER_PATH",
+          "severity": "warning",
+          "scope": "safety",
+          "description": "During cutting feed, the fixed pump supplies far more flow than the feed setting, so excess flow will be dumped across the main relief. The relief return intentionally bypasses the cooler and return filter to avoid safety backpressure, which means much of the throttling heat generated during feed may go directly to the reservoir rather than through cooler_01. This does not by itself violate the stated motion requirements, but thermal balance and oil temperature acceptance need explicit verification for the actual duty cycle.",
+          "related": [
+            "pump_01",
+            "relief_01",
+            "cooler_01",
+            "return_filter_01",
+            "tank_01",
+            "flow_control_feed_01"
+          ]
+        },
+        {
+          "code": "WARN_PUMP_DRIVE_PACKAGE_NOT_DEFINED",
+          "severity": "warning",
+          "scope": "selection",
+          "description": "The design honestly records that no electric motor or coupling is instantiated because the pump catalog entry lacks a shaft port. Since the brief leaves the power source unspecified, this is not a hydraulic topology failure, but the final machine cannot operate unless a compatible driven pump package is specified with the selected flow envelope and pressure limit preserved.",
+          "related": [
+            "pump_01",
+            "machine_tool_slide_motion"
+          ]
+        }
+      ],
+      "summary": "The topology has the basic open-circuit supply, main relief, DCV extend/retract paths, cylinder connections, and retract bypass concept. However, it cannot be declared valid because the load-independent cutting feed under the 70 bar ceiling is not proven, the position-valve bypass/dropout state needed for automatic no-stop changeover is unsupported, and the rapid approach speed is not actually controlled to the specified 250 mm in 5 s criterion."
+    },
+    "repair_scope": "selection",
+    "topology_round": 4,
+    "summary": "Deterministic validation: invalid. Engineering review: invalid. The topology has the basic open-circuit supply, main relief, DCV extend/retract paths, cylinder connections, and retract bypass concept. However, it cannot be declared valid because the load-independent cutting feed under the 70 bar ceiling is not proven, the position-valve bypass/dropout state needed for automatic no-stop changeover is unsupported, and the rapid approach speed is not actually controlled to the specified 250 mm in 5 s criterion."
+  }
+}
