@@ -6,9 +6,9 @@ topology. It has no web frontend and no API/backend server.
 For each problem it:
 
 1. extracts and critiques structured requirements;
-2. plans parallel web research;
-3. repeatedly checks whether the evidence is sufficient and creates targeted
-   follow-up searches when it is not;
+2. plans a compact set of decision-focused web searches;
+3. ranks sources, extracts the best unique documents, and verifies claim-level
+   evidence before creating targeted follow-ups;
 4. synthesizes buildable circuit patterns with citations;
 5. lets a catalog-aware designer inspect and select exact component keys using
    tools;
@@ -102,22 +102,28 @@ hydraulic-topology --problem P7-01
 ```
 
 By default, the complete final JSON is also written to
-`runs/YYYYMMDD-HHMMSS/P7-01.json`. Use `--no-save` for terminal-only output or
-`--compact` to reduce intermediate printing.
+`runs/YYYYMMDD-HHMMSS/P7-01.json`. It includes a compact research audit; a
+controlled research failure is saved there as well. Use `--no-save` for
+terminal-only output or `--compact` to reduce intermediate printing.
 
 Useful safeguards and limits:
 
 ```powershell
 python run_topology.py --problem P7-01 `
-  --max-research-rounds 5 `
-  --max-searches 24 `
+  --max-research-rounds 3 `
+  --max-searches 10 `
   --max-topology-rounds 4
 ```
 
 The research loop does not declare success based on search count. Each critical
-knowledge need must have cited medium/high-confidence evidence. If the budget is
-exhausted first, the graph stops safely before designing rather than pretending
-the evidence is sufficient.
+knowledge need must have a verified excerpt from an extracted credible source.
+URLs are deduplicated across parallel workers, low-quality sources are rejected,
+and confidence is calculated from source quality rather than accepted from the
+LLM. Research supports design principles; it does not require finding an
+existing schematic identical to the requested machine.
+
+Optional retrieval settings in `.env` are `MAX_DOCUMENTS_PER_SEARCH` (default
+`3`) and `MAX_DOCUMENT_CHARS` (default `12000`).
 
 ## Azure or an OpenAI-compatible university gateway
 

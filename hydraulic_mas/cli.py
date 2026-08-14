@@ -10,7 +10,7 @@ from uuid import uuid4
 from langgraph.types import Command
 
 from .config import Settings
-from .graph import build_graph
+from .graph import build_graph, summarize_research_audit
 from .problems import load_problems
 from .terminal import TerminalReporter
 
@@ -57,12 +57,14 @@ def _initial_state(problem_id: str, problem: str, settings: Settings, *, interac
         "interactive": interactive,
         "clarification_answers": [],
         "requirements_round": 0,
+        "requirements_repair_attempted": False,
         "max_requirements_rounds": settings.max_requirements_rounds,
         "research_findings": [],
         "research_search_log": [],
         "research_query_history": [],
         "searches_used": 0,
         "research_round": 0,
+        "research_stalled_rounds": 0,
         "max_research_rounds": settings.max_research_rounds,
         "max_searches": settings.max_searches,
         "topology_round": 0,
@@ -103,6 +105,16 @@ def run_problem(
     state = graph.get_state(config).values
     if state.get("failure"):
         reporter.failure(state["failure"])
+        if save_path is not None:
+            record = {
+                "problem_id": problem_id,
+                "status": "failed",
+                "failure": state["failure"],
+                "research_audit": summarize_research_audit(state),
+            }
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            save_path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+            reporter.saved(str(save_path.resolve()))
         return 2
     output = state.get("final_output")
     if not output:
@@ -172,4 +184,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

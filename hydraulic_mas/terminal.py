@@ -13,6 +13,7 @@ from rich.text import Text
 NODE_TITLES = {
     "extract_requirements": "1. Requirements Extractor",
     "critique_requirements": "2. Requirements Critic",
+    "repair_requirements": "Requirements Structural Repair",
     "clarify_requirements": "Requirements Clarification",
     "finalize_requirements": "3. Requirements Gate",
     "plan_research": "4. Research Planner",
@@ -46,7 +47,11 @@ class TerminalReporter:
         budget = Table(show_header=False, box=None)
         budget.add_row("Design model", settings.model)
         budget.add_row("Research/distillation model", settings.fast_model)
-        budget.add_row("Research limits", f"{settings.max_research_rounds} rounds / {settings.max_searches} searches")
+        budget.add_row(
+            "Research limits",
+            f"{settings.max_research_rounds} rounds / {settings.max_searches} searches / "
+            f"{settings.max_documents_per_search} documents per search",
+        )
         budget.add_row("Topology repair limit", str(settings.max_topology_rounds))
         self.console.print(budget)
 
@@ -87,14 +92,33 @@ class TerminalReporter:
     def _research_worker(self, values: dict[str, Any]) -> None:
         for record in values.get("research_search_log", []):
             self.console.print(f"[bold]Query:[/bold] {record.get('query')}")
+            self.console.print(
+                "Candidates: "
+                f"{record.get('candidate_count', 0)} | selected: {record.get('selected_count', 0)} | "
+                f"full documents: {record.get('extracted_count', 0)} | duplicates skipped: "
+                f"{record.get('duplicate_count', 0)}"
+            )
+            rejected = record.get("rejected_results", [])
+            if rejected:
+                reasons: dict[str, int] = {}
+                for item in rejected:
+                    reason = str(item.get("reason") or "rejected")
+                    reasons[reason] = reasons.get(reason, 0) + 1
+                self.console.print("Rejected: " + ", ".join(f"{key}={value}" for key, value in sorted(reasons.items())))
             if record.get("error"):
                 self.console.print(f"[red]Search error:[/red] {record['error']}")
-            table = Table("#", "Title", "URL", "Evidence snippet", show_lines=True)
+            table = Table("#", "Source", "Quality", "Title", "URL", "Evidence", show_lines=True)
             for index, result in enumerate(record.get("results", []), start=1):
                 snippet = str(result.get("content") or "")
-                if self.compact:
-                    snippet = snippet[:220]
-                table.add_row(str(index), str(result.get("title") or ""), str(result.get("url") or ""), snippet)
+                snippet = snippet[:220] if self.compact else snippet[:900]
+                table.add_row(
+                    str(index),
+                    str(result.get("source_kind") or "other"),
+                    str(result.get("quality_score") or 0),
+                    str(result.get("title") or ""),
+                    str(result.get("url") or ""),
+                    snippet,
+                )
             self.console.print(table)
         self.console.print(Panel(Syntax(_json(values.get("research_findings", [])), "json", word_wrap=True), title="Distilled finding"))
 
@@ -179,6 +203,18 @@ class TerminalReporter:
             self.console.print(interfaces)
 
         self.console.print(Panel(str(output.get("scope_statement", "")), title="Validation scope", border_style="yellow"))
+        if output.get("research_audit"):
+            audit = output["research_audit"]
+            table = Table("Searches", "Rounds", "Unique sources", "Extracted", "Duplicates", "Verified claims")
+            table.add_row(
+                str(audit.get("searches_used", 0)),
+                str(audit.get("rounds_used", 0)),
+                str(audit.get("selected_unique_sources", 0)),
+                str(audit.get("extracted_documents", 0)),
+                str(audit.get("duplicate_urls_skipped", 0)),
+                str(audit.get("verified_evidence_claims", 0)),
+            )
+            self.console.print(table)
         if not self.compact:
             self.console.print(Panel(Syntax(_json(output), "json", word_wrap=True), title="Complete machine-readable output"))
 
@@ -187,5 +223,3 @@ class TerminalReporter:
 
     def saved(self, path: str) -> None:
         self.console.print(Text(f"Saved JSON result: {path}", style="green"))
-
-

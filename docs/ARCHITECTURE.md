@@ -39,11 +39,11 @@ flowchart TD
 
 | Role | Model work | Deterministic guard |
 | --- | --- | --- |
-| Requirements extractor | Normalizes functions, phases, constraints, criteria | Pydantic schema |
-| Requirements critic | Finds blocking ambiguity and safe assumptions | Round limit and terminal interrupt |
-| Research planner | Converts design decisions into queries | Minimum need checklist and query budget |
-| Parallel research worker | Distills one Tavily result set | URL preservation, task-id preservation, error capture |
-| Research coverage critic | Judges whether each need is supported | Requires cited medium/high-confidence evidence for critical needs |
+| Requirements extractor | Normalizes physical actuators, phases, constraints, criteria | Schema plus structural repair pass |
+| Requirements critic | Finds blocking ambiguity and safe assumptions | Duplicate-actuator and phase-scope checks |
+| Research planner | Converts deterministic decisions into 3-6 queries | Model-added blockers are discarded |
+| Parallel research worker | Ranks candidates, extracts documents, and distills claims | Global URL reservation and source-quality scoring |
+| Research coverage critic | Judges whether each need is supported | Verified excerpts and deterministic confidence calibration |
 | Research synthesizer | Builds catalog-compatible patterns | Catalog type vocabulary supplied explicitly |
 | Design-brief curator | Removes irrelevant prose | Pydantic schema |
 | Component designer | Calls catalog tools and selects exact keys | Tool audit trace and exact-key validation |
@@ -58,12 +58,21 @@ synthesizes them. Here, the research planner first emits explicit
 each need `covered`, `partial`, or `missing` and proposes only targeted
 follow-ups.
 
-Python then rejects unsupported sufficiency. A critical need counts as covered
-only when at least one related finding has a real citation and medium/high
-confidence. Duplicate queries are removed. The loop stops only when:
+Search and extraction are separate stages. Tavily first returns candidate URLs;
+Python ranks them by authority and relevance, atomically reserves unique URLs
+across parallel workers, and extracts only the best documents. Low-quality
+sources are rejected. Distilled claims must include an excerpt that Python can
+locate in the extracted source text.
+
+Python then recalculates confidence and rejects unsupported sufficiency. A
+critical need counts as covered only when verified claim-level evidence supports
+the required component, connection, operating, or safety principle. The gate
+allows the designer to combine supported principles; it does not demand an
+identical pre-existing circuit. The loop stops when:
 
 1. all critical needs are supported; or
-2. the configured search/round budget is exhausted.
+2. the configured search/round budget is exhausted; or
+3. two rounds produce no new sources.
 
 Case 2 stops before design and reports the missing evidence. This is deliberately
 bounded: “keep researching” must not become an infinite or unexpectedly costly
@@ -71,7 +80,8 @@ loop.
 
 Parallel workers use LangGraph's `Send` pattern and reducer-backed state keys.
 The shared `research_findings`, `research_search_log`, query history, and search
-counter are append/sum reducers, so parallel updates are safe.
+counter are append/sum reducers, so parallel updates are safe. A thread-safe URL
+registry and extracted-document cache prevent duplicate retrieval work.
 
 ## Catalog access and benchmark leakage control
 

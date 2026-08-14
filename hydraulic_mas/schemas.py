@@ -70,6 +70,8 @@ class MotionPhase(BaseModel):
     force: Quantity | None = None
     duration: Quantity | None = None
     load_type: LoadType = LoadType.unspecified
+    speed_adjustable: bool = False
+    speed_load_independent: bool = False
 
 
 class HoldingRequirement(BaseModel):
@@ -86,6 +88,10 @@ class FunctionRequirement(BaseModel):
     id: str = Field(..., description="Stable snake_case identifier.")
     name: str
     description: str
+    physical_actuator_id: str | None = Field(
+        None,
+        description="Stable id for the physical actuator; all phases of one actuator stay in this function.",
+    )
     actuator_type: ActuatorType = ActuatorType.unspecified
     orientation: Orientation = Orientation.unspecified
     primary_load: str | None = None
@@ -235,12 +241,24 @@ class Citation(BaseModel):
     source_kind: Literal["manufacturer", "standard", "textbook", "paper", "technical", "other"] = "other"
 
 
+class EvidenceClaim(BaseModel):
+    id: str
+    claim: str
+    excerpt: str = Field(..., description="Short verbatim excerpt from the supplied source content.")
+    source_url: str
+    source_title: str | None = None
+    source_kind: Literal["manufacturer", "standard", "textbook", "paper", "technical", "other"] = "other"
+    claim_type: Literal["component", "connection", "operating_principle", "safety", "standard", "other"] = "other"
+    verified: bool = False
+
+
 class KnowledgeNeed(BaseModel):
     id: str
     decision: str = Field(..., description="The topology decision that research must support.")
     why_needed: str
     related_function_ids: list[str] = Field(default_factory=list)
     critical: bool = True
+    critical_reason: str | None = None
 
 
 class ResearchTask(BaseModel):
@@ -250,6 +268,10 @@ class ResearchTask(BaseModel):
     objective: str
     need_ids: list[str] = Field(default_factory=list)
     related_function_ids: list[str] = Field(default_factory=list)
+    action: Literal["search", "extract"] = "search"
+    target_urls: list[str] = Field(default_factory=list)
+    source_preference: str | None = None
+    round_number: int = 1
 
 
 class ResearchPlan(BaseModel):
@@ -263,13 +285,23 @@ class SearchResult(BaseModel):
     url: str
     content: str = ""
     score: float | None = None
+    source_kind: Literal["manufacturer", "standard", "textbook", "paper", "technical", "other"] = "other"
+    quality_score: float = 0.0
+    is_full_content: bool = False
+    selection_reason: str | None = None
 
 
 class SearchRecord(BaseModel):
     task_id: str
     query: str
+    round_number: int = 1
     results: list[SearchResult] = Field(default_factory=list)
     error: str | None = None
+    candidate_count: int = 0
+    duplicate_count: int = 0
+    selected_count: int = 0
+    extracted_count: int = 0
+    rejected_results: list[dict[str, str]] = Field(default_factory=list)
 
 
 class TaskFinding(BaseModel):
@@ -282,6 +314,7 @@ class TaskFinding(BaseModel):
     connection_guidance: list[str] = Field(default_factory=list)
     standards: list[str] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
+    evidence_claims: list[EvidenceClaim] = Field(default_factory=list)
     confidence: Literal["high", "medium", "low"] = "medium"
     source_quality_notes: str | None = None
 
@@ -532,6 +565,16 @@ class FinalComponent(BaseModel):
     requires_sizing_verification: bool = True
 
 
+class ResearchAudit(BaseModel):
+    searches_used: int = 0
+    rounds_used: int = 0
+    selected_unique_sources: int = 0
+    extracted_documents: int = 0
+    duplicate_urls_skipped: int = 0
+    verified_evidence_claims: int = 0
+    rejected_by_reason: dict[str, int] = Field(default_factory=dict)
+
+
 class FinalTopologyOutput(BaseModel):
     problem_id: str
     title: str
@@ -547,6 +590,6 @@ class FinalTopologyOutput(BaseModel):
     catalog_gaps: list[CatalogGap] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     open_issues: list[str] = Field(default_factory=list)
+    research_audit: ResearchAudit = Field(default_factory=ResearchAudit)
     research_coverage: ResearchCoverage
     validation: CombinedTopologyValidation
-

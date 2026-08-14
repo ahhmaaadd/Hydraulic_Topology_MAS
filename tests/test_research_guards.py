@@ -4,6 +4,7 @@ from hydraulic_mas.research_guards import enforce_coverage_gate, enforce_minimum
 from hydraulic_mas.schemas import (
     Citation,
     CoverageItem,
+    EvidenceClaim,
     KnowledgeNeed,
     ResearchCoverage,
     ResearchPlan,
@@ -34,7 +35,7 @@ def test_minimum_plan_fills_required_topology_needs() -> None:
     ids = {need.id for need in guarded.knowledge_needs}
     assert "system_power_and_relief" in ids
     assert "function_slide_directional_control" in ids
-    assert "function_slide_speed_and_transition" in ids
+    assert "function_slide_motion_profile" in ids
     assert all(task.need_ids for task in guarded.tasks)
 
 
@@ -68,6 +69,17 @@ def test_coverage_gate_accepts_cited_medium_confidence_evidence() -> None:
         category="circuit_pattern",
         summary="supported",
         citations=[Citation(title="Manual", url="https://example.com/manual", source_kind="manufacturer")],
+        evidence_claims=[
+            EvidenceClaim(
+                id="claim-1",
+                claim="The valve provides the required circuit behavior.",
+                excerpt="The valve provides the required circuit behavior.",
+                source_url="https://example.com/manual",
+                source_kind="manufacturer",
+                claim_type="operating_principle",
+                verified=True,
+            )
+        ],
         confidence="medium",
     )
     proposed = ResearchCoverage(
@@ -88,5 +100,4 @@ def test_coverage_gate_accepts_cited_medium_confidence_evidence() -> None:
     assert guarded.status == "sufficient"
     assert guarded.can_proceed
     assert guarded.follow_up_tasks == []
-
 

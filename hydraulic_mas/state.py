@@ -16,6 +16,7 @@ class OverallState(TypedDict, total=False):
     requirements_round: int
     max_requirements_rounds: int
     requirements_unresolved: bool
+    requirements_repair_attempted: bool
 
     # Adaptive research
     research_plan: dict[str, Any]
@@ -32,6 +33,7 @@ class OverallState(TypedDict, total=False):
     research_coverage: dict[str, Any]
     research_synthesis: dict[str, Any]
     research_blocked: bool
+    research_stalled_rounds: int
 
     # Topology
     design_brief: dict[str, Any]
@@ -46,5 +48,4 @@ class OverallState(TypedDict, total=False):
     # Final result / controlled failure
     final_output: dict[str, Any]
     failure: dict[str, Any]
-
 

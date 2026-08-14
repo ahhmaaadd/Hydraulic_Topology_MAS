@@ -11,6 +11,7 @@ from hydraulic_mas.schemas import (
     ComponentPlan,
     CritiqueResult,
     DesignBrief,
+    EvidenceClaim,
     FunctionBrief,
     KnowledgeNeed,
     PlannedComponent,
@@ -40,9 +41,12 @@ class Search:
         return [
             {
                 "title": "Hydraulic technical manual",
-                "url": f"https://example.com/{abs(hash(query))}",
+                "url": "https://example.com/manual",
                 "content": "A cited hydraulic circuit and connection description.",
                 "score": 0.9,
+                "source_kind": "manufacturer",
+                "quality_score": 0.9,
+                "is_full_content": True,
             }
         ]
 
@@ -141,6 +145,16 @@ def test_full_graph_reaches_validated_output_without_network() -> None:
         summary="The result describes the required circuit.",
         connection_guidance=["pump.P -> dcv.P", "relief.T -> tank.R"],
         citations=[Citation(title="Manual", url="https://example.com/manual", source_kind="manufacturer")],
+        evidence_claims=[
+            EvidenceClaim(
+                id="claim-1",
+                claim="The source gives a hydraulic circuit connection.",
+                excerpt="A cited hydraulic circuit and connection description.",
+                source_url="https://example.com/manual",
+                source_kind="manufacturer",
+                claim_type="connection",
+            )
+        ],
         confidence="medium",
     )
     coverage = ResearchCoverage(
@@ -213,5 +227,5 @@ def test_full_graph_reaches_validated_output_without_network() -> None:
     assert result["searches_used"] == 2
     assert result["research_coverage"]["status"] == "sufficient"
     assert result["final_output"]["status"] == "validated"
+    assert result["final_output"]["research_audit"]["verified_evidence_claims"] == 2
     assert len(result["final_output"]["selected_components"]) == 7
-

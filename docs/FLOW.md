@@ -11,9 +11,12 @@ web research, and topology repair. A new `thread_id` isolates each problem.
 1. `extract_requirements` converts the text into `RequirementsSpec`.
 2. `critique_requirements` checks coverage, contradictions, load character,
    safety, and acceptance criteria.
-3. If a truly blocking question remains, `clarify_requirements` interrupts the
+3. A deterministic structural check detects phases incorrectly split into
+   multiple functions or load-independence applied to the wrong phases;
+   `repair_requirements` gets one correction pass when needed.
+4. If a truly blocking question remains, `clarify_requirements` interrupts the
    graph. The terminal asks the user and resumes the same node/thread.
-4. `finalize_requirements` merges noncritical assumptions and records whether
+5. `finalize_requirements` merges noncritical assumptions and records whether
    unresolved ambiguity remains.
 
 The extractor reruns after clarification so the answer is normalized into the
@@ -27,13 +30,13 @@ same source-of-truth schema.
    increments the research round.
 3. A conditional edge returns one `Send("web_research_worker", ...)` per task.
    LangGraph runs independent workers in parallel.
-4. Each worker calls Tavily once, prints all normalized results, and asks the
-   distiller for a structured finding. Search failures become explicit
-   low-confidence findings.
+4. Each worker searches for candidates, ranks source quality, reserves unique
+   URLs, extracts the best documents, and asks the distiller for claim-level
+   evidence. Search failures become explicit low-confidence findings.
 5. Reducers merge worker findings, raw search logs, query history, and the search
    count.
-6. `assess_research_coverage` evaluates every need. Python then enforces citation,
-   confidence, deduplication, and budget rules.
+6. `assess_research_coverage` evaluates every need. Python verifies evidence
+   excerpts, recalculates confidence, and enforces source novelty and budgets.
 7. If critical needs remain, only follow-up tasks for those needs return to step
    2. If evidence is sufficient, execution continues. If the budget is exhausted,
    `research_failure` ends the graph before design.
@@ -108,10 +111,10 @@ Unless `--no-save` is used, the same JSON is written below `runs/`.
 | `research_findings` | parallel workers, append reducer | coverage/synthesis |
 | `research_query_history` | parallel workers, append reducer | duplicate prevention |
 | `searches_used` | parallel workers, sum reducer | budget gate |
+| `research_stalled_rounds` | coverage guard | no-novelty termination |
 | `research_coverage` | coverage critic + Python guard | router and final output |
 | `component_plan` | catalog-aware designer | netlist builder |
 | `catalog_tool_trace` | component designer wrapper | terminal audit |
 | `topology` | netlist builder | validators and finalizer |
 | `topology_validation` | combined validator | repair router/finalizer |
 | `final_output` | finalizer | terminal and JSON file |
-

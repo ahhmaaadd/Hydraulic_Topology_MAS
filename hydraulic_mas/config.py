@@ -19,9 +19,11 @@ class Settings:
     azure_api_version: str
     tavily_api_key: str | None
     openai_api_mode: str = "aalto"
-    max_research_rounds: int = 4
-    max_searches: int = 20
-    max_results_per_search: int = 6
+    max_research_rounds: int = 3
+    max_searches: int = 10
+    max_results_per_search: int = 8
+    max_documents_per_search: int = 3
+    max_document_chars: int = 12000
     max_topology_rounds: int = 4
     max_requirements_rounds: int = 2
 
@@ -71,9 +73,11 @@ class Settings:
             azure_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2025-04-01-preview"),
             tavily_api_key=os.getenv("TAVILY_API_KEY"),
             openai_api_mode=api_mode,
-            max_research_rounds=int(os.getenv("MAX_RESEARCH_ROUNDS", "4")),
-            max_searches=int(os.getenv("MAX_SEARCHES", "20")),
-            max_results_per_search=int(os.getenv("MAX_RESULTS_PER_SEARCH", "6")),
+            max_research_rounds=int(os.getenv("MAX_RESEARCH_ROUNDS", "3")),
+            max_searches=int(os.getenv("MAX_SEARCHES", "10")),
+            max_results_per_search=int(os.getenv("MAX_RESULTS_PER_SEARCH", "8")),
+            max_documents_per_search=int(os.getenv("MAX_DOCUMENTS_PER_SEARCH", "3")),
+            max_document_chars=int(os.getenv("MAX_DOCUMENT_CHARS", "12000")),
             max_topology_rounds=int(os.getenv("MAX_TOPOLOGY_ROUNDS", "4")),
             max_requirements_rounds=int(os.getenv("MAX_REQUIREMENTS_ROUNDS", "2")),
         )
@@ -94,4 +98,3 @@ class Settings:
             raise ValueError("Research limits must be positive")
         if self.max_topology_rounds < 1:
             raise ValueError("max_topology_rounds must be positive")
-
