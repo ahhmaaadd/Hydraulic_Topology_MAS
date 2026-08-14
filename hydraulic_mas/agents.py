@@ -19,7 +19,7 @@ from .prompts import (
     TOPOLOGY_REVIEWER_PROMPT,
 )
 from .schemas import (
-    ComponentPlan,
+    ComponentPlanSet,
     CritiqueResult,
     DesignBrief,
     RequirementsSpec,
@@ -68,7 +68,7 @@ def build_agent_suite(design_model: Any, fast_model: Any) -> AgentSuite:
             model=design_model,
             tools=CATALOG_TOOLS,
             system_prompt=catalog_system_prompt,
-            response_format=ComponentPlan,
+            response_format=ComponentPlanSet,
         ),
         netlist_builder=_structured(design_model, TopologyDesign),
         topology_reviewer=_structured(design_model, TopologyReview),
@@ -86,4 +86,3 @@ PROMPT_BY_AGENT = {
     "netlist_builder": NETLIST_BUILDER_PROMPT,
     "topology_reviewer": TOPOLOGY_REVIEWER_PROMPT,
 }
-

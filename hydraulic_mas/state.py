@@ -34,11 +34,15 @@ class OverallState(TypedDict, total=False):
     research_synthesis: dict[str, Any]
     research_blocked: bool
     research_stalled_rounds: int
+    targeted_research_attempts: int
 
     # Topology
     design_brief: dict[str, Any]
+    component_candidates: list[dict[str, Any]]
+    candidate_evaluations: list[dict[str, Any]]
     component_plan: dict[str, Any]
     catalog_tool_trace: list[dict[str, Any]]
+    repair_history: Annotated[list[dict[str, Any]], operator.add]
     topology: dict[str, Any]
     deterministic_validation: dict[str, Any]
     topology_validation: dict[str, Any]
@@ -48,4 +52,3 @@ class OverallState(TypedDict, total=False):
     # Final result / controlled failure
     final_output: dict[str, Any]
     failure: dict[str, Any]
-

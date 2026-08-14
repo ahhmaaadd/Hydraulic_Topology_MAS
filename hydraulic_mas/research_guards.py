@@ -42,7 +42,7 @@ def derive_research_need_hints(requirements: dict[str, Any]) -> list[KnowledgeNe
     hints: list[KnowledgeNeed] = [
         _need(
             "system_power_and_relief",
-            "Complete suction, pump, pressure-relief, return, filtration, and reservoir topology",
+            "Complete suction, pump, pressure-relief, return, and reservoir topology",
             "Every open hydraulic circuit needs a safe power and return path.",
             critical_reason="Overpressure protection and a complete flow path are mandatory.",
         )
@@ -63,10 +63,16 @@ def derive_research_need_hints(requirements: dict[str, Any]) -> list[KnowledgeNe
             phase.get("speed_adjustable") or phase.get("speed_load_independent") for phase in phases
         )
         if len(phases) > 1 or phase_speed_control or function.get("speeds_adjustable") or function.get("speed_load_independent"):
+            typed_decisions = "; ".join(
+                f"{phase.get('id')}: {phase.get('motion')} {phase.get('metering_side')} "
+                f"at {phase.get('metered_chamber')} {phase.get('metered_flow')}"
+                for phase in phases
+            )
             hints.append(
                 _need(
                     f"function_{function_id}_motion_profile",
-                    f"Multi-speed regulation and automatic phase-transition pattern for {function_id}",
+                    f"Multi-speed regulation and automatic phase-transition pattern for {function_id}; "
+                    f"typed decisions: {typed_decisions}",
                     "Ordered phases, speed changes, and automatic transitions change valve choice and placement.",
                     [function_id],
                 )
@@ -105,7 +111,7 @@ def derive_research_need_hints(requirements: dict[str, Any]) -> list[KnowledgeNe
         )
 
     driver_labels = {
-        "synchronization": "Hydraulic flow division/combination or other synchronization topology",
+        "synchronization": "Requirement-matched synchronization topology: rigid parallel, hydraulic series, or divider/combiner parallel",
         "pressure_compensation_load_independence": "Pressure-compensated load-independent speed-control topology",
         "two_speed_force_switching": "Automatic fast/slow or low/high-pressure switching topology",
         "counterbalance_overrunning": "Controlled overrunning-load topology",
@@ -294,9 +300,14 @@ def _finding_supports_need(need: KnowledgeNeed, finding: TaskFinding) -> bool:
     text = f"{need.id} {need.decision}".casefold()
     if "standard" in text or "safety" in text:
         return any(claim.claim_type in {"standard", "safety"} and claim.source_kind != "other" for claim in claims)
-    if any(word in text for word in ("topology", "control", "sequence", "transition", "holding", "synchron")):
-        return any(claim.claim_type in {"connection", "operating_principle"} for claim in claims)
-    return True
+    claim_types = {claim.claim_type for claim in claims}
+    if any(word in text for word in ("topology", "control", "sequence", "transition", "holding", "synchron", "circuit")):
+        # One generic connection sentence is not enough to establish a circuit
+        # pattern. Require placement plus component behavior/safety evidence.
+        return "connection" in claim_types and bool(
+            claim_types.intersection({"component", "operating_principle", "safety"})
+        )
+    return bool(claim_types.intersection({"component", "operating_principle", "connection"}))
 
 
 def enforce_coverage_gate(

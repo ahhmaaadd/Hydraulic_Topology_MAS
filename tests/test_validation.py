@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from hydraulic_mas.decision_flow import canonical_decision_payload
 from hydraulic_mas.validation import validate_topology
 
 
@@ -12,25 +13,121 @@ def requirements() -> dict:
         "functions": [
             {
                 "id": "slide",
+                "name": "Two-stage slide",
+                "description": "Extend rapidly, change to controlled feed by position, then retract.",
+                "physical_actuator_id": "slide_cylinder",
                 "actuator_type": "linear",
                 "orientation": "horizontal",
                 "load_type": "resistive",
+                "motion_phases": [
+                    {
+                        "id": "rapid_approach",
+                        "name": "Rapid approach",
+                        "motion": "extend",
+                        "load_type": "resistive",
+                        "speed_adjustable": False,
+                        "speed_load_independent": False,
+                        "metering_side": "none",
+                        "metered_chamber": "none",
+                        "metered_flow": "none",
+                        "flow_compensation": "none",
+                        "load_control": "none",
+                        "motion_control_justification": "The open position bypass provides unrestricted rapid approach.",
+                        "motion_control_source": "inferred",
+                    },
+                    {
+                        "id": "controlled_feed",
+                        "name": "Controlled feed",
+                        "motion": "extend",
+                        "load_type": "resistive",
+                        "speed_adjustable": True,
+                        "speed_load_independent": True,
+                        "metering_side": "meter_out",
+                        "metered_chamber": "rod",
+                        "metered_flow": "exhaust",
+                        "flow_compensation": "pressure_compensated",
+                        "load_control": "none",
+                        "motion_control_justification": "Rod exhaust is pressure-compensated during the feed phase.",
+                        "motion_control_source": "inferred",
+                    },
+                    {
+                        "id": "return_stroke",
+                        "name": "Return",
+                        "motion": "retract",
+                        "load_type": "resistive",
+                        "speed_adjustable": False,
+                        "speed_load_independent": False,
+                        "metering_side": "none",
+                        "metered_chamber": "none",
+                        "metered_flow": "none",
+                        "flow_compensation": "none",
+                        "load_control": "none",
+                        "motion_control_justification": "The integral reverse check and open bypass permit free return.",
+                        "motion_control_source": "inferred",
+                    },
+                ],
                 "total_travel": {"value": 350, "unit": "mm"},
                 "peak_force": {"value": 35, "unit": "kN"},
                 "holding": {},
+                "synchronization": {
+                    "required": False,
+                    "actuator_count": 1,
+                    "strategy": "none",
+                    "series_displacement_compatibility": "not_applicable",
+                    "justification": "One actuator is used.",
+                    "source": "explicit",
+                },
             }
         ],
         "global_constraints": {"max_system_pressure": {"value": 70, "unit": "bar"}},
-        "operational_logic": {"sequence": [], "interlocks": []},
+        "operational_logic": {
+            "sequence": [
+                {
+                    "order": 1,
+                    "phase_id": "rapid_approach",
+                    "description": "Begin rapid extension.",
+                    "function_ids": ["slide"],
+                    "trigger": "initial_command",
+                },
+                {
+                    "order": 2,
+                    "phase_id": "controlled_feed",
+                    "predecessor_phase_id": "rapid_approach",
+                    "description": "Trip the position valve and enter controlled feed.",
+                    "function_ids": ["slide"],
+                    "trigger": "position",
+                    "hydraulically_enforced": True,
+                },
+                {
+                    "order": 3,
+                    "phase_id": "return_stroke",
+                    "predecessor_phase_id": "controlled_feed",
+                    "description": "Retract on command.",
+                    "function_ids": ["slide"],
+                    "trigger": "external_command",
+                },
+            ],
+            "interlocks": [],
+        },
         "derived_design_drivers": [
-            {"capability": "pressure_limiting_stall"},
-            {"capability": "pressure_compensation_load_independence"},
-            {"capability": "two_speed_force_switching"},
+            {"capability": "pressure_limiting_stall", "evidence": "The system pressure is limited."},
+            {
+                "capability": "pressure_compensation_load_independence",
+                "evidence": "Feed speed must remain stable as load varies.",
+                "related_function_ids": ["slide"],
+            },
+            {
+                "capability": "two_speed_force_switching",
+                "evidence": "The slide changes from rapid approach to feed by position.",
+                "related_function_ids": ["slide"],
+            },
         ],
     }
 
 
 def valid_topology() -> dict:
+    req = requirements()
+    motion_decisions, synchronization_decisions = canonical_decision_payload(req)
     components = [
         ("Tank", "GENERIC_TANK", "tank", "reservoir boundary", None),
         ("Pump", "GENERIC_FIXED_DISPLACEMENT_PUMP", "pump", "hydraulic supply", None),
@@ -77,6 +174,43 @@ def valid_topology() -> dict:
             {"from_component": "FeedControl", "from_port": "B", "to_component": "DCV", "to_port": "B", "line": "work"},
             {"from_component": "Cylinder", "from_port": "Rod", "to_component": "PositionBypass", "to_port": "P", "line": "work"},
             {"from_component": "PositionBypass", "from_port": "A", "to_component": "DCV", "to_port": "B", "line": "work"},
+        ],
+        "motion_control_decisions": motion_decisions,
+        "synchronization_decisions": synchronization_decisions,
+        "phase_configurations": [
+            {
+                "phase_id": "rapid_approach",
+                "function_id": "slide",
+                "motion": "extend",
+                "component_states": [
+                    {"component_id": "DCV", "state": "extend"},
+                    {"component_id": "PositionBypass", "state": "open"},
+                ],
+                "expected_active_function_ids": ["slide"],
+                "forbidden_active_function_ids": [],
+            },
+            {
+                "phase_id": "controlled_feed",
+                "function_id": "slide",
+                "motion": "extend",
+                "component_states": [
+                    {"component_id": "DCV", "state": "extend"},
+                    {"component_id": "PositionBypass", "state": "closed"},
+                ],
+                "expected_active_function_ids": ["slide"],
+                "forbidden_active_function_ids": [],
+            },
+            {
+                "phase_id": "return_stroke",
+                "function_id": "slide",
+                "motion": "retract",
+                "component_states": [
+                    {"component_id": "DCV", "state": "retract"},
+                    {"component_id": "PositionBypass", "state": "open"},
+                ],
+                "expected_active_function_ids": ["slide"],
+                "forbidden_active_function_ids": [],
+            },
         ],
         "external_interfaces": [],
         "port_terminations": [],

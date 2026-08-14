@@ -1,5 +1,3 @@
-This is VOL 1
-
 # Hydraulic Topology Multi-Agent System
 
 This is a terminal-only LangGraph system that stops at validated hydraulic
@@ -13,14 +11,16 @@ For each problem it:
    evidence before creating targeted follow-ups;
 4. synthesizes buildable circuit patterns with citations;
 5. lets a catalog-aware designer inspect and select generic functional class
-   keys using tools;
-6. builds direct component-to-component port connections, with shared endpoints
-   representing branches;
-7. runs deterministic class/port/path checks plus a topology-only LLM
-   engineering review;
-8. repairs selection or wiring errors until valid or the configured repair
-   limit is reached; and
-9. prints every stage and the final selected components/connections in detail.
+   keys using tools and compare two or three candidate plans;
+6. preserves each typed `metering_side`, chamber, flow direction, compensation,
+   load-control and synchronization decision without downstream reinterpretation;
+7. builds direct component-to-component port connections and explicit valve
+   states for every motion phase, with shared endpoints representing branches;
+8. proves supply, exhaust, metering, pilot, sequence and forbidden-motion paths
+   in separate directed phase graphs, then runs a topology-only LLM review;
+9. repairs selection or wiring errors with executable add/delete/replace actions,
+   or returns an unsupported pattern to targeted research; and
+10. prints every stage and the final selected components/connections in detail.
 
 The schemas and core prompts are adapted from
 [`ahhmaaadd/Paper_2_Current`](https://github.com/ahhmaaadd/Paper_2_Current)
@@ -29,14 +29,19 @@ frontend are deliberately not included.
 
 ## What “validated” means
 
-A valid result means the generic component functions, valve states and direct
-port connectivity are structurally and behaviorally coherent. It does **not**
+A valid result means the generic component functions, exact per-phase valve
+states, directed supply/exhaust paths, metering direction, pilot release,
+sequencing constraints and direct port connectivity are structurally and
+behaviorally coherent. It does **not**
 mean fabrication-ready. Pump and cylinder sizing, pressure/flow ratings,
 reservoir volume, line selection, filters, cooling, prime mover, dynamic
 simulation, pressure-loss and thermal analysis, structural checks, hose routing,
 functional safety and formal risk assessment remain downstream work.
 
-The runtime catalog contains only topology-changing classes. It deliberately
+The 21-class runtime catalog contains only topology-changing classes, including
+plain check, true unloading, counterbalance/overcenter, divider/combiner,
+pressure-reducing-with-reverse-check and externally piloted sequence functions.
+It deliberately
 excludes manifolds, tees, pipes/hoses, filters/strainers, coolers, gauges,
 temperature/level devices, breathers, motors, couplings, shafts and pressure
 switches. Branches use repeated endpoints, for example:
@@ -133,7 +138,8 @@ python run_topology.py --problem P7-01 `
 ```
 
 The research loop does not declare success based on search count. Each critical
-knowledge need must have a verified excerpt from an extracted credible source.
+circuit-pattern need must have verified placement/connection evidence plus a
+verified component operating or safety principle from extracted credible sources.
 URLs are deduplicated across parallel workers, low-quality sources are rejected,
 and confidence is calculated from source quality rather than accepted from the
 LLM. Research supports design principles; it does not require finding an
@@ -188,9 +194,11 @@ python -m pytest
 | --- | --- |
 | `hydraulic_mas/graph.py` | LangGraph nodes, edges, research loop, and repair routing |
 | `hydraulic_mas/schemas.py` | Pydantic contracts through final topology |
+| `hydraulic_mas/decision_flow.py` | Canonical typed metering/synchronization propagation and semantic checks |
+| `hydraulic_mas/candidate_selection.py` | Deterministic candidate scoring and executable structural repairs |
 | `hydraulic_mas/prompts.py` | Adapted prompts plus research coverage and topology-only selection rules |
 | `hydraulic_mas/catalog.py` | Read-only generic class index and designer tools |
-| `hydraulic_mas/validation.py` | Deterministic generic-key, port, path, scope, and function checks |
+| `hydraulic_mas/validation.py` | Directed phase-state, metering, sequence, synchronization, catalog, and port checks |
 | `hydraulic_mas/terminal.py` | Detailed Rich terminal rendering |
 | `CHANGES.md` | Run diagnosis and this topology-only revision record |
 | `docs/ARCHITECTURE.md` | Design decisions and boundaries |

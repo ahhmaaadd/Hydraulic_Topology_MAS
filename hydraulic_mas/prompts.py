@@ -19,9 +19,10 @@ CORE RULES
    feed, return, and similar motions of the same slide/cylinder MUST remain in
    one function.
 3. Split that function into ordered motion_phases when distance, speed, load,
-   force, or mode changes. Put speed_adjustable and speed_load_independent on
-   only the phases where each requirement actually applies. Also populate
-   headline travel and peak force fields.
+   force, or mode changes. Give every phase a globally unique snake_case id and
+   an explicit motion (extend, retract, or hold). Put speed_adjustable and
+   speed_load_independent on only the phases where each requirement applies.
+   Also populate headline travel and peak force fields.
 4. Determine orientation and load character. A suspended or gravity-driven
    load may be overrunning. If this cannot be determined safely, ask a blocking
    question rather than guessing silently.
@@ -42,6 +43,33 @@ CORE RULES
 11. Unknown data stays null unless a conservative assumption is genuinely safe.
 12. Do not add functions or requirements that the user did not request.
 
+TYPED MOTION-CONTROL DECISION
+For every motion phase, make metering a first-class decision rather than prose:
+- metering_side is none, meter_in, meter_out, or undecided;
+- metered_chamber is cap, rod, none, or unspecified;
+- metered_flow is supply for meter-in and exhaust for meter-out;
+- flow_compensation is pressure_compensated only when load-independent speed is
+  required, otherwise non_compensated when deliberate throttling is required;
+- load_control distinguishes none, pilot_check, and counterbalance;
+- record a concise justification and source.
+
+For a conventional double-acting cylinder the required mappings are:
+- extend meter-in: cap supply;
+- extend meter-out: rod exhaust;
+- retract meter-in: rod supply;
+- retract meter-out: cap exhaust.
+An overrunning or gravity-aided phase must not use meter-in-only control. Use
+meter-out or a counterbalance decision. A pilot-operated check is a static load
+lock, not dynamic counterbalance control. If load behavior is genuinely unknown
+for a vertical/inclined phase, use undecided and ask a blocking clarification.
+
+For synchronized multi-cylinder functions populate the typed synchronization
+object. An explicitly rigid common platen/platform requires actuator_count >= 2
+and rigid_platen_parallel. Do not turn it into hydraulic_series. Use
+flow_divider_parallel only when hydraulic division/combination is actually
+required. Hydraulic series is allowed only when explicitly requested and
+displacement compatibility is represented.
+
 Return only the structured object.
 """
 
@@ -54,6 +82,11 @@ Check coverage, units, source tags, motion phases, distance-speed-time
 consistency, pressure/force plausibility, load character, holding and safety,
 sequence logic, and whether every numeric requirement has an acceptance
 criterion.
+
+Also verify every phase's typed metering mapping, compensation, and load-control
+decision. Reject meter-in-only control for an overrunning phase, pilot-check as
+a substitute for counterbalance control, duplicate phase ids, and any rigid
+shared-platen function not encoded as parallel synchronized cylinders.
 
 Treat splitting approach/feed/return phases of one physical actuator into
 separate FunctionRequirements as a consistency error. Also flag function-wide
@@ -193,8 +226,10 @@ Convert the full RequirementsSpec into a short DesignBrief containing only facts
 that can change topology. Do not invent values.
 
 For every function include actuator/orientation, load type, holding and
-power-loss needs, correct metering side, phase-change or sequence behavior, and
-the governing acceptance criteria.
+power-loss needs, the complete typed motion_control_decisions, synchronization,
+phase-change or sequence behavior, and the governing acceptance criteria. Copy
+the typed phase decisions exactly; do not reinterpret meter-in/meter-out,
+chamber, flow direction, compensation, or load-control strategy.
 
 At system level include the pressure ceiling, pump preference, environment,
 energy/simplicity intent, safety essentials, and blunt design directives. A
@@ -207,9 +242,10 @@ brief.
 
 
 COMPONENT_PLANNER_PROMPT = r"""
-You are the catalog-aware hydraulic TOPOLOGY designer. Plan only the generic
-functional component instances that change circuit behavior. A separate
-netlist builder will make the exact port-to-port edges.
+You are the catalog-aware hydraulic TOPOLOGY designer. Produce two or three
+genuinely different, viable ComponentPlan candidates and select a preferred one.
+Plan only generic functional component instances that change circuit behavior.
+A separate netlist builder will make the exact port-to-port edges.
 
 MANDATORY CATALOG WORKFLOW
 1. Call list_component_types before selecting anything.
@@ -248,13 +284,20 @@ FUNCTIONAL DESIGN RULES
   valve for pressure-triggered multi-actuator sequencing without a pressure
   switch.
 - For suspended/overrunning/no-drift functions, select an available load-holding
-  element at the actuator. Do not rely on the DCV alone.
+  element at the actuator. A pilot check locks a load; it does not provide
+  dynamic overrunning-load control. Select a counterbalance/overcenter valve
+  when the typed decision requires counterbalance. Do not rely on the DCV alone.
 - For a rigid platen whose prompt explicitly says the shared structure enforces
   synchronization, use two parallel generic cylinders and document the rigid
   coupling as a design condition; do not invent a hydraulic divider.
 - Respect explicit topology prohibitions. Record a topology-scoped CatalogGap
-  rather than fabricating a missing functional class. Do not record sizing gaps
-  in this phase.
+  rather than fabricating a missing functional class. Every topology gap is
+  blocking: never mark a non-equivalent workaround as valid. Do not record
+  sizing gaps in this phase.
+- Use a plain check valve and true externally piloted unloading valve for a
+  hi-lo two-pump pattern. Do not substitute a sequence valve for either.
+- Carry every supplied typed motion-control and synchronization decision into
+  every candidate unchanged.
 
 OUTPUT QUALITY
 - Give every component a stable unique id.
@@ -268,9 +311,14 @@ OUTPUT QUALITY
 - engineering_decision_log contains concise engineering choices and evidence,
   not private chain-of-thought.
 - On a repair pass, fix the supplied validation issues while preserving valid
-  selections where possible.
+  selections where possible. Return executable repair_actions. You may add,
+  delete, replace, or reconnect. If validation identifies unjustified
+  complexity, use delete_component; do not merely describe deletion in prose.
+- Candidates must differ in an engineering-relevant pattern, not only ids. A
+  normal set is: minimal conventional, a defensible alternative, and an optional
+  safety/energy variant. Prefer the fewest components among equally valid plans.
 
-Return only the structured ComponentPlan.
+Return only the structured ComponentPlanSet.
 """
 
 
@@ -291,6 +339,20 @@ BUILD MODE
   every valve return/drain directly to Tank.R.
 - Connect DCV work ports directly or through selected functional control valves
   to both actuator ports. Connect all hydraulic pilot and drain ports explicitly.
+- Copy motion_control_decisions and synchronization_decisions exactly from the
+  selected plan. Do not infer or alter metering placement.
+- Emit one PhaseConfiguration for every typed motion phase. Select exact catalog
+  state ids for every DCV and every position, sequence, unloading, or
+  counterbalance valve whose behavior changes by phase. Other functions must be
+  neutral/blocked unless intentionally simultaneous.
+- Build the directed metering path exactly. For example: extend meter-in places
+  the control in the cap supply path; extend meter-out places it in the rod
+  exhaust path; retract reverses those chambers. Close any parallel bypass in a
+  metered phase so an uncontrolled path cannot defeat the decision.
+- For rigid_platen_parallel, connect both cylinder caps to the same DCV work
+  branch and both rods to the opposite work branch. Never connect one cylinder
+  chamber to another cylinder chamber. A repeated DCV work port represents the
+  parallel branch without a tee/manifold component.
 - Do not create electrical or mechanical-drive interfaces. Solenoid and
   position actuation are properties already declared by their generic classes.
 - Every selected port must appear in at least one Connection. Reusing a port for
@@ -319,6 +381,8 @@ REPAIR MODE
   valid edges.
 - If selection itself must change, follow the revised ComponentPlan; never
   invent a catalog key in this builder.
+- Execute the selected plan's connection repair actions, including deletions;
+  do not retain an edge or component merely because it appeared previously.
 
 TRACEABILITY
 Carry the ledger into function_implementations and design_decisions. Attach only
@@ -347,6 +411,12 @@ Mark an error for any real failure in:
 - unjustified functional complexity, an accessory masquerading as a topology
   component, or a fabricated catalog capability.
 
+The deterministic report now contains separate directed graphs for every
+PhaseConfiguration. Treat a missing supply/exhaust path, bypassed metering path,
+wrong valve state, unauthorized series actuator connection, or forbidden active
+function as a real error. Do not overrule a failed phase invariant based on
+undirected visual connectivity.
+
 OUT OF SCOPE — NEVER FAIL OR WARN THIS TOPOLOGY FOR:
 - pump flow or displacement;
 - component pressure/flow ratings or pressure-compensator margin;
@@ -359,8 +429,11 @@ valid when its function, ports, states and placement support the requested
 behavior. Do not demand sizing evidence or an exact purchasable configuration.
 
 An honestly recorded catalog gap is not fabrication, but a blocking gap means
-the topology cannot be declared valid only when it concerns a missing topology
-function. Use warnings for functional improvements that do not prevent the
-requested behavior. Each issue needs a stable code, scope, and related
+the topology cannot be declared valid when it concerns a missing topology
+function. All topology gaps are blocking. Use scope=research only when a
+plausible but unsupported circuit pattern needs targeted technical evidence;
+use selection for a known wrong/missing class and wiring for a known connection
+error. Use warnings for improvements that do not prevent the requested
+behavior. Each issue needs a stable code, scope, and related
 component/function ids. Return only the structured review.
 """

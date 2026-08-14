@@ -42,7 +42,10 @@ class Search:
             {
                 "title": "Hydraulic technical manual",
                 "url": "https://example.com/manual",
-                "content": "A cited hydraulic circuit and connection description.",
+                "content": (
+                    "A cited hydraulic circuit and connection description. "
+                    "The valve operating principle supports the required behavior."
+                ),
                 "score": 0.9,
                 "source_kind": "manufacturer",
                 "quality_score": 0.9,
@@ -61,7 +64,6 @@ def _requirements_model() -> RequirementsSpec:
                     **raw["functions"][0],
                     "name": "Slide",
                     "description": "Move the slide in both directions.",
-                    "motion_phases": [],
                 }
             ],
             "safety_requirements": [],
@@ -153,7 +155,15 @@ def test_full_graph_reaches_validated_output_without_network() -> None:
                 source_url="https://example.com/manual",
                 source_kind="manufacturer",
                 claim_type="connection",
-            )
+            ),
+            EvidenceClaim(
+                id="claim-2",
+                claim="The source supports the valve operating behavior.",
+                excerpt="The valve operating principle supports the required behavior.",
+                source_url="https://example.com/manual",
+                source_kind="manufacturer",
+                claim_type="operating_principle",
+            ),
         ],
         confidence="medium",
     )
@@ -224,8 +234,8 @@ def test_full_graph_reaches_validated_output_without_network() -> None:
         },
         config={"configurable": {"thread_id": "offline-e2e"}, "recursion_limit": 100},
     )
-    assert result["searches_used"] == 2
+    assert result["searches_used"] == 3
     assert result["research_coverage"]["status"] == "sufficient"
     assert result["final_output"]["status"] == "validated"
-    assert result["final_output"]["research_audit"]["verified_evidence_claims"] == 2
+    assert result["final_output"]["research_audit"]["verified_evidence_claims"] == 6
     assert len(result["final_output"]["selected_components"]) == 7

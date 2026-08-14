@@ -1,0 +1,138 @@
+{
+  "problem_id": "P7-03",
+  "status": "failed",
+  "failure": {
+    "stage": "requirements",
+    "message": "Circuit-changing requirements remain unresolved after clarification/repair limits.",
+    "critique": {
+      "completeness_status": "proceed_with_assumptions",
+      "rationale": "The extracted requirements substantially cover the original problem: travel, direction-specific speeds and forces, 10-minute any-position holding, safe neutral on command release, and 100 bar maximum pressure are represented with units and source tags. The motion phases are kept under one physical actuator function, so the approach/feed/return splitting error is avoided, and there are no duplicate phase ids. The stated loads are resistive horizontal loads, so meter-in/non-compensated metering is not inherently unsafe at the requirements level; no overrunning phase is identified. Remaining gaps are mainly verification tolerances and interpretation of qualitative safety/holding terms, which can proceed under conservative assumptions rather than blocking topology selection.",
+      "blocking_questions": [],
+      "proposed_assumptions": [
+        {
+          "id": "a_drift_tolerance",
+          "statement": "Interpret 'negligible drift' as no more than 0.5 mm carriage movement during the 10-minute hold under the applicable stated load, unless the customer specifies a tighter project tolerance.",
+          "rationale": "The original text gives a qualitative drift requirement but no numeric verification limit. A conservative numeric limit is needed for test acceptance, but the absence does not prevent preliminary hydraulic architecture work.",
+          "affects": [
+            "carriage_hold_any_position",
+            "ac_negligible_drift",
+            "sr_any_position_static_holding"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        },
+        {
+          "id": "a_speed_tolerances",
+          "statement": "Treat the specified advance and return speeds as nominal commanded speeds with an acceptance tolerance to be defined, provisionally ±10% at the stated load unless project standards require otherwise.",
+          "rationale": "The extracted criteria use equality for 3.5 m/min and 5.5 m/min, which is not physically testable without tolerance. The original provides target speeds but no allowable deviation.",
+          "affects": [
+            "carriage_advance",
+            "carriage_return",
+            "ac_advance_speed",
+            "ac_return_speed"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        },
+        {
+          "id": "a_travel_tolerance",
+          "statement": "Treat 300 mm travel as nominal required stroke with a final-position/travel tolerance to be defined, provisionally requiring at least 300 mm usable travel without mechanical overtravel into hard stops.",
+          "rationale": "The numeric travel requirement has an acceptance criterion, but no manufacturing or verification tolerance is stated.",
+          "affects": [
+            "total_travel",
+            "carriage_advance",
+            "carriage_return",
+            "ac_travel"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        },
+        {
+          "id": "a_resistive_non_overrunning_load",
+          "statement": "Assume both 15 kN advance and 9.5 kN return loads are resistive process loads and not externally driving or overrunning loads in either direction.",
+          "rationale": "The phrase 'against' supports a resistive-load interpretation. Under this assumption, meter-in control is not rejected. If either load can drive the carriage, the metering and load-control decisions must be revised to include appropriate counterbalance/load-control behavior.",
+          "affects": [
+            "carriage_advance",
+            "carriage_return",
+            "metering_side",
+            "load_control"
+          ],
+          "confidence": "high",
+          "needs_human_approval": false
+        },
+        {
+          "id": "a_static_pilot_check_scope",
+          "statement": "Interpret the hold-phase pilot-check/load-lock decision as a static holding device only, not as a substitute for counterbalance control in any overrunning motion phase.",
+          "rationale": "Pilot checks may be acceptable for static load locking on a horizontal resistive fixture, but they must not be credited as dynamic load control if the carriage can be externally driven.",
+          "affects": [
+            "carriage_hold_any_position",
+            "load_control",
+            "safe_neutral_on_command_release"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        },
+        {
+          "id": "a_safe_neutral_definition",
+          "statement": "Define safe neutral as de-energized command release causing no commanded advance or return flow, blocking or locking actuator motion, and maintaining the specified any-position hold; no separate emergency-stop, power-loss, or hose-burst retention is assumed unless added by the customer.",
+          "rationale": "The original requires safe neutral on command release but does not define response time, power-loss behavior, hose-burst retention, or emergency-stop category.",
+          "affects": [
+            "sr_safe_neutral_on_command_release",
+            "ac_safe_neutral_on_command_release",
+            "operational_logic"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        },
+        {
+          "id": "a_single_actuator_guided_carriage",
+          "statement": "Assume the carriage is mechanically guided and can be positioned by one linear actuator without requiring hydraulic synchronization of parallel cylinders.",
+          "rationale": "The original describes a moving carriage but does not state a wide shared platen, dual-cylinder drive, or synchronization requirement. If the real fixture uses a rigid shared platen driven at multiple points, the function must be re-encoded as parallel synchronized cylinders.",
+          "affects": [
+            "position_carriage",
+            "synchronization",
+            "physical_actuator_id"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        }
+      ],
+      "consistency_issues": [
+        "The extracted open question cq_drift_tolerance is marked blocking, but this should be treated as non-blocking with an explicit conservative drift-tolerance assumption unless the customer rejects the provisional limit.",
+        "The speed acceptance criteria use comparator '==' without a tolerance. That gives a numeric criterion but not a practical verification band.",
+        "The travel acceptance criterion also uses exact equality without a tolerance or usable-stroke definition.",
+        "The hold phase sets load_control to 'pilot_check'. This is acceptable only as a static load-lock interpretation for a resistive horizontal fixture; it must not be treated as counterbalance/load-control coverage for any overrunning condition.",
+        "The operational sequence entry for hold lists forbidden_overlap_function_ids containing the same function id that is also active for the hold phase. This can be read as a self-conflict; it should instead forbid simultaneous advance/return motion commands, not the positioning function itself.",
+        "The field hydraulically_enforced=false for the hold/safe-neutral sequence may understate the requirement that command release must reliably place the hydraulic system in safe neutral and maintain holding. If the field means only 'not an automatic sequence,' it should be clarified in the schema notes.",
+        "The inferred conservative bidirectional 15 kN holding criterion is stronger than the direction-specific original loads if applied literally to the return direction. It should remain an approved conservative assumption or design margin, not be presented as an explicit customer requirement.",
+        "Function-wide and phase-level speed_load_independent=false are acceptable only if interpreted as 'no load-independent speed requirement stated,' not as a prohibition against using pressure-compensated or closed-loop flow control."
+      ],
+      "physical_sanity_flags": [
+        "Pressure/force plausibility is acceptable: 15 kN at 100 bar requires at least about 1500 mm² effective piston area, equivalent to an ideal bore of about 44 mm before losses and margin.",
+        "Return force of 9.5 kN at 100 bar requires at least about 950 mm² rod-side effective area, which is feasible with a suitably sized cylinder.",
+        "Advance speed 3.5 m/min equals 58.3 mm/s; over 300 mm this implies about 5.14 s travel time.",
+        "Return speed 5.5 m/min equals 91.7 mm/s; over 300 mm this implies about 3.27 s travel time.",
+        "Using the minimum theoretical actuator areas would leave no margin for friction, backpressure, seal drag, valve losses, or pressure setting tolerance; final sizing must use larger effective areas or verified pressure margin under the 100 bar limit.",
+        "Approximate ideal flow at the minimum effective areas is around 5.2 L/min for both advance and return; actual required pump/valve flow depends on selected bore, rod diameter, and losses."
+      ],
+      "missing_fields": [
+        "Numeric drift tolerance for 'negligible drift'.",
+        "Verification tolerances for advance speed, return speed, and travel.",
+        "Definition and response time for 'safe neutral' after command release.",
+        "Whether holding must be maintained on power loss, emergency stop, valve failure, or hose burst; the extraction assumes these are not required.",
+        "Final actuator topology confirmation if the carriage is wide or driven at multiple points; synchronization is currently assumed unnecessary.",
+        "Speed-control accuracy requirement under load variation; no load-independent speed requirement is explicitly stated.",
+        "Environmental, duty-cycle, cycle-rate, fluid cleanliness, power-source, and thermal requirements, which may affect final hydraulic design but are not stated in the original problem."
+      ]
+    }
+  },
+  "research_audit": {
+    "searches_used": 0,
+    "rounds_used": 0,
+    "selected_unique_sources": 0,
+    "extracted_documents": 0,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 0,
+    "rejected_by_reason": {}
+  }
+}

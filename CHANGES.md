@@ -1,3 +1,105 @@
+# Phase-Aware Correctness Revision — 2026-08-14
+
+## Why another revision was required
+
+Runs P7-01 through P7-07 showed that the first topology-only revision removed
+sizing clutter but still could not prove circuit operation. The deterministic
+validator used undirected reachability and merged extend, retract and neutral
+DCV paths. As a result, it could accept a chamber as “controlled” using a valve
+state that was not active in the phase being checked. Meter-in/meter-out was
+described in prompts but was not a typed decision, catalog gaps encouraged
+non-equivalent workarounds, and repairs could not remove an unnecessary part.
+
+## Changes made in this revision
+
+### Typed motion and synchronization decisions
+
+- Added mandatory phase ids, motion direction, `metering_side`, metered chamber,
+  metered flow, compensation class, load-control strategy, justification and
+  source to `MotionPhase`.
+- Added canonical `MotionControlDecision` records and deterministic propagation
+  requirements → design brief → candidate plan → selected plan → netlist → final
+  output. Every intermediate LLM result is overwritten with the finalized
+  decision values so downstream agents cannot reinterpret them.
+- Added explicit synchronization strategies: `rigid_platen_parallel`,
+  `hydraulic_series`, and `flow_divider_parallel`, including actuator count and
+  series-displacement compatibility status.
+- Added typed sequence triggers, predecessor phases, hydraulic-enforcement flags
+  and forbidden-overlap function ids.
+- Circuit-changing structural errors that remain after requirement repair now
+  stop at a controlled requirements failure instead of leaking into design.
+
+### Expanded generic topology catalog
+
+- Expanded the sizing-free catalog from 15 to 21 classes.
+- Added a plain check valve, externally piloted unloading valve,
+  counterbalance/overcenter valve, flow divider/combiner, pressure-reducing
+  valve with reverse check, and externally piloted sequence valve.
+- Added machine-readable directed fixed/state/conditional flow paths to catalog
+  entries. These are behavioral topology facts, not ratings or sizing data.
+- Corrected the capability distinction: pilot-operated checks implement static
+  load locking; only a counterbalance class satisfies dynamic
+  `counterbalance_overrunning` control.
+- Every topology-scoped `CatalogGap` is now blocking even if a model labels a
+  workaround nonblocking.
+
+### Candidate selection and executable repair
+
+- The catalog-aware designer now returns two or three candidate
+  component/connection plans.
+- Added deterministic scoring for catalog identity, minimum inventory,
+  capability coverage, synchronization, topology gaps, true hi-lo check/unload
+  functions, unjustified special valves and component count.
+- An invalid model-preferred candidate can no longer override a valid simpler
+  candidate.
+- Added executable add/delete/replace component and add/delete/replace
+  connection repair actions. `delete_component` removes the target even if it
+  remains in the model's returned full plan.
+- Candidate scores, selected candidate and executed repair history are printed
+  and included in final JSON.
+
+### Directed phase-state validator
+
+- Replaced union-of-states undirected actuator validation with one directed flow
+  graph per `PhaseConfiguration`.
+- Physical connections are bidirectional lines; direction comes only from the
+  selected component state and check/metering behavior.
+- Each motion phase now proves pump-to-commanded-chamber supply and
+  opposite-chamber-to-tank exhaust.
+- Validation enforces the exact meter-in/meter-out path and compensation class,
+  detects a reversed one-way control, and rejects an open parallel bypass that
+  defeats metering.
+- Added state validation for DCVs, position valves, sequence valves, unloading
+  valves and counterbalance valves, plus conditional pilot-release checks.
+- Added pressure/position sequence transition proofs and forbidden-function
+  motion detection.
+- Added deterministic rigid-platen invariants: all caps share one work branch,
+  all rods share the opposite branch, and any cylinder-to-cylinder connection
+  is rejected. Legitimate hydraulic series requires an explicit series strategy
+  and explicitly matched displacement compatibility.
+- Added true hi-lo invariants requiring an unloading valve and a plain check
+  valve; sequence-valve workarounds are rejected.
+
+### Research and terminal behavior
+
+- Tightened research coverage: a critical circuit-pattern need requires verified
+  connection/placement evidence plus an operating-principle or safety claim.
+- Added bounded targeted-research routing for a reviewer issue explicitly marked
+  `scope=research`; known selection and wiring errors remain local repairs.
+- The terminal now prints typed motion decisions, exact phase states, candidate
+  comparisons and repair history in addition to components and connections.
+
+### Verification
+
+- Added regression/property tests for decision mutation, reversed flow control,
+  active metering bypass, wrong DCV state, blocking catalog gaps,
+  pilot-check/counterbalance distinction, rigid parallel cylinders, rejected
+  rigid-platen series plumbing, executable component deletion, and bad hi-lo
+  candidate rejection.
+- Offline result for this revision: **34 passed**.
+
+---
+
 # Topology-Only Revision — 2026-08-14
 
 ## Why the previous run failed

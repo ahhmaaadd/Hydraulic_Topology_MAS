@@ -16,6 +16,7 @@ NODE_TITLES = {
     "repair_requirements": "Requirements Structural Repair",
     "clarify_requirements": "Requirements Clarification",
     "finalize_requirements": "3. Requirements Gate",
+    "requirements_failure": "Requirements Gate Blocked",
     "plan_research": "4. Research Planner",
     "research_dispatch": "5. Research Dispatch",
     "web_research_worker": "6. Parallel Web Research Worker",
@@ -26,6 +27,7 @@ NODE_TITLES = {
     "plan_components": "10. Generic Topology Component Designer",
     "build_netlist": "11. Port-Level Netlist Builder",
     "validate_topology": "12. Deterministic + Engineering Validator",
+    "targeted_research": "Targeted Research Repair",
     "finalize_topology": "13. Final Topology Output",
 }
 
@@ -129,7 +131,29 @@ class TerminalReporter:
             self.console.print("[bold]Catalog tool audit trail[/bold]")
             for index, item in enumerate(trace, start=1):
                 self.console.print(Panel(Syntax(_json(item), "json", word_wrap=True), title=f"Tool event {index}"))
-        self.console.print(Panel(Syntax(_json(values.get("component_plan", {})), "json", word_wrap=True), title="Component plan"))
+        evaluations = values.get("candidate_evaluations", [])
+        if evaluations:
+            table = Table("Candidate", "Eligible", "Score", "Components", "Selected", "Errors / warnings", show_lines=True)
+            for item in evaluations:
+                findings = [f"ERROR: {value}" for value in item.get("errors", [])]
+                findings += [f"WARN: {value}" for value in item.get("warnings", [])]
+                table.add_row(
+                    str(item.get("candidate_id")),
+                    "yes" if item.get("eligible") else "no",
+                    str(item.get("score")),
+                    str(item.get("component_count")),
+                    "YES" if item.get("selected") else "",
+                    "\n".join(findings),
+                )
+            self.console.print(table)
+        if not self.compact and values.get("component_candidates"):
+            self.console.print(
+                Panel(
+                    Syntax(_json(values["component_candidates"]), "json", word_wrap=True),
+                    title="Candidate component/topology plans",
+                )
+            )
+        self.console.print(Panel(Syntax(_json(values.get("component_plan", {})), "json", word_wrap=True), title="Selected component plan"))
 
     def _validation(self, values: dict[str, Any]) -> None:
         validation = values.get("topology_validation", {})
@@ -204,6 +228,68 @@ class TerminalReporter:
                 str(connection.get("notes") or ""),
             )
         self.console.print(connections)
+
+        decisions = output.get("motion_control_decisions", [])
+        if decisions:
+            table = Table(
+                "Phase",
+                "Function",
+                "Motion",
+                "Load",
+                "Metering",
+                "Chamber",
+                "Flow",
+                "Compensation",
+                "Load control",
+                show_lines=True,
+            )
+            for item in decisions:
+                table.add_row(
+                    str(item.get("phase_id")),
+                    str(item.get("function_id")),
+                    str(item.get("motion")),
+                    str(item.get("load_type")),
+                    str(item.get("metering_side")),
+                    str(item.get("metered_chamber")),
+                    str(item.get("metered_flow")),
+                    str(item.get("flow_compensation")),
+                    str(item.get("load_control")),
+                )
+            self.console.print(table)
+
+        phase_configurations = output.get("phase_configurations", [])
+        if phase_configurations:
+            table = Table("Phase", "Function", "Motion", "Component states", "Active", "Forbidden", show_lines=True)
+            for item in phase_configurations:
+                states = ", ".join(
+                    f"{state.get('component_id')}={state.get('state')}"
+                    for state in item.get("component_states", [])
+                )
+                table.add_row(
+                    str(item.get("phase_id")),
+                    str(item.get("function_id")),
+                    str(item.get("motion")),
+                    states,
+                    ", ".join(item.get("expected_active_function_ids", [])),
+                    ", ".join(item.get("forbidden_active_function_ids", [])),
+                )
+            self.console.print(table)
+
+        if output.get("candidate_evaluations"):
+            table = Table("Candidate", "Eligible", "Score", "Selected", show_lines=True)
+            for item in output["candidate_evaluations"]:
+                table.add_row(
+                    str(item.get("candidate_id")),
+                    str(item.get("eligible")),
+                    str(item.get("score")),
+                    str(item.get("selected")),
+                )
+            self.console.print(table)
+
+        if output.get("repair_history"):
+            self.console.print(
+                Panel(Syntax(_json(output["repair_history"]), "json", word_wrap=True), title="Executed repair history")
+            )
 
         if output.get("external_interfaces"):
             interfaces = Table("Component.port", "External system", "Domain", "Notes", show_lines=True)

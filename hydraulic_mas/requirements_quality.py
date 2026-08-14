@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from .schemas import RequirementsSpec
+from .decision_flow import motion_decision_issues
 
 
 _PHYSICAL_MOTION_NOUNS = ("slide", "ram", "platen", "carriage", "table", "cylinder", "actuator")
@@ -47,4 +48,19 @@ def requirements_quality_issues(requirements: RequirementsSpec | dict, user_quer
             "Load-independent speed was applied to multiple functions. Scope it only to the motion phase "
             "whose speed must remain stable under load variation."
         )
+    issues.extend(motion_decision_issues(spec))
+
+    rigid_words = "rigid" in query and any(word in query for word in ("platen", "platform", "crosshead"))
+    if rigid_words:
+        synchronized = [
+            function.id
+            for function in spec.functions
+            if function.synchronization.strategy.value == "rigid_platen_parallel"
+            and function.synchronization.actuator_count >= 2
+        ]
+        if not synchronized:
+            issues.append(
+                "The problem explicitly describes a rigid shared platen/platform, but no function carries the "
+                "rigid_platen_parallel synchronization decision with at least two actuators."
+            )
     return issues

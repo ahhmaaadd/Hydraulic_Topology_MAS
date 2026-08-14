@@ -29,7 +29,7 @@ def _all_keys(value):
 
 
 def test_catalog_is_small_generic_and_topology_only() -> None:
-    assert 10 <= len(CATALOG) <= 20
+    assert 10 <= len(CATALOG) <= 25
     assert not hasattr(catalog_data, "PROBLEM_SOLUTIONS")
     assert not catalog_data.SOURCES
     assert {"pump", "tank", "relief_valve", "dcv", "cylinder"} <= set(component_types())
@@ -64,3 +64,19 @@ def test_catalog_has_problem_one_functional_classes() -> None:
         "GENERIC_PRESSURE_COMPENSATED_ONE_WAY_FLOW_CONTROL",
         "GENERIC_POSITION_OPERATED_BYPASS",
     } <= set(CATALOG)
+
+
+def test_catalog_has_missing_behavioral_classes_without_workarounds() -> None:
+    assert {
+        "GENERIC_CHECK_VALVE",
+        "GENERIC_EXTERNALLY_PILOTED_UNLOADING_VALVE",
+        "GENERIC_COUNTERBALANCE_VALVE",
+        "GENERIC_FLOW_DIVIDER_COMBINER",
+        "GENERIC_PRESSURE_REDUCING_VALVE_WITH_REVERSE_CHECK",
+        "GENERIC_EXTERNALLY_PILOTED_SEQUENCE_VALVE",
+    } <= set(CATALOG)
+    assert CATALOG["GENERIC_COUNTERBALANCE_VALVE"]["type"] == "counterbalance_valve"
+    assert CATALOG["GENERIC_SINGLE_PILOT_OPERATED_CHECK"]["type"] == "single_pilot_check_valve"
+    assert CATALOG["GENERIC_COUNTERBALANCE_VALVE"]["type"] != CATALOG[
+        "GENERIC_SINGLE_PILOT_OPERATED_CHECK"
+    ]["type"]

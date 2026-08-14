@@ -37,6 +37,11 @@ def compact_entry(key: str, entry: dict[str, Any]) -> dict[str, Any]:
         "summary": entry.get("summary"),
         "capabilities": entry.get("capabilities", []),
         "states": entry.get("states", []),
+        "fixed_paths": entry.get("fixed_paths", []),
+        "state_paths": entry.get("state_paths", {}),
+        "default_state": entry.get("default_state"),
+        "requires_phase_state": entry.get("requires_phase_state", False),
+        "conditional_paths": entry.get("conditional_paths", []),
         "actuation": entry.get("actuation"),
     }
 
@@ -134,6 +139,11 @@ def get_port_reference(catalog_keys: list[str]) -> str:
                 "ports": entry.get("ports", []),
                 "port_types": entry.get("port_types", {}),
                 "states": entry.get("states", []),
+                "fixed_paths": entry.get("fixed_paths", []),
+                "state_paths": entry.get("state_paths", {}),
+                "default_state": entry.get("default_state"),
+                "requires_phase_state": entry.get("requires_phase_state", False),
+                "conditional_paths": entry.get("conditional_paths", []),
             }
     return json.dumps(payload, indent=2)
 

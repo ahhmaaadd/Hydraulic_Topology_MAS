@@ -26,5 +26,12 @@ def test_graph_compiles_with_injected_dependencies() -> None:
     dummy_agents = SimpleNamespace()
     graph = build_graph(settings=settings, agents=dummy_agents, search_client=NoopSearch())
     nodes = set(graph.get_graph().nodes)
-    assert {"plan_research", "web_research_worker", "assess_research_coverage", "plan_components", "validate_topology"} <= nodes
-
+    assert {
+        "plan_research",
+        "web_research_worker",
+        "assess_research_coverage",
+        "plan_components",
+        "validate_topology",
+        "targeted_research",
+        "requirements_failure",
+    } <= nodes

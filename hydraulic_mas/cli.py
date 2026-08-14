@@ -65,10 +65,12 @@ def _initial_state(problem_id: str, problem: str, settings: Settings, *, interac
         "searches_used": 0,
         "research_round": 0,
         "research_stalled_rounds": 0,
+        "targeted_research_attempts": 0,
         "max_research_rounds": settings.max_research_rounds,
         "max_searches": settings.max_searches,
         "topology_round": 0,
         "max_topology_rounds": settings.max_topology_rounds,
+        "repair_history": [],
     }
 
 

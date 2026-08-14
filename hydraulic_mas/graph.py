@@ -10,14 +10,17 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send, interrupt
 
 from .agents import AgentSuite, PROMPT_BY_AGENT, build_agent_suite
+from .candidate_selection import evaluate_and_select_candidates
 from .catalog import CATALOG, catalog_type_reference, selected_catalog_reference
 from .config import Settings
+from .decision_flow import inject_design_brief_decisions, inject_topology_decisions
 from .models import build_chat_model
 from .requirements_quality import requirements_quality_issues
 from .research_guards import calibrate_finding, derive_research_need_hints, enforce_coverage_gate, enforce_minimum_plan
 from .schemas import (
     CombinedTopologyValidation,
     ComponentPlan,
+    ComponentPlanSet,
     CritiqueResult,
     DesignBrief,
     DeterministicValidation,
@@ -28,6 +31,7 @@ from .schemas import (
     ResearchCoverage,
     ResearchPlan,
     ResearchSynthesis,
+    ResearchTask,
     SearchRecord,
     TaskFinding,
     TopologyDesign,
@@ -178,10 +182,23 @@ class Workflow:
             if assumption.id not in existing:
                 requirements.assumptions.append(assumption)
                 existing.add(assumption.id)
-        unresolved = critique.completeness_status == "needs_clarification"
+        unresolved = critique.completeness_status == "needs_clarification" or bool(critique.consistency_issues)
         return {
             "requirements": requirements.model_dump(mode="json"),
             "requirements_unresolved": unresolved,
+        }
+
+    @staticmethod
+    def route_after_finalize_requirements(state: OverallState) -> Literal["requirements_failure", "plan_research"]:
+        return "requirements_failure" if state.get("requirements_unresolved") else "plan_research"
+
+    def requirements_failure(self, state: OverallState) -> dict[str, Any]:
+        return {
+            "failure": {
+                "stage": "requirements",
+                "message": "Circuit-changing requirements remain unresolved after clarification/repair limits.",
+                "critique": state.get("critique"),
+            }
         }
 
     # ------------------------------------------------------------------
@@ -375,7 +392,8 @@ class Workflow:
                 HumanMessage("REQUIREMENTS:\n" + _json(state["requirements"])),
             ]
         )
-        return {"design_brief": result.model_dump(mode="json")}
+        brief = inject_design_brief_decisions(result.model_dump(mode="json"), state["requirements"])
+        return {"design_brief": DesignBrief.model_validate(brief).model_dump(mode="json")}
 
     @staticmethod
     def _catalog_tool_trace(messages: list[Any]) -> list[dict[str, Any]]:
@@ -409,7 +427,8 @@ class Workflow:
             + _json(state["design_brief"])
             + "\n\nRESEARCH SYNTHESIS:\n"
             + _json(state["research_synthesis"])
-            + "\n\nSelect generic functional class keys with tools, then produce the topology-only component plan."
+            + "\n\nSelect generic functional class keys with tools, compare two or three viable "
+            "topology candidates, and return the candidate set."
         )
         previous_validation = state.get("topology_validation")
         if previous_validation and previous_validation.get("verdict") == "invalid":
@@ -441,10 +460,37 @@ class Workflow:
                 break
         if result is None or "structured_response" not in result:
             raise RuntimeError("Catalog-aware component planner returned no structured_response")
-        plan = ComponentPlan.model_validate(result["structured_response"])
+        structured = result["structured_response"]
+        if isinstance(structured, ComponentPlanSet):
+            plan_set = structured
+        elif isinstance(structured, ComponentPlan):
+            # Backward-compatible support for injected/offline agents. Live agents
+            # are constrained to ComponentPlanSet by their response schema.
+            second = structured.model_copy(
+                deep=True,
+                update={
+                    "candidate_id": f"{structured.candidate_id}_alternative",
+                    "approach": f"Alternative review of {structured.approach}",
+                },
+            )
+            plan_set = ComponentPlanSet(
+                candidates=[structured, second],
+                preferred_candidate_id=structured.candidate_id,
+                comparison_summary="Offline single-plan compatibility wrapper.",
+            )
+        else:
+            plan_set = ComponentPlanSet.model_validate(structured)
+        selected, candidates, evaluations = evaluate_and_select_candidates(
+            plan_set,
+            state["requirements"],
+        )
+        repair_actions = [item.model_dump(mode="json") for item in selected.repair_actions]
         return {
-            "component_plan": plan.model_dump(mode="json"),
+            "component_candidates": [item.model_dump(mode="json") for item in candidates],
+            "candidate_evaluations": [item.model_dump(mode="json") for item in evaluations],
+            "component_plan": selected.model_dump(mode="json"),
             "catalog_tool_trace": trace,
+            "repair_history": repair_actions,
         }
 
     def build_netlist(self, state: OverallState) -> dict[str, Any]:
@@ -469,8 +515,9 @@ class Workflow:
         result: TopologyDesign = self.agents.netlist_builder.invoke(
             [SystemMessage(PROMPT_BY_AGENT["netlist_builder"]), HumanMessage(payload)]
         )
+        topology = inject_topology_decisions(result.model_dump(mode="json"), plan.model_dump(mode="json"))
         return {
-            "topology": result.model_dump(mode="json"),
+            "topology": TopologyDesign.model_validate(topology).model_dump(mode="json"),
             "topology_round": state.get("topology_round", 0) + 1,
         }
 
@@ -515,12 +562,83 @@ class Workflow:
             "topology_validation": combined.model_dump(mode="json"),
         }
 
-    def route_after_topology_validation(self, state: OverallState) -> Literal["plan_components", "build_netlist", "finalize_topology"]:
+    def plan_targeted_research(self, state: OverallState) -> dict[str, Any]:
+        """Turn an unsupported design-pattern issue into one bounded evidence need."""
+        validation = state["topology_validation"]
+        issues = validation.get("deterministic", {}).get("issues", []) + validation.get(
+            "design_review", {}
+        ).get("design_issues", [])
+        research_issues = [
+            item
+            for item in issues
+            if item.get("severity") == "error" and item.get("scope") == "research"
+        ]
+        existing = list(state.get("knowledge_needs", []))
+        existing_ids = {item.get("id") for item in existing}
+        round_number = state.get("research_round", 0) + 1
+        remaining = max(
+            state.get("max_searches", self.settings.max_searches) - state.get("searches_used", 0),
+            0,
+        )
+        needs: list[dict[str, Any]] = []
+        tasks: list[dict[str, Any]] = []
+        for index, issue in enumerate(research_issues[:remaining], start=1):
+            raw_code = str(issue.get("code") or f"issue_{index}").casefold()
+            safe_code = "".join(character if character.isalnum() else "_" for character in raw_code).strip("_")
+            need_id = f"topology_r{state.get('topology_round', 0)}_{safe_code}"
+            if need_id in existing_ids:
+                continue
+            related = list(issue.get("related") or [])
+            need = KnowledgeNeed(
+                id=need_id,
+                decision=f"Resolve topology review issue: {issue.get('description')}",
+                why_needed="The proposed topology uses a pattern whose functional behavior is not yet supported.",
+                related_function_ids=related,
+                critical=True,
+                critical_reason="Validation cannot establish correctness without targeted technical evidence.",
+            )
+            task = ResearchTask(
+                id=f"targeted_{need_id}",
+                category="circuit_pattern",
+                query=(
+                    "hydraulic "
+                    + str(issue.get("description") or issue.get("code") or "circuit pattern")
+                    + " manufacturer technical manual port connections operating principle"
+                ),
+                objective=need.decision,
+                need_ids=[need.id],
+                related_function_ids=related,
+                source_preference="manufacturer manual, engineering textbook, university notes, or paper",
+                round_number=round_number,
+            )
+            needs.append(need.model_dump(mode="json"))
+            tasks.append(task.model_dump(mode="json"))
+            existing_ids.add(need_id)
+        return {
+            "knowledge_needs": existing + needs,
+            "pending_research_tasks": tasks,
+            "research_stalled_rounds": 0,
+            "targeted_research_attempts": state.get("targeted_research_attempts", 0) + 1,
+        }
+
+    def route_after_topology_validation(
+        self, state: OverallState
+    ) -> Literal["targeted_research", "plan_components", "build_netlist", "finalize_topology"]:
         validation = state["topology_validation"]
         if validation.get("verdict") == "valid":
             return "finalize_topology"
         rounds_left = state.get("topology_round", 0) < state.get("max_topology_rounds", self.settings.max_topology_rounds)
         if not rounds_left:
+            return "finalize_topology"
+        if validation.get("repair_scope") == "research":
+            research_budget = state.get("searches_used", 0) < state.get(
+                "max_searches", self.settings.max_searches
+            )
+            research_rounds = state.get("research_round", 0) < state.get(
+                "max_research_rounds", self.settings.max_research_rounds
+            )
+            if research_budget and research_rounds:
+                return "targeted_research"
             return "finalize_topology"
         if validation.get("repair_scope") == "wiring":
             return "build_netlist"
@@ -572,6 +690,11 @@ class Workflow:
             design_narrative=topology.design_narrative,
             selected_components=selected,
             connections=topology.connections,
+            motion_control_decisions=topology.motion_control_decisions,
+            synchronization_decisions=topology.synchronization_decisions,
+            phase_configurations=topology.phase_configurations,
+            candidate_evaluations=state.get("candidate_evaluations", []),
+            repair_history=state.get("repair_history", []),
             external_interfaces=topology.external_interfaces,
             port_terminations=topology.port_terminations,
             function_implementations=topology.function_implementations,
@@ -616,6 +739,7 @@ def build_graph(
     graph.add_node("repair_requirements", workflow.repair_requirements)
     graph.add_node("clarify_requirements", workflow.clarify_requirements)
     graph.add_node("finalize_requirements", workflow.finalize_requirements)
+    graph.add_node("requirements_failure", workflow.requirements_failure)
     graph.add_node("plan_research", workflow.plan_research)
     graph.add_node("research_dispatch", workflow.research_dispatch)
     graph.add_node("web_research_worker", workflow.web_research_worker)
@@ -626,6 +750,7 @@ def build_graph(
     graph.add_node("plan_components", workflow.plan_components)
     graph.add_node("build_netlist", workflow.build_netlist)
     graph.add_node("validate_topology", workflow.validate_and_review_topology)
+    graph.add_node("targeted_research", workflow.plan_targeted_research)
     graph.add_node("finalize_topology", workflow.finalize_topology)
 
     graph.add_edge(START, "extract_requirements")
@@ -641,7 +766,15 @@ def build_graph(
     )
     graph.add_edge("repair_requirements", "critique_requirements")
     graph.add_edge("clarify_requirements", "extract_requirements")
-    graph.add_edge("finalize_requirements", "plan_research")
+    graph.add_conditional_edges(
+        "finalize_requirements",
+        workflow.route_after_finalize_requirements,
+        {
+            "requirements_failure": "requirements_failure",
+            "plan_research": "plan_research",
+        },
+    )
+    graph.add_edge("requirements_failure", END)
     graph.add_edge("plan_research", "research_dispatch")
     graph.add_conditional_edges(
         "research_dispatch",
@@ -667,10 +800,12 @@ def build_graph(
         "validate_topology",
         workflow.route_after_topology_validation,
         {
+            "targeted_research": "targeted_research",
             "plan_components": "plan_components",
             "build_netlist": "build_netlist",
             "finalize_topology": "finalize_topology",
         },
     )
+    graph.add_edge("targeted_research", "research_dispatch")
     graph.add_edge("finalize_topology", END)
     return graph.compile(checkpointer=checkpointer or InMemorySaver())

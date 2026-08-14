@@ -13,7 +13,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Source(str, Enum):
@@ -44,6 +44,67 @@ class LoadType(str, Enum):
     unspecified = "unspecified"
 
 
+class MotionDirection(str, Enum):
+    extend = "extend"
+    retract = "retract"
+    hold = "hold"
+    unspecified = "unspecified"
+
+
+class MeteringSide(str, Enum):
+    none = "none"
+    meter_in = "meter_in"
+    meter_out = "meter_out"
+    undecided = "undecided"
+
+
+class ActuatorChamber(str, Enum):
+    cap = "cap"
+    rod = "rod"
+    none = "none"
+    unspecified = "unspecified"
+
+
+class MeteredFlow(str, Enum):
+    supply = "supply"
+    exhaust = "exhaust"
+    none = "none"
+    unspecified = "unspecified"
+
+
+class FlowCompensation(str, Enum):
+    none = "none"
+    non_compensated = "non_compensated"
+    pressure_compensated = "pressure_compensated"
+    unspecified = "unspecified"
+
+
+class LoadControlStrategy(str, Enum):
+    none = "none"
+    pilot_check = "pilot_check"
+    counterbalance = "counterbalance"
+    unspecified = "unspecified"
+
+
+class SynchronizationStrategy(str, Enum):
+    none = "none"
+    rigid_platen_parallel = "rigid_platen_parallel"
+    hydraulic_series = "hydraulic_series"
+    flow_divider_parallel = "flow_divider_parallel"
+    unspecified = "unspecified"
+
+
+class SequenceTrigger(str, Enum):
+    initial_command = "initial_command"
+    external_command = "external_command"
+    pressure = "pressure"
+    position = "position"
+    mechanical_coupling = "mechanical_coupling"
+    simultaneous = "simultaneous"
+    completion_of_previous = "completion_of_previous"
+    unspecified = "unspecified"
+
+
 class Comparator(str, Enum):
     le = "<="
     ge = ">="
@@ -64,8 +125,10 @@ class Quantity(BaseModel):
 
 
 class MotionPhase(BaseModel):
+    id: str = Field(..., description="Globally stable snake_case phase identifier.")
     name: str
     description: str | None = None
+    motion: MotionDirection
     distance: Quantity | None = None
     speed: Quantity | None = None
     force: Quantity | None = None
@@ -73,6 +136,64 @@ class MotionPhase(BaseModel):
     load_type: LoadType = LoadType.unspecified
     speed_adjustable: bool = False
     speed_load_independent: bool = False
+    metering_side: MeteringSide
+    metered_chamber: ActuatorChamber
+    metered_flow: MeteredFlow
+    flow_compensation: FlowCompensation
+    load_control: LoadControlStrategy = LoadControlStrategy.none
+    motion_control_justification: str = Field(
+        ...,
+        description="Concise auditable basis for the metering and load-control decision.",
+    )
+    motion_control_source: Source = Source.inferred
+
+    @model_validator(mode="after")
+    def validate_motion_control_fields(self) -> "MotionPhase":
+        if self.metering_side == MeteringSide.none:
+            if self.metered_chamber != ActuatorChamber.none or self.metered_flow != MeteredFlow.none:
+                raise ValueError("metering_side=none requires metered_chamber=none and metered_flow=none")
+            if self.flow_compensation != FlowCompensation.none:
+                raise ValueError("metering_side=none requires flow_compensation=none")
+        elif self.metering_side == MeteringSide.meter_in:
+            if self.metered_flow != MeteredFlow.supply:
+                raise ValueError("meter_in requires metered_flow=supply")
+        elif self.metering_side == MeteringSide.meter_out:
+            if self.metered_flow != MeteredFlow.exhaust:
+                raise ValueError("meter_out requires metered_flow=exhaust")
+        return self
+
+
+class MotionControlDecision(BaseModel):
+    function_id: str
+    phase_id: str
+    phase_name: str
+    motion: MotionDirection
+    load_type: LoadType
+    metering_side: MeteringSide
+    metered_chamber: ActuatorChamber
+    metered_flow: MeteredFlow
+    flow_compensation: FlowCompensation
+    load_control: LoadControlStrategy
+    justification: str
+    source: Source
+
+
+class SynchronizationDecision(BaseModel):
+    required: bool = False
+    actuator_count: int = Field(1, ge=1)
+    strategy: SynchronizationStrategy = SynchronizationStrategy.none
+    series_displacement_compatibility: Literal[
+        "not_applicable",
+        "explicitly_matched",
+        "required_in_sizing",
+        "unknown",
+    ] = "not_applicable"
+    justification: str = "No synchronization requirement."
+    source: Source = Source.inferred
+
+
+class FunctionSynchronizationDecision(SynchronizationDecision):
+    function_id: str
 
 
 class HoldingRequirement(BaseModel):
@@ -106,6 +227,7 @@ class FunctionRequirement(BaseModel):
     cycle_time: Quantity | None = None
     duty_cycle: Quantity | None = None
     holding: HoldingRequirement = Field(default_factory=HoldingRequirement)
+    synchronization: SynchronizationDecision = Field(default_factory=SynchronizationDecision)
     special_modes: list[str] = Field(default_factory=list)
     notes: str | None = None
 
@@ -123,9 +245,14 @@ class GlobalConstraints(BaseModel):
 
 class SequenceStep(BaseModel):
     order: int
+    phase_id: str | None = None
     description: str
     function_ids: list[str] = Field(default_factory=list)
+    predecessor_phase_id: str | None = None
     precondition: str | None = None
+    trigger: SequenceTrigger = SequenceTrigger.unspecified
+    hydraulically_enforced: bool = False
+    forbidden_overlap_function_ids: list[str] = Field(default_factory=list)
 
 
 class OperationalLogic(BaseModel):
@@ -379,6 +506,8 @@ class FunctionBrief(BaseModel):
     load_type: str
     holding: str
     speed_control: str
+    motion_control_decisions: list[MotionControlDecision] = Field(default_factory=list)
+    synchronization: SynchronizationDecision = Field(default_factory=SynchronizationDecision)
     phase_change_or_sequence: str | None = None
     key_criteria: list[str] = Field(default_factory=list)
 
@@ -400,7 +529,7 @@ class CatalogGap(BaseModel):
     related_function_ids: list[str] = Field(default_factory=list)
     chosen_workaround: str | None = None
     scope: Literal["topology", "sizing"] = "topology"
-    blocking: bool = False
+    blocking: bool = True
 
 
 class PlannedComponent(BaseModel):
@@ -420,6 +549,41 @@ class ConnectionIntent(BaseModel):
     line: str = "unspecified"
 
 
+class RepairAction(BaseModel):
+    action: Literal[
+        "add_component",
+        "delete_component",
+        "replace_component",
+        "add_connection",
+        "delete_connection",
+        "replace_connection",
+    ]
+    issue_codes: list[str] = Field(default_factory=list)
+    rationale: str
+    target_component_id: str | None = None
+    component: PlannedComponent | None = None
+    target_connection: ConnectionIntent | None = None
+    replacement_connection: ConnectionIntent | None = None
+
+    @model_validator(mode="after")
+    def validate_action_payload(self) -> "RepairAction":
+        if self.action == "add_component" and self.component is None:
+            raise ValueError("add_component requires component")
+        if self.action == "delete_component" and not self.target_component_id:
+            raise ValueError("delete_component requires target_component_id")
+        if self.action == "replace_component" and (not self.target_component_id or self.component is None):
+            raise ValueError("replace_component requires target_component_id and component")
+        if self.action == "add_connection" and self.replacement_connection is None:
+            raise ValueError("add_connection requires replacement_connection")
+        if self.action == "delete_connection" and self.target_connection is None:
+            raise ValueError("delete_connection requires target_connection")
+        if self.action == "replace_connection" and (
+            self.target_connection is None or self.replacement_connection is None
+        ):
+            raise ValueError("replace_connection requires target_connection and replacement_connection")
+        return self
+
+
 class LedgerEntry(BaseModel):
     function_id: str | None = None
     component_id: str | None = None
@@ -429,6 +593,8 @@ class LedgerEntry(BaseModel):
 
 
 class ComponentPlan(BaseModel):
+    candidate_id: str = "candidate_1"
+    approach: str = "minimal conventional topology"
     planning_summary: str
     engineering_decision_log: list[str] = Field(
         default_factory=list,
@@ -436,9 +602,28 @@ class ComponentPlan(BaseModel):
     )
     components: list[PlannedComponent]
     connection_intent: list[ConnectionIntent]
+    motion_control_decisions: list[MotionControlDecision] = Field(default_factory=list)
+    synchronization_decisions: list[FunctionSynchronizationDecision] = Field(default_factory=list)
     design_ledger: list[LedgerEntry] = Field(default_factory=list)
     catalog_gaps: list[CatalogGap] = Field(default_factory=list)
     open_issues: list[str] = Field(default_factory=list)
+    repair_actions: list[RepairAction] = Field(default_factory=list)
+
+
+class ComponentPlanSet(BaseModel):
+    candidates: list[ComponentPlan] = Field(..., min_length=2, max_length=3)
+    preferred_candidate_id: str
+    comparison_summary: str
+
+
+class CandidateEvaluation(BaseModel):
+    candidate_id: str
+    eligible: bool
+    score: float
+    component_count: int
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    selected: bool = False
 
 
 class TopologyComponent(BaseModel):
@@ -501,10 +686,29 @@ class DesignDecision(BaseModel):
     evidence_urls: list[str] = Field(default_factory=list)
 
 
+class ComponentStateSelection(BaseModel):
+    component_id: str
+    state: str
+    reason: str | None = None
+
+
+class PhaseConfiguration(BaseModel):
+    phase_id: str
+    function_id: str
+    motion: MotionDirection
+    component_states: list[ComponentStateSelection] = Field(default_factory=list)
+    expected_active_function_ids: list[str] = Field(default_factory=list)
+    forbidden_active_function_ids: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
 class TopologyDesign(BaseModel):
     design_narrative: str
     components: list[TopologyComponent]
     connections: list[Connection]
+    motion_control_decisions: list[MotionControlDecision] = Field(default_factory=list)
+    synchronization_decisions: list[FunctionSynchronizationDecision] = Field(default_factory=list)
+    phase_configurations: list[PhaseConfiguration] = Field(default_factory=list)
     external_interfaces: list[ExternalInterface] = Field(default_factory=list)
     port_terminations: list[PortTermination] = Field(default_factory=list)
     function_implementations: list[FunctionImplementation] = Field(default_factory=list)
@@ -544,7 +748,7 @@ class CombinedTopologyValidation(BaseModel):
     verdict: Literal["valid", "invalid"]
     deterministic: DeterministicValidation
     design_review: TopologyReview
-    repair_scope: Literal["none", "wiring", "selection"]
+    repair_scope: Literal["none", "wiring", "selection", "research"]
     topology_round: int
     summary: str
 
@@ -579,6 +783,11 @@ class FinalTopologyOutput(BaseModel):
     design_narrative: str
     selected_components: list[FinalComponent]
     connections: list[Connection]
+    motion_control_decisions: list[MotionControlDecision] = Field(default_factory=list)
+    synchronization_decisions: list[FunctionSynchronizationDecision] = Field(default_factory=list)
+    phase_configurations: list[PhaseConfiguration] = Field(default_factory=list)
+    candidate_evaluations: list[CandidateEvaluation] = Field(default_factory=list)
+    repair_history: list[RepairAction] = Field(default_factory=list)
     external_interfaces: list[ExternalInterface] = Field(default_factory=list)
     port_terminations: list[PortTermination] = Field(default_factory=list)
     function_implementations: list[FunctionImplementation] = Field(default_factory=list)

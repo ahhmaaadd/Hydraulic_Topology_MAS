@@ -78,7 +78,16 @@ def test_coverage_gate_accepts_cited_medium_confidence_evidence() -> None:
                 source_kind="manufacturer",
                 claim_type="operating_principle",
                 verified=True,
-            )
+            ),
+            EvidenceClaim(
+                id="claim-2",
+                claim="The source places the valve in the controlled branch.",
+                excerpt="The source places the valve in the controlled branch.",
+                source_url="https://example.com/manual",
+                source_kind="manufacturer",
+                claim_type="connection",
+                verified=True,
+            ),
         ],
         confidence="medium",
     )
@@ -100,4 +109,3 @@ def test_coverage_gate_accepts_cited_medium_confidence_evidence() -> None:
     assert guarded.status == "sufficient"
     assert guarded.can_proceed
     assert guarded.follow_up_tasks == []
-
