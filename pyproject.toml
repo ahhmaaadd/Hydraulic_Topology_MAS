@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hydraulic-topology-mas"
+version = "0.1.0"
+description = "Terminal-only LangGraph multi-agent workflow for hydraulic topology research, design, and validation"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "langchain>=1.2,<2",
+  "langchain-core>=1.2,<2",
+  "langchain-openai>=1.1,<2",
+  "langgraph>=1.0,<2",
+  "httpx[socks]>=0.28,<1",
+  "pydantic>=2.10,<3",
+  "python-dotenv>=1.0,<2",
+  "rich>=14,<15",
+  "tavily-python>=0.7,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2,<10",
+  "pytest-cov>=5,<8",
+]
+
+[project.scripts]
+hydraulic-topology = "hydraulic_mas.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hydraulic_mas*"]
+
+[tool.setuptools.package-data]
+hydraulic_mas = ["data/*.py"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
