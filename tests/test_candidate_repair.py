@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from types import SimpleNamespace
+
+import pytest
+from langchain.agents.structured_output import StructuredOutputValidationError
+from langchain_core.messages import AIMessage
 
 from hydraulic_mas.candidate_selection import apply_repair_actions, evaluate_and_select_candidates
+from hydraulic_mas.config import Settings
+from hydraulic_mas.graph import Workflow
 from hydraulic_mas.schemas import ComponentPlan, ComponentPlanSet, PlannedComponent, RepairAction
 from test_validation import requirements, valid_topology
 
@@ -52,6 +59,116 @@ def test_delete_component_repair_is_executable() -> None:
     assert "UnjustifiedSequence" not in {item.id for item in repaired.components}
 
 
+def test_add_connection_accepts_common_target_field_mixup() -> None:
+    connection = {
+        "description": "Add pump supply branch.",
+        "from_hint": "Pump",
+        "to_hint": "DCV",
+        "line": "pressure",
+    }
+    action = RepairAction.model_validate(
+        {
+            "action": "add_connection",
+            "rationale": "Restore missing supply path.",
+            "target_connection": connection,
+            "replacement_connection": None,
+        }
+    )
+    assert action.target_connection is None
+    assert action.replacement_connection is not None
+    assert action.replacement_connection.from_hint == "Pump"
+
+
+def test_add_connection_without_any_connection_payload_remains_invalid() -> None:
+    with pytest.raises(ValueError, match="add_connection requires replacement_connection"):
+        RepairAction.model_validate(
+            {
+                "action": "add_connection",
+                "rationale": "Malformed model output.",
+                "target_connection": None,
+                "replacement_connection": None,
+            }
+        )
+
+
+class RecoveringPlanner:
+    def __init__(self, plan_set: ComponentPlanSet):
+        self.plan_set = plan_set
+        self.prompts: list[str] = []
+
+    def invoke(self, payload):
+        self.prompts.append(str(payload["messages"][0].content))
+        if len(self.prompts) == 1:
+            raise StructuredOutputValidationError(
+                "ComponentPlanSet",
+                ValueError("add_connection requires replacement_connection"),
+                AIMessage(content=""),
+            )
+        return {
+            "messages": [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {"name": "list_component_types", "args": {}, "id": "types", "type": "tool_call"},
+                        {
+                            "name": "list_components",
+                            "args": {"comp_type": "pump"},
+                            "id": "components",
+                            "type": "tool_call",
+                        },
+                    ],
+                )
+            ],
+            "structured_response": self.plan_set,
+        }
+
+
+class NoopSearch:
+    def search(self, query: str, *, max_results: int):
+        return []
+
+
+def test_component_planner_retries_structured_output_validation_error() -> None:
+    first = _plan("minimal")
+    second = _plan("alternative")
+    plan_set = ComponentPlanSet(
+        candidates=[first, second],
+        preferred_candidate_id="minimal",
+        comparison_summary="Two catalog-backed regression candidates.",
+    )
+    planner = RecoveringPlanner(plan_set)
+    settings = Settings(
+        model="test",
+        fast_model="test",
+        openai_api_key=None,
+        openai_base_url=None,
+        default_headers={},
+        azure_api_key=None,
+        azure_endpoint=None,
+        azure_api_version="test",
+        tavily_api_key=None,
+    )
+    workflow = Workflow(
+        settings=settings,
+        agents=SimpleNamespace(component_planner=planner),
+        search_client=NoopSearch(),
+    )
+
+    result = workflow.plan_components(
+        {
+            "design_brief": {"application": "test fixture"},
+            "research_synthesis": {"summary": "test evidence"},
+            "requirements": requirements(),
+        }
+    )
+
+    assert len(planner.prompts) == 2
+    assert "STRUCTURED OUTPUT CORRECTION" in planner.prompts[1]
+    assert len(result["component_planner_recovery"]) == 1
+    assert result["component_planner_recovery"][0]["outcome"] == "retry"
+    assert result["component_plan"]["candidate_id"] == "minimal"
+
+
 def test_candidate_selector_rejects_fake_hi_lo_workaround() -> None:
     minimal = _plan("minimal")
     bad = deepcopy(minimal)
@@ -86,4 +203,3 @@ def test_candidate_selector_rejects_fake_hi_lo_workaround() -> None:
     assert not bad_evaluation.eligible
     assert any("unloading valve" in error for error in bad_evaluation.errors)
     assert any("plain check valve" in error for error in bad_evaluation.errors)
-

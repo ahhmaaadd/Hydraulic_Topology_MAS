@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
 
 from .catalog import CATALOG_TOOLS, catalog_type_reference
 from .prompts import (
@@ -68,7 +69,14 @@ def build_agent_suite(design_model: Any, fast_model: Any) -> AgentSuite:
             model=design_model,
             tools=CATALOG_TOOLS,
             system_prompt=catalog_system_prompt,
-            response_format=ComponentPlanSet,
+            response_format=ToolStrategy(
+                ComponentPlanSet,
+                handle_errors=(
+                    "Return a valid ComponentPlanSet. For add_connection, place the new ConnectionIntent in "
+                    "replacement_connection; for delete_connection use target_connection; for "
+                    "replace_connection provide both. Never leave an action's required payload null."
+                ),
+            ),
         ),
         netlist_builder=_structured(design_model, TopologyDesign),
         topology_reviewer=_structured(design_model, TopologyReview),

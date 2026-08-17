@@ -562,8 +562,36 @@ class RepairAction(BaseModel):
     rationale: str
     target_component_id: str | None = None
     component: PlannedComponent | None = None
-    target_connection: ConnectionIntent | None = None
-    replacement_connection: ConnectionIntent | None = None
+    target_connection: ConnectionIntent | None = Field(
+        None,
+        description="Existing connection to delete or replace; not used by add_connection.",
+    )
+    replacement_connection: ConnectionIntent | None = Field(
+        None,
+        description="New connection required by add_connection and replace_connection.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_connection_payload(cls, value):
+        """Recover the common add-connection field mix-up before validation.
+
+        The unified action schema exposes both target and replacement fields.
+        Models therefore sometimes put a newly added connection in
+        ``target_connection`` (or an intuitive extra ``connection`` field).
+        For an add operation those values are unambiguously the new connection.
+        """
+        if not isinstance(value, dict) or value.get("action") != "add_connection":
+            return value
+        if value.get("replacement_connection") is not None:
+            return value
+        replacement = value.get("connection") or value.get("target_connection")
+        if replacement is None:
+            return value
+        normalized = dict(value)
+        normalized["replacement_connection"] = replacement
+        normalized["target_connection"] = None
+        return normalized
 
     @model_validator(mode="after")
     def validate_action_payload(self) -> "RepairAction":
@@ -624,6 +652,13 @@ class CandidateEvaluation(BaseModel):
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     selected: bool = False
+
+
+class ComponentPlannerRecovery(BaseModel):
+    attempt: int = Field(..., ge=1)
+    error_type: str
+    error: str
+    outcome: Literal["retry"] = "retry"
 
 
 class TopologyComponent(BaseModel):
@@ -787,6 +822,7 @@ class FinalTopologyOutput(BaseModel):
     synchronization_decisions: list[FunctionSynchronizationDecision] = Field(default_factory=list)
     phase_configurations: list[PhaseConfiguration] = Field(default_factory=list)
     candidate_evaluations: list[CandidateEvaluation] = Field(default_factory=list)
+    component_planner_recovery: list[ComponentPlannerRecovery] = Field(default_factory=list)
     repair_history: list[RepairAction] = Field(default_factory=list)
     external_interfaces: list[ExternalInterface] = Field(default_factory=list)
     port_terminations: list[PortTermination] = Field(default_factory=list)

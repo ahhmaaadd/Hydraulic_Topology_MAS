@@ -1,0 +1,703 @@
+{
+  "problem_id": "P7-03",
+  "title": "Horizontal Positioning Fixture Hydraulic Requirements",
+  "status": "unresolved",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Open-circuit fixed-displacement hydraulic topology for a horizontal carriage with operator-commanded modes only. Tank supplies pump suction; pump pressure branches directly to the main relief valve and to the spring-centered 4/3 tandem-center DCV. Relief and DCV tank ports return directly to the tank. DCV work ports feed independent non-compensated one-way meter-in flow controls: DCV.A through the cap-side flow control to the cap side of the dual pilot-operated check, and DCV.B through the rod-side flow control to the rod side of the dual pilot-operated check. The dual pilot-operated check is installed between the metered work lines and the cylinder ports for low-leakage bidirectional holding, with cross-pilot release behavior internal to the selected generic class. The cylinder cap port is the advance/extension side and the rod port is the return/retraction side. Carriage advance, hold, and return are mutually exclusive operator-selected DCV states, not hydraulically enforced automatic sequence steps; therefore no hydraulic sequence valve, hydraulic trigger, position valve, or pressure-switch phase-change component is part of this topology.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "Open-circuit reservoir boundary for pump suction and hydraulic returns.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "S supplies pump suction.",
+        "R receives DCV return and relief discharge."
+      ],
+      "selection_basis": "Required reservoir boundary for the open hydraulic circuit."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "Provide positive-displacement hydraulic supply for carriage motion.",
+      "function_id": "position_carriage",
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Drive and displacement are deferred to sizing.",
+        "Flow capacity is deferred to sizing for the specified advance and return speeds."
+      ],
+      "selection_basis": "Smallest conventional supply class; no standby-flow reduction or energy-efficiency requirement is stated."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "Limit system pressure by diverting pump pressure flow to tank at the relief setting.",
+      "function_id": "position_carriage",
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Select/set not above the 100 bar maximum system pressure requirement; exact setting and tolerance are sizing-phase items."
+      ],
+      "selection_basis": "Required overpressure protection for fixed-displacement pump outlet, actuator stall, and blocked-flow conditions."
+    },
+    {
+      "id": "CapMeterInFlowControl",
+      "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+      "name": "One-Way Speed Control",
+      "comp_type": "one_way_flow_control",
+      "role": "Non-compensated meter-in speed control for carriage advance.",
+      "function_id": "position_carriage",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Port A faces DCV.A.",
+        "Port B faces the cap-side valve-side port of the dual pilot check.",
+        "A to B flow is metered for cap-end supply during extension.",
+        "B to A free reverse flow permits cap-end exhaust during retraction."
+      ],
+      "selection_basis": "Matches the typed non-compensated meter-in cap-chamber advance decision."
+    },
+    {
+      "id": "RodMeterInFlowControl",
+      "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+      "name": "One-Way Speed Control",
+      "comp_type": "one_way_flow_control",
+      "role": "Non-compensated meter-in speed control for carriage return.",
+      "function_id": "position_carriage",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Port A faces DCV.B.",
+        "Port B faces the rod-side valve-side port of the dual pilot check.",
+        "A to B flow is metered for rod-end supply during retraction.",
+        "B to A free reverse flow permits rod-end exhaust during extension."
+      ],
+      "selection_basis": "Matches the typed non-compensated meter-in rod-chamber return decision."
+    },
+    {
+      "id": "DualPilotCheck",
+      "catalog_key": "GENERIC_DUAL_PILOT_OPERATED_CHECK",
+      "name": "Dual Pilot-Operated Check Valve",
+      "comp_type": "pilot_check_valve",
+      "role": "Bidirectional low-leakage cylinder holding with cross-pilot release during commanded motion.",
+      "function_id": "position_carriage",
+      "ports": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "configuration": [
+        "A1 connects to cap-side metered work line; A2 connects to Cylinder.Cap.",
+        "B1 connects to rod-side metered work line; B2 connects to Cylinder.Rod.",
+        "Pressure at B1 releases A2 to A1 reverse flow during return.",
+        "Pressure at A1 releases B2 to B1 reverse flow during advance.",
+        "In neutral, reverse flow from both cylinder chambers is blocked by pilot-check behavior."
+      ],
+      "selection_basis": "Satisfies normal commanded stop-and-hold at any position without relying on DCV spool leakage performance."
+    },
+    {
+      "id": "Cylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Single horizontal carriage actuator; extension is advance and retraction is return.",
+      "function_id": "position_carriage",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap port is the advance/extend side.",
+        "Rod port is the return/retract side.",
+        "Stroke, bore, and rod dimensions are deferred to sizing."
+      ],
+      "selection_basis": "Required single bidirectional linear actuator for the positioning fixture."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "Operator-commanded extend, neutral, and retract directional control with spring-centered safe neutral.",
+      "function_id": "position_carriage",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Extend state: P to A and B to T for carriage advance.",
+        "Neutral safe state on command release: P to T with A and B blocked.",
+        "Retract state: P to B and A to T for carriage return.",
+        "Advance, neutral/hold, and return are mutually exclusive operator-selected valve states.",
+        "This DCV is not a sequence device; no hydraulic sequence step or hydraulic trigger is selected."
+      ],
+      "selection_basis": "Provides extend, retract, and safe neutral behavior while avoiding simultaneous opposing motion and unloading the fixed pump in neutral."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Tank supplies pump suction."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump outlet branches directly to the relief inlet for pressure limiting."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump outlet branches directly to the DCV pressure port."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief discharge returns directly to reservoir."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "DCV tank port returns directly to reservoir."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "CapMeterInFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Cap-side meter-in path; controlled A-to-B flow supplies the cap side during extension."
+    },
+    {
+      "from_component": "CapMeterInFlowControl",
+      "from_port": "B",
+      "to_component": "DualPilotCheck",
+      "to_port": "A1",
+      "line": "work",
+      "notes": "Metered cap-side outlet feeds dual pilot-check cap valve-side port."
+    },
+    {
+      "from_component": "DualPilotCheck",
+      "from_port": "A2",
+      "to_component": "Cylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Dual pilot-check cap actuator-side port connects directly to cylinder cap port."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "B",
+      "to_component": "RodMeterInFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Rod-side meter-in path; controlled A-to-B flow supplies the rod side during retraction."
+    },
+    {
+      "from_component": "RodMeterInFlowControl",
+      "from_port": "B",
+      "to_component": "DualPilotCheck",
+      "to_port": "B1",
+      "line": "work",
+      "notes": "Metered rod-side outlet feeds dual pilot-check rod valve-side port."
+    },
+    {
+      "from_component": "DualPilotCheck",
+      "from_port": "B2",
+      "to_component": "Cylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "Dual pilot-check rod actuator-side port connects directly to cylinder rod port."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "position_carriage",
+      "phase_id": "carriage_advance",
+      "phase_name": "Carriage advance",
+      "motion": "extend",
+      "load_type": "resistive",
+      "metering_side": "meter_in",
+      "metered_chamber": "cap",
+      "metered_flow": "supply",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "Horizontal resistive advance load; no load-independent speed requirement stated, so basic meter-in speed control is sufficient as a requirement-level motion-control decision.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "position_carriage",
+      "phase_id": "carriage_hold_any_position",
+      "phase_name": "Carriage hold at any position",
+      "motion": "hold",
+      "load_type": "resistive",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "pilot_check",
+      "justification": "Static holding at any commanded stop point is required; no dynamic overrunning load control is indicated for the horizontal fixture.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "position_carriage",
+      "phase_id": "carriage_return",
+      "phase_name": "Carriage return",
+      "motion": "retract",
+      "load_type": "resistive",
+      "metering_side": "meter_in",
+      "metered_chamber": "rod",
+      "metered_flow": "supply",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "Horizontal resistive return load; no load-independent speed requirement stated, so basic meter-in speed control is sufficient as a requirement-level motion-control decision.",
+      "source": "inferred"
+    }
+  ],
+  "synchronization_decisions": [],
+  "phase_configurations": [
+    {
+      "phase_id": "carriage_advance",
+      "function_id": "position_carriage",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Operator advance command selects the DCV extend state: P-A and B-T."
+        }
+      ],
+      "expected_active_function_ids": [
+        "position_carriage"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Advance is an operator-selected mode, not an automatic hydraulic sequence step. Supply path is Pump.P -> DCV.P -> DCV.A -> CapMeterInFlowControl.A-B metered direction -> DualPilotCheck.A1-A2 -> Cylinder.Cap. Rod exhaust is released by pressure at A1 and returns from Cylinder.Rod -> DualPilotCheck.B2-B1 -> RodMeterInFlowControl.B-A free reverse -> DCV.B -> DCV.T -> Tank.R. Return command is not simultaneous."
+    },
+    {
+      "phase_id": "carriage_hold_any_position",
+      "function_id": "position_carriage",
+      "motion": "hold",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "neutral",
+          "reason": "Command release or operator hold selects tandem-center neutral: P-T with A and B blocked."
+        }
+      ],
+      "expected_active_function_ids": [
+        "position_carriage"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Hold is an operator-selected command-release/neutral condition, not a hydraulically triggered sequence step. Neutral unloads pump flow through DCV P-T while work ports are blocked. The dual pilot-operated check blocks reverse flow from both cylinder chambers for low-leakage holding."
+    },
+    {
+      "phase_id": "carriage_return",
+      "function_id": "position_carriage",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "retract",
+          "reason": "Operator return command selects the DCV retract state: P-B and A-T."
+        }
+      ],
+      "expected_active_function_ids": [
+        "position_carriage"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Return is an operator-selected mode, not an automatic hydraulic sequence step. Supply path is Pump.P -> DCV.P -> DCV.B -> RodMeterInFlowControl.A-B metered direction -> DualPilotCheck.B1-B2 -> Cylinder.Rod. Cap exhaust is released by pressure at B1 and returns from Cylinder.Cap -> DualPilotCheck.A2-A1 -> CapMeterInFlowControl.B-A free reverse -> DCV.A -> DCV.T -> Tank.R. Advance command is not simultaneous."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1",
+      "eligible": true,
+      "score": 96.0,
+      "component_count": 8,
+      "errors": [],
+      "warnings": [],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2",
+      "eligible": true,
+      "score": 95.5,
+      "component_count": 9,
+      "errors": [],
+      "warnings": [],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "HYDRAULIC_SEQUENCE_TRIGGER_UNDEFINED"
+      ],
+      "rationale": "Replace the DCV planning record with an explicitly non-sequencing operator-commanded 4/3 tandem-center DCV record; no hydraulic sequence trigger is required because no hydraulically enforced sequence is selected.",
+      "target_component_id": "DCV",
+      "component": {
+        "id": "DCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+        "comp_type": "dcv",
+        "role": "Operator-commanded extend, neutral, and retract directional control with spring-centered safe neutral.",
+        "function_id": "position_carriage",
+        "configuration": [
+          "Extend state: P to A and B to T for carriage advance.",
+          "Neutral safe state on command release: P to T with A and B blocked.",
+          "Retract state: P to B and A to T for carriage return.",
+          "Advance, neutral/hold, and return are mutually exclusive operator-selected valve states.",
+          "This DCV is not a sequence device; no hydraulic sequence step or hydraulic trigger is selected."
+        ],
+        "selection_basis": "Provides extend, retract, and safe neutral behavior while avoiding simultaneous opposing motion and unloading the fixed pump in neutral."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    }
+  ],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "position_carriage",
+      "component_ids": [
+        "Cylinder"
+      ],
+      "circuit_pattern": "Double-acting cylinder carriage actuator.",
+      "how_requirements_met": "The double-acting cylinder extends for carriage advance and retracts for carriage return. Stroke, bore, and rod sizing are deferred to sizing."
+    },
+    {
+      "function_id": "position_carriage",
+      "component_ids": [
+        "DCV"
+      ],
+      "circuit_pattern": "Operator-commanded spring-centered 4/3 tandem-center directional control.",
+      "how_requirements_met": "Operator advance selects extend, command release or hold selects neutral, and operator return selects retract. These are mutually exclusive operator-selected valve states rather than hydraulically triggered sequence steps."
+    },
+    {
+      "function_id": "position_carriage",
+      "component_ids": [
+        "CapMeterInFlowControl"
+      ],
+      "circuit_pattern": "Cap-side non-compensated meter-in speed control.",
+      "how_requirements_met": "CapMeterInFlowControl meters supply flow from DCV.A to the cap-side pilot-check valve-side port during extension, matching the typed cap-chamber meter-in advance decision. Its internal free reverse path permits cap-end exhaust during retraction."
+    },
+    {
+      "function_id": "position_carriage",
+      "component_ids": [
+        "RodMeterInFlowControl"
+      ],
+      "circuit_pattern": "Rod-side non-compensated meter-in speed control.",
+      "how_requirements_met": "RodMeterInFlowControl meters supply flow from DCV.B to the rod-side pilot-check valve-side port during retraction, matching the typed rod-chamber meter-in return decision. Its internal free reverse path permits rod-end exhaust during extension."
+    },
+    {
+      "function_id": "position_carriage",
+      "component_ids": [
+        "DualPilotCheck"
+      ],
+      "circuit_pattern": "Dual pilot-operated check holding at cylinder work lines.",
+      "how_requirements_met": "DualPilotCheck blocks reverse flow from both cylinder chambers in neutral and releases the exhausting side by opposite-line pressure during commanded motion, satisfying normal stop-and-hold at any position without relying on DCV leakage performance."
+    },
+    {
+      "function_id": "position_carriage",
+      "component_ids": [
+        "ReliefValve",
+        "Tank"
+      ],
+      "circuit_pattern": "Main relief-to-tank pressure limiting.",
+      "how_requirements_met": "ReliefValve connects from pump pressure to Tank.R when relieving, creating a relief path to reservoir so the pressure setting can be selected not above the 100 bar maximum during sizing."
+    },
+    {
+      "function_id": "position_carriage",
+      "component_ids": [
+        "Tank",
+        "Pump"
+      ],
+      "circuit_pattern": "Open-circuit hydraulic power source.",
+      "how_requirements_met": "Tank.S supplies Pump.S, and Pump.P provides the positive-displacement pressure supply for the relief branch and the DCV branch."
+    },
+    {
+      "function_id": "position_carriage",
+      "component_ids": [
+        "DCV"
+      ],
+      "circuit_pattern": "No hydraulic sequence component; operator-commanded modes only.",
+      "how_requirements_met": "No sequence valve, pressure trigger, position trigger, or automatic hydraulic phase-change component is selected. Advance, hold, and return are implemented only by explicit DCV states selected by operator command or command release."
+    },
+    {
+      "function_id": "position_carriage",
+      "component_ids": [
+        "Tank",
+        "Pump",
+        "ReliefValve",
+        "DCV",
+        "CapMeterInFlowControl",
+        "RodMeterInFlowControl",
+        "DualPilotCheck",
+        "Cylinder"
+      ],
+      "circuit_pattern": "Integrated carriage-positioning topology with open power unit, main relief-to-tank pressure limiting, spring-centered 4/3 tandem-center DCV, independent meter-in speed controls, dual pilot-check holding, and double-acting cylinder.",
+      "how_requirements_met": "The combined topology supplies pressure and flow, limits pressure to tank when required, directs extension/retraction/neutral, meters cap-side supply during advance and rod-side supply during return, and holds the cylinder at commanded stops using the dual pilot-operated check."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use a 4/3 spring-centered tandem-center DCV for extend, retract, and safe neutral.",
+      "rationale": "The selected DCV has extend, neutral, and retract states. Tandem-center neutral unloads pump flow to tank while blocking A and B, satisfying operator-commanded advance/return and safe neutral on command release.",
+      "driven_by": [
+        "position_carriage",
+        "safe_neutral_on_command_release"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/04%3A_Basic_Cylinder_Circuits/4.04%3A_Operation_and_Schematic_Symbol_of_a_4_3_DCV",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Cylinder_Circuits/4.03%3A_Function_and_Appliction_of_a_4_3_DCV",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Treat advance, hold, and return as mutually exclusive operator-commanded DCV states, not hydraulically enforced sequence steps.",
+      "rationale": "The repair resolves the undefined hydraulic sequence trigger issue by selecting no sequence, position, or pressure-triggered phase-change valve. The DCV is only the operator-commanded mode selector; no hydraulic trigger is required because no automatic hydraulic sequence is implemented.",
+      "driven_by": [
+        "position_carriage",
+        "carriage_advance",
+        "carriage_hold_any_position",
+        "carriage_return"
+      ],
+      "evidence_urls": []
+    },
+    {
+      "decision": "Use two non-compensated one-way flow controls as meter-in controls, one on each work-line supply path.",
+      "rationale": "The typed advance and return decisions require non-compensated meter-in control. The cap-side flow control meters supply to the cap chamber during extension, and the rod-side flow control meters supply to the rod chamber during retraction; each selected valve provides free reverse flow for the opposite stroke.",
+      "driven_by": [
+        "carriage_advance",
+        "carriage_return",
+        "position_carriage"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Metered_Flow_Circuits/16.01%3A_The_Operation_of_a_Meter-In_Flow_Control_Circuit_and_an_Application",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow"
+      ]
+    },
+    {
+      "decision": "Use a dual pilot-operated check valve between the metered work lines and cylinder ports for bidirectional holding.",
+      "rationale": "The hold-at-any-position requirement should not rely solely on DCV work-port blocking because spool valves can leak. The integrated dual pilot check provides low-leakage cylinder-line holding in neutral and cross-pilot release during commanded extension or retraction.",
+      "driven_by": [
+        "carriage_hold_any_position",
+        "position_carriage",
+        "safe_neutral_on_command_release"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884213/chapter-10-directional-control-valves-part-3",
+        "https://www.sunhydraulics.com/tech-resources/faq/can-i-use-pilot-open-check-valves-paired-cylinders",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21883651/book-2-chapter-5-counterbalance-valve-circuits"
+      ]
+    },
+    {
+      "decision": "Use a fixed-displacement open-circuit pump supply with main relief protection.",
+      "rationale": "No variable-pump, standby-flow reduction, or energy-efficiency requirement is stated. A fixed-displacement pump supplies the DCV, and the relief valve connected from pump pressure to tank protects against stalled or deadheaded conditions and supports the 100 bar pressure limit requirement.",
+      "driven_by": [
+        "position_carriage",
+        "limit_system_pressure_100_bar"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/13%3A_Relief_Valves/13.03%3A_The_Role_of_a_Relief_Valve_in_System_Protection",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/12%3A_Pressure/12.01%3A_Pressure_in_a_Hydraulic_System",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884234/chapter-9-relief-and-unloading-pressure-controls"
+      ]
+    }
+  ],
+  "catalog_gaps": [],
+  "assumptions": [
+    "The carriage load is horizontal/resistive as reflected in the selected motion-control decisions, so meter-in speed control is acceptable.",
+    "DualPilotCheck cross-pilot release is internal to the selected generic class; no separate external pilot ports are listed or connected.",
+    "Solenoid command wiring and pump drive hardware are outside the hydraulic topology and are not represented as external interfaces.",
+    "The tandem-center DCV catalog key includes the required center behavior; no separate center-condition component is needed.",
+    "Advance, hold, and return are operator-commanded modes; no automatic hydraulic phase transition is required."
+  ],
+  "open_issues": [
+    "Sizing must select cylinder dimensions, pump flow, and flow-control settings for 300 mm stroke, specified speeds, loads, and maximum pressure.",
+    "Relief setting and tolerance must be resolved during sizing so system pressure does not exceed 100 bar.",
+    "Power-loss holding, hose-burst retention, hold duration, and quantified drift tolerance are not specified; this topology addresses normal commanded safe-neutral holding.",
+    "Filtration, cooling, gauges, reservoir accessories, motor drive, couplings, and hoses are not represented in this topology because they are not selected components in the plan.",
+    "Sequence step 2 is hydraulically enforced but has no hydraulic trigger."
+  ],
+  "research_audit": {
+    "searches_used": 4,
+    "rounds_used": 1,
+    "selected_unique_sources": 12,
+    "extracted_documents": 12,
+    "duplicate_urls_skipped": 1,
+    "verified_evidence_claims": 41,
+    "rejected_by_reason": {
+      "lower_rank": 39,
+      "low_quality_source": 12,
+      "duplicate_url": 1
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "The evidence is strong for the main fixed-pump relief-to-tank pressure limiting concept, the 4/3 spring-centered DCV and double-acting cylinder directional-control pattern, meter-in inlet flow-control placement for extend/retract under resistive loads, and leak-resistant holding using pilot-operated checks/counterbalance principles rather than relying on spool blocking. However, two critical topology decisions remain incomplete: the power unit lacks cited guidance for the reservoir-to-pump suction side and filtration/return-reservoir details, and the carriage motion-profile need lacks evidence for multi-speed regulation and automatic phase-transition logic beyond simple extend/retract meter-in speed controls.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Covered for fixed-displacement pump outlet feeding the circuit, main relief valve connected from high-pressure pump outlet/system pressure side to tank, return flow to reservoir, and stall/deadhead relief behavior, with textbook/technical citations. Not fully covered because the accumulated finding itself states that suction strainer/filter conventions and return-filter placement were not substantiated, and there is little cited connection guidance for the reservoir-to-pump suction path needed for a complete power-unit topology.",
+        "evidence_task_ids": [
+          "task_open_circuit_power_unit_relief_return"
+        ]
+      },
+      {
+        "need_id": "function_position_carriage_directional_control",
+        "status": "covered",
+        "rationale": "The findings provide cited component and connection guidance for a double-acting cylinder controlled by a spring-centered 3-position 4-way DCV, with A-to-cap/B-to-rod hookup, extend/retract command behavior, and neutral-center implications. The evidence also identifies tandem center as suitable for blocking actuator ports while unloading the pump, with a cited warning that separate load-holding may be required.",
+        "evidence_task_ids": [
+          "task_double_acting_cylinder_4_3_safe_neutral"
+        ]
+      },
+      {
+        "need_id": "function_position_carriage_motion_profile",
+        "status": "covered",
+        "rationale": "Covered for meter-in speed-control placement on cap-end supply during extension and rod-end supply during retraction, including one-way/check-bypass flow controls and the resistive-load limitation. Missing critical evidence for the requested multi-speed regulation and automatic phase-transition pattern: no cited topology for switching between speeds within a stroke, bypassing/adding flow controls, cam/limit/sequence/pressure-actuated transition valves, or automatic transition from advance to hold/return phases.",
+        "evidence_task_ids": [
+          "task_meter_in_speed_control_extend_retract"
+        ]
+      },
+      {
+        "need_id": "function_position_carriage_holding",
+        "status": "covered",
+        "rationale": "The findings provide cited guidance that blocked DCV centers alone should not be relied on for positive holding because of leakage/creep, and that pilot-operated check valves in cylinder lines are appropriate for positively locking a horizontally mounted cylinder against external forces. They also distinguish counterbalance valves for vertical/overrunning loads. This is sufficient for the stated load-holding topology, assuming the carriage is horizontal/resistive as used in the evidence rationale.",
+        "evidence_task_ids": [
+          "task_static_load_holding_pilot_checks_neutral"
+        ]
+      },
+      {
+        "need_id": "driver_load_holding",
+        "status": "covered",
+        "rationale": "The operator stop-and-hold requirement is supported by spring-centered neutral DCV evidence plus leak-resistant load-holding evidence using pilot-operated check valves at/in the cylinder lines. The evidence also cautions that spool neutral leakage can cause creep, so the holding function should come from positive load-holding valves rather than the DCV alone.",
+        "evidence_task_ids": [
+          "task_static_load_holding_pilot_checks_neutral"
+        ]
+      },
+      {
+        "need_id": "driver_pressure_limiting_stall",
+        "status": "covered",
+        "rationale": "The findings cite that fixed-volume pump circuits require relief protection, especially at actuator stall/deadhead, and that a relief valve opens at its set pressure and diverts excess flow to tank. The topology implication of setting/selecting the main relief valve not above the specified 100 bar limit is adequately supported for circuit design, although detailed margin/adjustment practice is not covered.",
+        "evidence_task_ids": [
+          "task_open_circuit_power_unit_relief_return"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Exact missing claim for system_power_and_relief: cited power-unit guidance that the reservoir supplies the pump inlet through an appropriate suction line/strainer arrangement, and where return-line filtration, suction filtration/strainers, breather/filler, and reservoir connections should be placed in an open hydraulic circuit.",
+      "Exact missing claim for function_position_carriage_motion_profile: cited circuit pattern for multi-speed cylinder motion, such as rapid/slow advance or independently selected speeds, including which valves bypass or insert flow controls and how the circuit automatically transitions between phases using limit/cam valves, solenoid logic, sequence valves, pressure switches, or equivalent supported methods.",
+      "Noncritical limitation: existing relief evidence supports the topology and 100 bar setpoint concept but does not provide detailed design-margin, tolerance, or certification rules for relief-valve setting.",
+      "Noncritical limitation: existing holding evidence does not establish hose-burst retention or power-loss safety as explicit requirements; those would need separate validation if required by the machine risk assessment."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "invalid",
+    "deterministic": {
+      "verdict": "invalid",
+      "issues": [
+        {
+          "code": "HYDRAULIC_SEQUENCE_TRIGGER_UNDEFINED",
+          "severity": "error",
+          "scope": "requirements",
+          "description": "Sequence step 2 is hydraulically enforced but has no hydraulic trigger.",
+          "related": [
+            "position_carriage"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "8 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": true,
+          "details": "3 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": false,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "valid",
+      "design_issues": [],
+      "summary": "The proposed topology functionally satisfies the brief: it provides open-circuit supply with a direct pump-pressure relief-to-tank path, a spring-centered 4/3 tandem-center DCV for mutually exclusive extend/neutral/retract operator modes, independent non-compensated meter-in controls on the cap and rod supply paths, and dual pilot-operated check holding at the cylinder ports for normal command-release stop-and-hold. Advance and return directed paths are complete, exhaust paths are released by cross-pilot action, and no automatic sequence or hydraulic phase trigger is required by the brief."
+    },
+    "repair_scope": "selection",
+    "topology_round": 4,
+    "summary": "Deterministic validation: invalid. Engineering review: valid. The proposed topology functionally satisfies the brief: it provides open-circuit supply with a direct pump-pressure relief-to-tank path, a spring-centered 4/3 tandem-center DCV for mutually exclusive extend/neutral/retract operator modes, independent non-compensated meter-in controls on the cap and rod supply paths, and dual pilot-operated check holding at the cylinder ports for normal command-release stop-and-hold. Advance and return directed paths are complete, exhaust paths are released by cross-pilot action, and no automatic sequence or hydraulic phase trigger is required by the brief."
+  }
+}

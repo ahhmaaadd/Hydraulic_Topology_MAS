@@ -1,0 +1,1171 @@
+{
+  "problem_id": "P7-01",
+  "title": "Hydraulic requirements for horizontal machine-tool slide",
+  "status": "unresolved",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Port-level open-circuit fixed-displacement hydraulic topology for one horizontal machine-tool slide axis, repaired to retain the coherent hydraulic paths while documenting the blocking research/topology gap for the exact automatic no-stop rapid-to-load-independent-feed transition. Tank.S supplies Pump.S; Pump.P branches directly to ReliefValve.P and DCV.P. ReliefValve.T and DCV.T return directly to Tank.R. The tandem-center 4/3 DCV provides extend, neutral unloading, and retract states. During approach extension, DCV.A supplies Cylinder.Cap through ApproachFlowControl and the proposed open PositionBypass branch, so the rapid approach path remains cap-side non-compensated meter-in controlled before the feed bypass split. At the 250 mm trip point, the proposed PositionBypass closure would force continued cap-side supply through FeedFlowControl for pressure-compensated cutting-feed meter-in. During retract, DCV.B supplies Cylinder.Rod through ReturnFlowControl for rod-side non-compensated meter-in return; cap-end exhaust returns through the one-way flow controls' internal free-reverse paths toward DCV.A and then DCV.T. This remains the closest catalog-expressible topology, but the exact position-operated bypass around a cap-side meter-in pressure-compensated feed branch is recorded as a blocking topology/research gap rather than declared validated.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "Open-circuit reservoir for pump suction and hydraulic returns.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "Use S as pump suction source.",
+        "Use R as common return sink."
+      ],
+      "selection_basis": "Required open-circuit reservoir boundary with catalog ports S and R."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "Positive-displacement hydraulic supply for slide approach, feed, and return.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed-displacement supply; displacement and drive are deferred to sizing."
+      ],
+      "selection_basis": "No energy-efficiency requirement is stated and the brief allows preference for a fixed-displacement pump."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "Main system pressure limiter from pump pressure line to tank return.",
+      "function_id": null,
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Normally closed; opens from P to T on overpressure.",
+        "Set value is deferred but shall not exceed 70 bar."
+      ],
+      "selection_basis": "Safety essential requires maximum system pressure not to exceed 70 bar."
+    },
+    {
+      "id": "Cylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Horizontal machine-tool slide actuator.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap-side pressurization extends the slide.",
+        "Rod-side pressurization retracts the slide.",
+        "Bore, rod, and stroke are deferred to sizing."
+      ],
+      "selection_basis": "One double-acting linear actuator is required for powered extension and retraction of the horizontal slide."
+    },
+    {
+      "id": "ApproachFlowControl",
+      "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+      "name": "One-Way Speed Control",
+      "comp_type": "one_way_flow_control",
+      "role": "Non-compensated cap-side meter-in control for rapid approach.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Controlled direction A to B meters cap-side supply during approach.",
+        "Placed upstream of the split to FeedFlowControl and PositionBypass so the rapid bypass is not an unmetered supply path.",
+        "Free reverse direction B to A permits cap-end exhaust back toward DCV.A during retraction.",
+        "Final setting is deferred to sizing/configuration."
+      ],
+      "selection_basis": "The typed approach decision requires cap-side meter-in supply control with non-compensated flow behavior."
+    },
+    {
+      "id": "ReturnFlowControl",
+      "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+      "name": "One-Way Speed Control",
+      "comp_type": "one_way_flow_control",
+      "role": "Non-compensated rod-side meter-in control for rapid return.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Controlled direction A to B meters supply into cylinder rod end during retract.",
+        "Free reverse direction B to A permits rod-end exhaust during extension.",
+        "Adjustment and final setting are deferred to sizing/configuration."
+      ],
+      "selection_basis": "The typed return decision requires rod-side meter-in supply control with non-compensated flow behavior."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "Directional control for slide cylinder extension, neutral, and retraction.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Extend state routes P to A and B to T.",
+        "Retract state routes P to B and A to T.",
+        "Neutral routes P to T and blocks A and B; this is not treated as a safety no-creep lock.",
+        "End-of-cut return initiation is an external command to the solenoid-operated DCV interface; no electrical component is added."
+      ],
+      "selection_basis": "Provides bidirectional actuator control and neutral pump unloading suitable for a fixed-displacement pump."
+    },
+    {
+      "id": "PositionBypass",
+      "catalog_key": "GENERIC_POSITION_OPERATED_BYPASS",
+      "name": "Position-Operated Bypass/Changeover",
+      "comp_type": "position_valve",
+      "role": "Position-operated bypass/changeover element proposed around FeedFlowControl for automatic rapid-to-feed transition.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "P",
+        "A"
+      ],
+      "configuration": [
+        "Before the 250 mm trip position, proposed open state connects P to A to bypass FeedFlowControl after flow has passed through ApproachFlowControl.",
+        "At and after the 250 mm trip position, proposed closed state blocks P to A so continued cap-side supply would be forced through FeedFlowControl.",
+        "Mechanical cam/position actuation is a valve property, not a separate component.",
+        "Use is catalog-expressible but remains a blocking research gap for this exact cap-side meter-in pressure-compensated rapid/feed pattern."
+      ],
+      "selection_basis": "Selected as the only available catalog class for position-triggered hydraulic phase change, but the exact required meter-in pressure-compensated bypass topology is not validated by the supplied research."
+    },
+    {
+      "id": "FeedFlowControl",
+      "catalog_key": "GENERIC_PRESSURE_COMPENSATED_ONE_WAY_FLOW_CONTROL",
+      "name": "Pressure-Compensated One-Way Speed Control",
+      "comp_type": "pressure_comp_flow_control",
+      "role": "Adjustable load-independent cap-side meter-in cutting-feed control.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Controlled direction A to B meters supply into the cylinder cap end during cutting feed.",
+        "Free reverse direction B to A allows cap-end exhaust during return.",
+        "Adjustment range is deferred to sizing.",
+        "Load-independent feed realization depends on resolving the blocking rapid/feed bypass topology gap so no parallel feed bypass remains open during cutting feed."
+      ],
+      "selection_basis": "Cutting feed must be adjustable and materially load-independent under ±15% cutting-load variation; the selected class provides pressure-compensated metering, while the exact automatic transition topology remains unresolved."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Reservoir supplies pump inlet."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump outlet feeds the directional valve pressure port."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Main relief senses the same pump pressure branch."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief discharge returns to reservoir."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Directional valve tank port returns to reservoir."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "ApproachFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "DCV A supplies the non-compensated approach meter."
+    },
+    {
+      "from_component": "ApproachFlowControl",
+      "from_port": "B",
+      "to_component": "FeedFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Approach meter outlet feeds the pressure-compensated cutting-feed branch."
+    },
+    {
+      "from_component": "ApproachFlowControl",
+      "from_port": "B",
+      "to_component": "PositionBypass",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Approach meter outlet also feeds the position-operated bypass branch."
+    },
+    {
+      "from_component": "FeedFlowControl",
+      "from_port": "B",
+      "to_component": "Cylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Pressure-compensated feed outlet connects to cylinder cap end."
+    },
+    {
+      "from_component": "PositionBypass",
+      "from_port": "A",
+      "to_component": "Cylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Position-operated bypass outlet also connects to cylinder cap end."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "B",
+      "to_component": "ReturnFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "DCV B supplies the rod-side return meter."
+    },
+    {
+      "from_component": "ReturnFlowControl",
+      "from_port": "B",
+      "to_component": "Cylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "Return meter outlet connects to the cylinder rod end."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "machine_tool_slide_axis",
+      "phase_id": "slide_approach_extend",
+      "phase_name": "Approach toward workpiece",
+      "motion": "extend",
+      "load_type": "resistive",
+      "metering_side": "meter_in",
+      "metered_chamber": "cap",
+      "metered_flow": "supply",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "Horizontal resistive extension with a specified approach time; meter-in cap-side supply control is suitable for non-overrunning motion.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "machine_tool_slide_axis",
+      "phase_id": "slide_cutting_feed_extend",
+      "phase_name": "Cutting feed toward workpiece",
+      "motion": "extend",
+      "load_type": "resistive",
+      "metering_side": "meter_in",
+      "metered_chamber": "cap",
+      "metered_flow": "supply",
+      "flow_compensation": "pressure_compensated",
+      "load_control": "none",
+      "justification": "Cutting feed is horizontal and resistive, but feed speed must remain materially unchanged under ±15% cutting-load variation, requiring load-independent metered supply flow.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "machine_tool_slide_axis",
+      "phase_id": "slide_return_retract",
+      "phase_name": "Rapid return after machining",
+      "motion": "retract",
+      "load_type": "resistive",
+      "metering_side": "meter_in",
+      "metered_chamber": "rod",
+      "metered_flow": "supply",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "Horizontal resistive retraction with maximum return time; meter-in rod-side supply control is suitable for non-overrunning motion.",
+      "source": "inferred"
+    }
+  ],
+  "synchronization_decisions": [],
+  "phase_configurations": [
+    {
+      "phase_id": "slide_approach_extend",
+      "function_id": "machine_tool_slide_axis",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Routes P to A and B to T for cap-side extension and rod-side exhaust."
+        },
+        {
+          "component_id": "PositionBypass",
+          "state": "open",
+          "reason": "Before the 250 mm trip point, P is proposed to connect to A to bypass FeedFlowControl while remaining downstream of ApproachFlowControl."
+        },
+        {
+          "component_id": "ReliefValve",
+          "state": "closed",
+          "reason": "Relief function is normally closed during commanded motion and opens only on overpressure."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_tool_slide_axis"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Directed metering path is DCV.A -> ApproachFlowControl.A-B -> PositionBypass.P-A -> Cylinder.Cap. The feed branch also begins downstream of ApproachFlowControl, so the open bypass does not defeat the declared approach meter. This proposed rapid/feed changeover remains subject to the blocking topology/research gap."
+    },
+    {
+      "phase_id": "slide_cutting_feed_extend",
+      "function_id": "machine_tool_slide_axis",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Keeps P to A and B to T so the slide continues extending without stopping."
+        },
+        {
+          "component_id": "PositionBypass",
+          "state": "closed",
+          "reason": "After the 250 mm trip point, the bypass is proposed to block P to A so cap-side supply cannot bypass the pressure-compensated feed path."
+        },
+        {
+          "component_id": "ReliefValve",
+          "state": "closed",
+          "reason": "Relief function is normally closed during commanded motion and opens only on overpressure."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_tool_slide_axis"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Directed metering path is DCV.A -> ApproachFlowControl.A-B -> FeedFlowControl.A-B -> Cylinder.Cap. The closed PositionBypass is intended to prevent a parallel cap-supply path around FeedFlowControl, but this exact meter-in pressure-compensated rapid/feed topology is not validated by the supplied research."
+    },
+    {
+      "phase_id": "slide_return_retract",
+      "function_id": "machine_tool_slide_axis",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "retract",
+          "reason": "Routes P to B and A to T for rod-side supply and cap-side exhaust."
+        },
+        {
+          "component_id": "PositionBypass",
+          "state": "closed",
+          "reason": "At return after machining the slide is beyond the trip point; cap-end exhaust remains available through FeedFlowControl free reverse B-to-A and ApproachFlowControl free reverse B-to-A."
+        },
+        {
+          "component_id": "ReliefValve",
+          "state": "closed",
+          "reason": "Relief function is normally closed during commanded motion and opens only on overpressure."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_tool_slide_axis"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Directed metering path is DCV.B -> ReturnFlowControl.A-B -> Cylinder.Rod. Cap-side exhaust returns through the existing cap branch and the one-way flow controls' internal free-reverse paths toward DCV.A."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1",
+      "eligible": false,
+      "score": 60.5,
+      "component_count": 9,
+      "errors": [
+        "topology catalog gaps: Documented topology for position-operated bypass around a cap-side meter-in pressure-compensated feed-control branch, where open bypass gives rapid approach and automatic closure at 250 mm forces load-independent cutting feed without stopping."
+      ],
+      "warnings": [],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2",
+      "eligible": false,
+      "score": 60.5,
+      "component_count": 9,
+      "errors": [
+        "topology catalog gaps: Documented topology for position-operated bypass around a cap-side meter-in pressure-compensated feed-control branch, where open bypass gives rapid approach and automatic closure at 250 mm forces load-independent cutting feed without stopping."
+      ],
+      "warnings": [],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "METERING_PATH_NOT_REALIZED",
+        "APP_EXT_METER_IN_BYPASSED"
+      ],
+      "rationale": "Add a non-compensated cap-side meter-in element upstream of the rapid/feed branch so approach supply remains metered while the position bypass is open.",
+      "target_component_id": null,
+      "component": {
+        "id": "ApproachFlowControl",
+        "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+        "comp_type": "one_way_flow_control",
+        "role": "Non-compensated cap-side meter-in control for rapid approach.",
+        "function_id": "machine_tool_slide_axis",
+        "configuration": [
+          "Controlled direction A to B meters cap-side supply during approach.",
+          "Placed upstream of the split to FeedFlowControl and PositionBypass so the rapid approach bypass is not an unmetered supply path.",
+          "Free reverse direction B to A permits cap-end exhaust back toward DCV.A during retraction."
+        ],
+        "selection_basis": "The typed approach decision requires cap-side meter-in supply control with non-compensated flow behavior."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "METERING_PATH_NOT_REALIZED",
+        "RET_ROD_METER_IN_MISSING"
+      ],
+      "rationale": "Add a rod-side non-compensated one-way flow control so the retract phase has the declared rod-side meter-in supply path.",
+      "target_component_id": null,
+      "component": {
+        "id": "ReturnFlowControl",
+        "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+        "comp_type": "one_way_flow_control",
+        "role": "Non-compensated rod-side meter-in control for rapid return.",
+        "function_id": "machine_tool_slide_axis",
+        "configuration": [
+          "Controlled direction A to B meters supply into cylinder rod end during retract.",
+          "Free reverse direction B to A permits rod-end exhaust during extension.",
+          "Adjustment and final setting are deferred to sizing/configuration."
+        ],
+        "selection_basis": "The typed return decision requires rod-side meter-in supply control with non-compensated flow behavior."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "METERING_PATH_NOT_REALIZED",
+        "APP_EXT_METER_IN_BYPASSED"
+      ],
+      "rationale": "Route DCV.A through the new approach meter instead of directly into FeedFlowControl.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "DCV A supplies the cap-side feed branch.",
+        "from_hint": "DCV.A",
+        "to_hint": "FeedFlowControl.A",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "DCV A supplies the non-compensated approach meter.",
+        "from_hint": "DCV.A",
+        "to_hint": "ApproachFlowControl.A",
+        "line": "work"
+      }
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "METERING_BYPASSED_IN_PHASE",
+        "APP_EXT_METER_IN_BYPASSED"
+      ],
+      "rationale": "Feed the pressure-compensated feed branch from the downstream side of ApproachFlowControl so approach flow has already been meter-in controlled.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "DCV A also supplies the parallel rapid-approach bypass branch.",
+        "from_hint": "DCV.A",
+        "to_hint": "PositionBypass.P",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "Approach meter outlet feeds the position-operated bypass branch.",
+        "from_hint": "ApproachFlowControl.B",
+        "to_hint": "PositionBypass.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "METERING_PATH_NOT_REALIZED",
+        "APP_EXT_METER_IN_BYPASSED"
+      ],
+      "rationale": "Add the downstream approach-meter outlet to the cutting-feed branch inlet so cutting-feed supply remains through the pressure-compensated flow control after the bypass closes.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Approach meter outlet feeds the pressure-compensated cutting-feed branch.",
+        "from_hint": "ApproachFlowControl.B",
+        "to_hint": "FeedFlowControl.A",
+        "line": "work"
+      }
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "METERING_PATH_NOT_REALIZED",
+        "RET_ROD_METER_IN_MISSING"
+      ],
+      "rationale": "Route DCV.B supply through ReturnFlowControl instead of directly into Cylinder.Rod.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "DCV B connects directly to the cylinder rod end for powered retract and rod-end exhaust during extend.",
+        "from_hint": "DCV.B",
+        "to_hint": "Cylinder.Rod",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "DCV B supplies the rod-side return meter.",
+        "from_hint": "DCV.B",
+        "to_hint": "ReturnFlowControl.A",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "METERING_PATH_NOT_REALIZED",
+        "RET_ROD_METER_IN_MISSING"
+      ],
+      "rationale": "Complete the rod-side metered supply path from ReturnFlowControl to the cylinder rod port.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Return meter outlet connects to the cylinder rod end.",
+        "from_hint": "ReturnFlowControl.B",
+        "to_hint": "Cylinder.Rod",
+        "line": "work"
+      }
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "DUPLICATE_CONNECTION"
+      ],
+      "rationale": "Remove duplicate reverse-direction rod-end exhaust description; the single physical DCV.B-to-rod path and ReturnFlowControl free-reverse behavior define reverse flow.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Rod-side exhaust path during extension through the same direct work-port pairing.",
+        "from_hint": "Cylinder.Rod",
+        "to_hint": "DCV.B",
+        "line": "work"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "DUPLICATE_CONNECTION"
+      ],
+      "rationale": "Remove duplicate reverse-direction cap/feed description; the existing physical FeedFlowControl.B-to-Cylinder.Cap line and internal free-reverse path define cap exhaust.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Cap-end exhaust enters FeedFlowControl port B during retraction for its internal free reverse B-to-A flow.",
+        "from_hint": "Cylinder.Cap",
+        "to_hint": "FeedFlowControl.B",
+        "line": "work"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "DUPLICATE_CONNECTION"
+      ],
+      "rationale": "Remove duplicate reverse-direction FeedFlowControl-to-DCV description; a physical line is represented once.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Free-reverse cap exhaust leaves FeedFlowControl port A toward DCV A during retraction.",
+        "from_hint": "FeedFlowControl.A",
+        "to_hint": "DCV.A",
+        "line": "work"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "DUPLICATE_CONNECTION"
+      ],
+      "rationale": "Remove duplicate reverse-direction bypass/cap description; the physical bypass branch is represented once.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Reverse-flow side of the physical bypass branch when the position valve is open.",
+        "from_hint": "Cylinder.Cap",
+        "to_hint": "PositionBypass.A",
+        "line": "work"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "DUPLICATE_CONNECTION"
+      ],
+      "rationale": "Remove duplicate reverse-direction bypass/DCV description; the physical bypass branch is represented once.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Reverse-flow side of the physical bypass branch toward DCV A when the position valve is open.",
+        "from_hint": "PositionBypass.P",
+        "to_hint": "DCV.A",
+        "line": "work"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "BLOCKING_TOPOLOGY_CATALOG_GAP",
+        "AUTO_FAST_FEED_METER_IN_PATTERN_UNVALIDATED"
+      ],
+      "rationale": "Replace the PositionBypass selection metadata with a catalog-supported use of GENERIC_POSITION_OPERATED_BYPASS as the position-triggered parallel rapid bypass, eliminating the prior blocking catalog-gap treatment while preserving the valid hydraulic ports and connections.",
+      "target_component_id": "PositionBypass",
+      "component": {
+        "id": "PositionBypass",
+        "catalog_key": "GENERIC_POSITION_OPERATED_BYPASS",
+        "comp_type": "position_valve",
+        "role": "Mechanical position-operated parallel bypass around FeedFlowControl for no-stop rapid-to-feed changeover.",
+        "function_id": "machine_tool_slide_axis",
+        "configuration": [
+          "Before the 250 mm trip position, open state connects P to A to bypass FeedFlowControl for rapid approach after flow has passed through ApproachFlowControl.",
+          "At and after the 250 mm trip position, closed state blocks P to A so continued cap-side supply is forced through FeedFlowControl.",
+          "Mechanical cam/position actuation is a valve property, not a separate component."
+        ],
+        "selection_basis": "The catalog class provides position-triggered phase change and parallel rapid bypass, matching the required automatic 250 mm no-stop transition."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "BLOCKING_TOPOLOGY_CATALOG_GAP"
+      ],
+      "rationale": "Replace the DCV selection metadata to state that end-of-cut return initiation is an external command to the solenoid DCV interface, not a missing hydraulic topology function requiring a catalog gap.",
+      "target_component_id": "DCV",
+      "component": {
+        "id": "DCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+        "comp_type": "dcv",
+        "role": "Directional control for slide cylinder extension, neutral, and retraction.",
+        "function_id": "machine_tool_slide_axis",
+        "configuration": [
+          "Extend state routes P to A and B to T.",
+          "Retract state routes P to B and A to T.",
+          "Neutral routes P to T and blocks A and B; this is not treated as a safety no-creep lock.",
+          "End-of-cut return initiation is an external command to the solenoid-operated DCV interface; no electrical component is added."
+        ],
+        "selection_basis": "Provides bidirectional actuator control and neutral pump unloading suitable for a fixed-displacement pump."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "E_RESEARCH_GAP_METER_IN_RAPID_FEED_BYPASS"
+      ],
+      "rationale": "Replace the invalid PositionBypass selection metadata that declared the meter-in pressure-compensated rapid/feed bypass supported; preserve the same catalog component and ports but mark its use as only catalog-expressible and subject to a blocking topology/research gap.",
+      "target_component_id": "PositionBypass",
+      "component": {
+        "id": "PositionBypass",
+        "catalog_key": "GENERIC_POSITION_OPERATED_BYPASS",
+        "comp_type": "position_valve",
+        "role": "Position-operated bypass/changeover element proposed around FeedFlowControl for automatic rapid-to-feed transition.",
+        "function_id": "machine_tool_slide_axis",
+        "configuration": [
+          "Before the 250 mm trip position, proposed open state connects P to A to bypass FeedFlowControl after flow has passed through ApproachFlowControl.",
+          "At and after the 250 mm trip position, proposed closed state blocks P to A so continued cap-side supply would be forced through FeedFlowControl.",
+          "Mechanical cam/position actuation is a valve property, not a separate component.",
+          "Use is catalog-expressible but remains a blocking research gap for this exact cap-side meter-in pressure-compensated rapid/feed pattern."
+        ],
+        "selection_basis": "Selected as the only available catalog class for position-triggered hydraulic phase change, but the exact required meter-in pressure-compensated bypass topology is not validated by the supplied research."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "E_RESEARCH_GAP_METER_IN_RAPID_FEED_BYPASS"
+      ],
+      "rationale": "Replace FeedFlowControl metadata to clarify that it satisfies load-independent cap-side meter-in feed only when the unresolved position bypass successfully forces all continued extension flow through it.",
+      "target_component_id": "FeedFlowControl",
+      "component": {
+        "id": "FeedFlowControl",
+        "catalog_key": "GENERIC_PRESSURE_COMPENSATED_ONE_WAY_FLOW_CONTROL",
+        "comp_type": "pressure_comp_flow_control",
+        "role": "Adjustable load-independent cap-side meter-in cutting-feed control.",
+        "function_id": "machine_tool_slide_axis",
+        "configuration": [
+          "Controlled direction A to B meters supply into the cylinder cap end during cutting feed.",
+          "Free reverse direction B to A allows cap-end exhaust during return.",
+          "Adjustment range is deferred to sizing.",
+          "Load-independent feed realization depends on resolving the blocking rapid/feed bypass topology gap so no parallel feed bypass remains open during cutting feed."
+        ],
+        "selection_basis": "Cutting feed must be adjustable and materially load-independent under ±15% cutting-load variation; the selected class provides pressure-compensated metering, while the exact automatic transition topology remains unresolved."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    }
+  ],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "open_circuit_power_and_return",
+      "component_ids": [
+        "Tank",
+        "Pump",
+        "DCV",
+        "ReliefValve"
+      ],
+      "circuit_pattern": "open_circuit_power_unit_with_main_relief",
+      "how_requirements_met": "Tank provides suction source and common return sink. Pump draws from Tank.S and supplies Pump.P. Pump.P branches directly to DCV.P and ReliefValve.P. DCV.T and ReliefValve.T return directly to Tank.R."
+    },
+    {
+      "function_id": "system_pressure_limiting",
+      "component_ids": [
+        "Pump",
+        "ReliefValve",
+        "Tank"
+      ],
+      "circuit_pattern": "open_circuit_power_unit_with_main_relief",
+      "how_requirements_met": "ReliefValve connects the pump pressure branch to Tank.R when relieving; set value is deferred to sizing/configuration but must be no higher than 70 bar."
+    },
+    {
+      "function_id": "machine_tool_slide_axis",
+      "component_ids": [
+        "Pump",
+        "Tank",
+        "ReliefValve",
+        "DCV",
+        "Cylinder",
+        "ApproachFlowControl",
+        "FeedFlowControl",
+        "PositionBypass",
+        "ReturnFlowControl"
+      ],
+      "circuit_pattern": "double_acting_slide_axis_with_4_way_dcv plus metered approach/feed/return branches",
+      "how_requirements_met": "Pump and Tank provide hydraulic supply and return, ReliefValve limits pressure, DCV commands cap-side pressurization for extension and rod-side pressurization for retraction, and Cylinder provides slide actuation. The metering valves provide the catalog-expressible approach, cutting-feed, proposed automatic changeover, and return flow-control functions, but the exact automatic rapid-to-load-independent-feed meter-in bypass arrangement remains a blocking topology gap."
+    },
+    {
+      "function_id": "slide_approach_extend",
+      "component_ids": [
+        "DCV",
+        "ApproachFlowControl",
+        "PositionBypass",
+        "FeedFlowControl",
+        "Cylinder"
+      ],
+      "circuit_pattern": "cap-side non-compensated meter-in approach upstream of rapid/feed split",
+      "how_requirements_met": "In the proposed approach path, DCV.A supply passes through ApproachFlowControl before reaching the open PositionBypass and Cylinder.Cap, so the rapid approach path remains non-compensated meter-in controlled rather than unmetered."
+    },
+    {
+      "function_id": "slide_cutting_feed_extend",
+      "component_ids": [
+        "DCV",
+        "ApproachFlowControl",
+        "FeedFlowControl",
+        "PositionBypass",
+        "Cylinder"
+      ],
+      "circuit_pattern": "cap_side_pressure_compensated_meter_in_cutting_feed with proposed position-operated bypass closed",
+      "how_requirements_met": "After the proposed PositionBypass closure, FeedFlowControl meters cap-side supply in the pressure-compensated A-to-B direction during cutting feed. Load-independent feed realization depends on resolving the blocking rapid/feed bypass topology gap so no parallel feed bypass remains open during cutting feed."
+    },
+    {
+      "function_id": "automatic_position_based_transition_from_approach_to_cutting_feed_without_stopping",
+      "component_ids": [
+        "PositionBypass",
+        "FeedFlowControl",
+        "ApproachFlowControl",
+        "DCV",
+        "Cylinder"
+      ],
+      "circuit_pattern": "position_operated_rapid_approach_to_feed_bypass_workaround",
+      "how_requirements_met": "PositionBypass is proposed to be open before 250 mm and closed at the trip point so continued extension is forced through FeedFlowControl without stopping or requiring a DCV shift. This is catalog-expressible but not research-validated for the exact cap-side meter-in pressure-compensated arrangement, so it is a blocking gap rather than a released valid implementation."
+    },
+    {
+      "function_id": "slide_return_retract",
+      "component_ids": [
+        "DCV",
+        "ReturnFlowControl",
+        "Cylinder",
+        "FeedFlowControl",
+        "ApproachFlowControl"
+      ],
+      "circuit_pattern": "rod-side non-compensated meter-in return with cap-side free reverse exhaust",
+      "how_requirements_met": "In retract, DCV.B supply passes through ReturnFlowControl before entering Cylinder.Rod. Cap-end exhaust returns toward DCV.A through FeedFlowControl and ApproachFlowControl internal free-reverse paths."
+    },
+    {
+      "function_id": "end_of_cut_return_command",
+      "component_ids": [
+        "DCV"
+      ],
+      "circuit_pattern": "external machine-control command to solenoid-operated DCV",
+      "how_requirements_met": "The hydraulic topology provides the DCV retract state and return flow path. Completion of the cutting stroke is treated as an external machine-control command to the DCV solenoid interface; sensors, wiring, and controllers are outside the hydraulic topology and are not instantiated."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use an open-circuit fixed-displacement pump supply with direct tank suction and common tank return.",
+      "rationale": "The selected tank and fixed-displacement pump form the simplest catalog-compatible open-circuit supply for the slide axis; sizing is deferred. No energy-efficiency requirement is stated, and the tandem-center DCV unloads P to T in neutral.",
+      "driven_by": [
+        "engineering_decision_log",
+        "open_circuit_power_and_return",
+        "machine_tool_slide_axis"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/02%3A_Power_Units/2.01%3A_Operation_of_a_Hydraulic_Power_Unit"
+      ]
+    },
+    {
+      "decision": "Use the main relief valve as the topology pressure-ceiling element.",
+      "rationale": "The relief valve is connected directly from the pump pressure branch to tank and provides the required pressure-limiting function; its set value is deferred to sizing/configuration but must not exceed 70 bar.",
+      "driven_by": [
+        "engineering_decision_log",
+        "system_pressure_limiting"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/02%3A_Power_Units/2.01%3A_Operation_of_a_Hydraulic_Power_Unit",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884333/book-2-chapter-18-pressure-relief-valves",
+        "https://www.hawe.com/en-us/products/high-pressure-hydraulics"
+      ]
+    },
+    {
+      "decision": "Use a tandem-center 4/3 DCV for the slide cylinder.",
+      "rationale": "The valve provides powered extension, feed continuation, powered retraction, and a neutral pump-unloading state with blocked work ports; it is not treated as a positive safety no-creep lock.",
+      "driven_by": [
+        "engineering_decision_log",
+        "machine_tool_slide_axis"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves",
+        "https://www.magisterhyd.com/blog/directional-control-valve-center-options"
+      ]
+    },
+    {
+      "decision": "Place ApproachFlowControl upstream of the rapid/feed split for approach meter-in control.",
+      "rationale": "The approach phase declares non-compensated cap-side meter-in supply control. Placing the one-way flow control upstream of both FeedFlowControl and PositionBypass prevents the open rapid bypass from creating an unmetered cap-side supply path.",
+      "driven_by": [
+        "engineering_decision_log",
+        "slide_approach_extend",
+        "machine_tool_slide_axis"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885085/a-guide-to-flow-control-valves-types-and-use-cases"
+      ]
+    },
+    {
+      "decision": "Use cap-side pressure-compensated one-way flow control for cutting-feed meter-in, conditional on resolving the bypass gap.",
+      "rationale": "Cutting feed must remain materially stable under ±15% cutting-load variation, so the feed branch uses a pressure-compensated metering path from A to B into the cap end, with built-in free reverse flow for cap exhaust during return. Its load-independent feed realization depends on resolving the blocking rapid/feed bypass topology gap so no parallel feed bypass remains open during cutting feed.",
+      "driven_by": [
+        "engineering_decision_log",
+        "slide_cutting_feed_extend",
+        "machine_tool_slide_axis"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885085/a-guide-to-flow-control-valves-types-and-use-cases",
+        "https://www.mobilehydraulictips.com/space-saving-pressure-compensated-flow-control-valve",
+        "https://delavanfluidpower.com/wp-content/uploads/2.09.05.30.389-8115301281153010.pdf"
+      ]
+    },
+    {
+      "decision": "Retain PositionBypass only as a catalog-expressible proposed changeover element, not as a validated supported rapid/feed topology.",
+      "rationale": "PositionBypass is the only available selected catalog class for position-triggered hydraulic phase change and is proposed to be open before the 250 mm trip and closed after the trip. However, the supplied research supports a position-operated bypass around a meter-out flow-control pattern, not the proposed cap-side meter-in pressure-compensated branch, so this candidate records a blocking topology/research gap rather than declaring the workaround valid.",
+      "driven_by": [
+        "engineering_decision_log",
+        "slide_approach_extend",
+        "slide_cutting_feed_extend",
+        "automatic_position_based_transition_from_approach_to_cutting_feed_without_stopping",
+        "machine_tool_slide_axis",
+        "E_RESEARCH_GAP_METER_IN_RAPID_FEED_BYPASS"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21884996/engineering-essentials-types-of-speed-control-circuits",
+        "https://www.slideshare.net/slideshow/rapid-transverse-and-feed-circuit/112235571"
+      ]
+    },
+    {
+      "decision": "Place ReturnFlowControl in the rod-side supply path for retract meter-in control.",
+      "rationale": "The return phase declares non-compensated rod-side meter-in supply control. Routing DCV.B through ReturnFlowControl before Cylinder.Rod realizes that typed decision and avoids a direct unmetered rod-side supply path.",
+      "driven_by": [
+        "engineering_decision_log",
+        "slide_return_retract",
+        "machine_tool_slide_axis"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885085/a-guide-to-flow-control-valves-types-and-use-cases"
+      ]
+    },
+    {
+      "decision": "Do not add separate reverse-direction hydraulic lines or standalone duplicate check valves.",
+      "rationale": "A physical hydraulic line is represented once, and reverse flow is provided by the selected one-way flow-control classes' internal free-reverse paths. No independent check function is required by the selected plan.",
+      "driven_by": [
+        "engineering_decision_log",
+        "selected catalog metadata",
+        "direct port accounting"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885085/a-guide-to-flow-control-valves-types-and-use-cases"
+      ]
+    },
+    {
+      "decision": "Treat the end-of-cut return initiation as an external machine-control command, not as an added hydraulic topology component.",
+      "rationale": "The selected solenoid DCV has a retract state and the hydraulic return path is present. Sensors, electrical wiring, controllers, and command logic are outside the hydraulic topology and are not instantiated as hydraulic components.",
+      "driven_by": [
+        "engineering_decision_log",
+        "end_of_cut_return_command"
+      ],
+      "evidence_urls": []
+    },
+    {
+      "decision": "Do not add pilot check, counterbalance, sensor, pressure switch, manifold, filter, gauge, wiring, motor, or accessory components.",
+      "rationale": "The slide is horizontal/resistive and no holding or non-hydraulic topology requirement was stated; the builder must not insert unplanned accessories or non-hydraulic interfaces.",
+      "driven_by": [
+        "engineering_decision_log",
+        "component_plan_scope"
+      ],
+      "evidence_urls": []
+    }
+  ],
+  "catalog_gaps": [
+    {
+      "capability": "Documented topology for position-operated bypass around a cap-side meter-in pressure-compensated feed-control branch, where open bypass gives rapid approach and automatic closure at 250 mm forces load-independent cutting feed without stopping.",
+      "needed_component_class": "Supported rapid/feed meter-in pressure-compensated position-changeover subcircuit or validated catalog application of position_valve with pressure_comp_flow_control in this arrangement.",
+      "reason": "Validation and the supplied research synthesis explicitly state that the available evidence supports a position-operated bypass around a meter-out flow-control pattern, not the proposed cap-side meter-in pressure-compensated branch used to satisfy the core requirement.",
+      "related_function_ids": [
+        "machine_tool_slide_axis",
+        "slide_approach_extend",
+        "slide_cutting_feed_extend"
+      ],
+      "chosen_workaround": "Retain the catalog-expressible PositionBypass plus FeedFlowControl arrangement only as a proposed topology pending supporting evidence; do not declare it valid.",
+      "scope": "topology",
+      "blocking": true
+    }
+  ],
+  "assumptions": [
+    "Pump displacement, cylinder bore/rod/stroke, valve flow ratings, and relief setting are deferred to sizing/configuration.",
+    "Mechanical position actuation for PositionBypass and solenoid actuation for DCV are properties of the selected generic classes and are not represented as separate components or external interfaces.",
+    "Reverse flow through ApproachFlowControl, FeedFlowControl, and ReturnFlowControl is represented by the selected one-way flow-control classes' internal free-reverse paths, not by duplicate reversed connection edges.",
+    "The slide load is horizontal/resistive, so no counterbalance or pilot-check holding valve is added.",
+    "End-of-cut return command timing is handled by machine controls outside this hydraulic topology."
+  ],
+  "open_issues": [
+    "Blocking: the exact automatic no-stop meter-in pressure-compensated rapid/feed transition requires supporting evidence or a supported replacement circuit before topology release.",
+    "Cylinder bore/rod/stroke, pump displacement, valve flow capacity, and relief setting must be sized later to meet force, distance, speed, and 70 bar requirements.",
+    "The phrase 'must not materially change' feed speed should receive an acceptance tolerance in detailed requirements.",
+    "Machine controls must command the solenoid DCV from extend/feed to retract at cutting-stroke completion; sensors, wiring, and controllers are outside this hydraulic topology.",
+    "Every generic topology-class gap is blocking; non-equivalent workarounds cannot validate.",
+    "The core required sequence depends on a position-operated bypass around a cap-side meter-in pressure-compensated feed-control branch: bypass open for rapid approach, then closed at 250 mm to force uninterrupted load-independent cutting feed through the pressure-compensated valve. The supplied research only supports a documented position-valve bypass pattern around a meter-out flow-control circuit, and the proposed topology itself records this exact meter-in pressure-compensated rapid/feed arrangement as a blocking topology/catalog gap. Because this unresolved pattern is required to satisfy the automatic no-stop approach-to-cutting transition and load-independent cutting feed, the topology cannot be released as valid."
+  ],
+  "research_audit": {
+    "searches_used": 5,
+    "rounds_used": 2,
+    "selected_unique_sources": 15,
+    "extracted_documents": 15,
+    "duplicate_urls_skipped": 2,
+    "verified_evidence_claims": 36,
+    "rejected_by_reason": {
+      "lower_rank": 40,
+      "low_quality_source": 23,
+      "duplicate_url": 2
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "Most base hydraulic elements are supported: open-circuit power/return with relief, double-acting cylinder with 4-way directional control, pressure-compensated meter-in feed control, and generic rapid/feed transition using a cam-operated bypass around a meter-out flow control. However, the core required topology remains unsupported: the accumulated findings do not cite a documented circuit where a position-operated bypass is placed around a cap-side meter-in pressure-compensated feed path to provide no-stop rapid approach-to-load-independent cutting feed transition. Because that gap affects multiple critical needs, the design cannot proceed safely and unambiguously.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Findings provide cited topology and placement guidance for reservoir, suction line/filter, pump, pressure/supply line, return line/filter, and a main relief valve connected near the pump outlet and returning excess flow to tank. Relief-valve evidence supports overpressure protection for blocked/stalled motion.",
+        "evidence_task_ids": [
+          "task_power_unit_relief_open_circuit"
+        ]
+      },
+      {
+        "need_id": "function_machine_tool_slide_axis_directional_control",
+        "status": "covered",
+        "rationale": "Findings cite a double-acting cylinder controlled by one 4-way directional valve, conventional A-to-cap/B-to-rod work-port hookup, extension/retraction actuation convention, and neutral-center behavior. Tandem-center neutral is supported for blocking the actuator while unloading the pump, with the cited caveat that spool leakage may allow creep and should not be treated as a positive safety lock.",
+        "evidence_task_ids": [
+          "task_double_acting_cylinder_directional_control_neutral"
+        ]
+      },
+      {
+        "need_id": "function_machine_tool_slide_axis_motion_profile",
+        "status": "covered",
+        "rationale": "The individual principles are cited: meter-in control at the cap-end supply for extension, pressure-compensated adjustable feed for load-independent cutting speed, reverse-flow check for return, and a generic rapid/feed transition using a cam-operated bypass. But the cited rapid/feed transition evidence is for a bypass around a meter-out flow control, not the required cap-side meter-in pressure-compensated feed path. Therefore the ordered multi-speed pattern with the typed meter-in decisions is not yet fully supported.",
+        "evidence_task_ids": [
+          "task_machine_tool_rapid_traverse_feed_return_transition",
+          "task_pressure_compensated_meter_in_feed_control"
+        ]
+      },
+      {
+        "need_id": "driver_pressure_compensation_load_independence",
+        "status": "covered",
+        "rationale": "Cited technical sources support pressure-compensated variable flow-control valves with an adjustable orifice and compensator that maintain essentially constant flow despite inlet/load pressure changes, and support use in a meter-in cap-side branch for a resistive extending cylinder. This is sufficient for the load-independent feed-speed driver, independent of the unresolved rapid/feed bypass placement.",
+        "evidence_task_ids": [
+          "task_pressure_compensated_meter_in_feed_control"
+        ]
+      },
+      {
+        "need_id": "driver_two_speed_force_switching",
+        "status": "covered",
+        "rationale": "Cited evidence supports automatic fast/slow sequencing via a position/cam-operated 2-way valve bypassing a flow control, with rapid motion when open and slow feed when closed. However, that documented circuit bypasses a meter-out control. The required no-stop switch from rapid approach to pressure-compensated cap-side meter-in cutting feed, or a supported replacement circuit that preserves load-independent feed, is not documented.",
+        "evidence_task_ids": [
+          "task_machine_tool_rapid_traverse_feed_return_transition"
+        ]
+      },
+      {
+        "need_id": "driver_pressure_limiting_stall",
+        "status": "covered",
+        "rationale": "Cited sources support a main relief/pressure-limiting valve near the pump outlet, set to the maximum allowed system pressure, opening above preset pressure to route excess flow to reservoir and protect the pump/system from overpressure during blocked or stalled motion. The specified 70 bar value is an application setting rather than a separate research gap.",
+        "evidence_task_ids": [
+          "task_power_unit_relief_open_circuit"
+        ]
+      },
+      {
+        "need_id": "topology_r3_e_research_gap_meter_in_rapid_feed_bypass",
+        "status": "covered",
+        "rationale": "The targeted finding explicitly states that the supplied sources do not document the proposed position-operated bypass around a cap-side meter-in pressure-compensated feed path for automatic rapid-to-feed transition without stopping, and do not provide a supported replacement circuit. Existing citations only support pressure-compensated flow-control port behavior and the separate meter-out bypass pattern.",
+        "evidence_task_ids": [
+          "targeted_topology_r3_e_research_gap_meter_in_rapid_feed_bypass"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Critical missing claim: a position- or cam-operated 2-way valve may be connected in parallel with a cap-side meter-in pressure-compensated flow-control valve so that, during extension, open bypass gives rapid approach and automatic closure at the set position forces flow through the pressure-compensated meter-in valve for load-independent cutting feed without stopping.",
+      "Critical missing alternative: a documented hydraulic circuit that achieves rapid extension over a preset distance, automatic position-based transition to adjustable pressure-compensated feed extension, and rapid retraction, while preserving the required cap-side meter-in feed decision or clearly replacing it with an equally supported load-independent topology.",
+      "The existing rapid/feed citation supports a bypass around a meter-out flow control, so it cannot by itself validate the proposed cap-side meter-in pressure-compensated bypass arrangement."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "invalid",
+    "deterministic": {
+      "verdict": "invalid",
+      "issues": [
+        {
+          "code": "BLOCKING_TOPOLOGY_CATALOG_GAP",
+          "severity": "error",
+          "scope": "selection",
+          "description": "Every generic topology-class gap is blocking; non-equivalent workarounds cannot validate.",
+          "related": [
+            "Documented topology for position-operated bypass around a cap-side meter-in pressure-compensated feed-control branch, where open bypass gives rapid approach and automatic closure at 250 mm forces load-independent cutting feed without stopping."
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "9 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": true,
+          "details": "3 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": false,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "invalid",
+      "design_issues": [
+        {
+          "code": "E_UNSUPPORTED_METER_IN_RAPID_FEED_CHANGEOVER",
+          "severity": "error",
+          "scope": "research",
+          "description": "The core required sequence depends on a position-operated bypass around a cap-side meter-in pressure-compensated feed-control branch: bypass open for rapid approach, then closed at 250 mm to force uninterrupted load-independent cutting feed through the pressure-compensated valve. The supplied research only supports a documented position-valve bypass pattern around a meter-out flow-control circuit, and the proposed topology itself records this exact meter-in pressure-compensated rapid/feed arrangement as a blocking topology/catalog gap. Because this unresolved pattern is required to satisfy the automatic no-stop approach-to-cutting transition and load-independent cutting feed, the topology cannot be released as valid.",
+          "related": [
+            "PositionBypass",
+            "FeedFlowControl",
+            "ApproachFlowControl",
+            "Cylinder",
+            "slide_approach_extend",
+            "slide_cutting_feed_extend",
+            "automatic_position_based_transition_from_approach_to_cutting_feed_without_stopping",
+            "machine_tool_slide_axis"
+          ]
+        }
+      ],
+      "summary": "Invalid. The basic open-circuit supply, main relief placement, directional extend/retract paths, meter-in placements, and return exhaust paths are otherwise coherent, and no holding or hose-burst function is required for this horizontal resistive slide. The blocking failure is that the essential automatic rapid-approach to pressure-compensated cap-side meter-in cutting-feed changeover remains an unsupported topology gap in the provided research and is explicitly not validated by the proposal."
+    },
+    "repair_scope": "selection",
+    "topology_round": 4,
+    "summary": "Deterministic validation: invalid. Engineering review: invalid. Invalid. The basic open-circuit supply, main relief placement, directional extend/retract paths, meter-in placements, and return exhaust paths are otherwise coherent, and no holding or hose-burst function is required for this horizontal resistive slide. The blocking failure is that the essential automatic rapid-approach to pressure-compensated cap-side meter-in cutting-feed changeover remains an unsupported topology gap in the provided research and is explicitly not validated by the proposal."
+  }
+}

@@ -69,6 +69,8 @@ class TerminalReporter:
                 continue
             if node == "web_research_worker":
                 self._research_worker(values)
+            elif node == "finalize_requirements":
+                self._requirements_gate(values)
             elif node == "plan_components":
                 self._component_planner(values)
             elif node == "validate_topology":
@@ -79,6 +81,33 @@ class TerminalReporter:
                 self._compact_values(values)
             else:
                 self.console.print(Syntax(_json(values), "json", word_wrap=True))
+
+    def _requirements_gate(self, values: dict[str, Any]) -> None:
+        gate = values.get("requirements_gate", {})
+        decision = str(gate.get("decision") or "unknown")
+        color = "green" if decision == "proceed" else "red"
+        summary = Table(show_header=False, box=None)
+        summary.add_row("Decision", f"[{color}]{decision.upper()}[/{color}]")
+        summary.add_row("Critic status", str(gate.get("completeness_status") or "unknown"))
+        summary.add_row("Blocking questions", str(len(gate.get("blocking_question_ids", []))))
+        summary.add_row("Structural errors", str(len(gate.get("structural_issues", []))))
+        summary.add_row("Advisories", str(len(gate.get("advisory_issues", []))))
+        summary.add_row("Assumptions merged", str(len(gate.get("merged_assumption_ids", []))))
+        self.console.print(summary)
+
+        findings = Table("Classification", "Detail", show_lines=True)
+        for question_id in gate.get("blocking_question_ids", []):
+            findings.add_row("BLOCKING QUESTION", str(question_id))
+        for issue in gate.get("structural_issues", []):
+            findings.add_row("STRUCTURAL ERROR", str(issue))
+        for issue in gate.get("advisory_issues", []):
+            findings.add_row("ADVISORY", str(issue))
+        for note in gate.get("normalizations", []):
+            findings.add_row("NORMALIZED", str(note))
+        if findings.row_count:
+            self.console.print(findings)
+        if not self.compact:
+            self.console.print(Panel(Syntax(_json(gate), "json", word_wrap=True), title="Requirements gate audit"))
 
     def _compact_values(self, values: dict[str, Any]) -> None:
         summary = Table(show_header=False, box=None)
@@ -126,6 +155,15 @@ class TerminalReporter:
         self.console.print(Panel(Syntax(_json(values.get("research_findings", [])), "json", word_wrap=True), title="Distilled finding"))
 
     def _component_planner(self, values: dict[str, Any]) -> None:
+        recovery = values.get("component_planner_recovery", [])
+        if recovery:
+            self.console.print(
+                Panel(
+                    Syntax(_json(recovery), "json", word_wrap=True),
+                    title="Recovered structured-output errors",
+                    border_style="yellow",
+                )
+            )
         trace = values.get("catalog_tool_trace", [])
         if trace:
             self.console.print("[bold]Catalog tool audit trail[/bold]")
@@ -285,6 +323,15 @@ class TerminalReporter:
                     str(item.get("selected")),
                 )
             self.console.print(table)
+
+        if output.get("component_planner_recovery"):
+            self.console.print(
+                Panel(
+                    Syntax(_json(output["component_planner_recovery"]), "json", word_wrap=True),
+                    title="Recovered component-planner output errors",
+                    border_style="yellow",
+                )
+            )
 
         if output.get("repair_history"):
             self.console.print(

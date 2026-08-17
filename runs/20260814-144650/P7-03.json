@@ -1,0 +1,109 @@
+{
+  "problem_id": "P7-03",
+  "status": "failed",
+  "failure": {
+    "stage": "requirements",
+    "message": "Circuit-changing requirements remain unresolved after clarification/repair limits.",
+    "critique": {
+      "completeness_status": "proceed_with_assumptions",
+      "rationale": "The extracted requirements cover the stated travel, advance/return speeds and forces, 10-minute holding requirement, safe neutral on command release, and 100 bar maximum pressure. Unit conversions are correct, and the implied move times are physically consistent. No duplicate phase IDs, no improper splitting of one actuator into separate FunctionRequirements, and no shared-platen synchronization issue are present. The moving phases are reasonably treated as resistive horizontal loads, so meter-in-only control is not rejected for those phases. However, the hold/safe-neutral requirement is safety-relevant and the extracted hold phase leaves load_control as unspecified; the spec should encode a positive bidirectional holding decision rather than relying on an undefined neutral state. Acceptance criteria exist for all explicit numeric values, but objective tolerances for speed/travel and a numeric definition of negligible drift are missing.",
+      "blocking_questions": [],
+      "proposed_assumptions": [
+        {
+          "id": "as_positive_bidirectional_holding",
+          "statement": "Safe neutral on command release will be implemented as a positive bidirectional holding condition, such as blocked actuator ports with appropriate zero-leakage or load-holding elements sized for 15 kN in the advance-load direction and 9.5 kN in the return-load direction; spool leakage alone is not assumed sufficient for the 10-minute negligible-drift hold.",
+          "rationale": "The original text explicitly requires stop-and-hold at any point under full stated load and safe neutral on command release, but it does not prescribe the holding device. A conservative hydraulic default is needed to avoid unsafe drift.",
+          "affects": [
+            "carriage_hold_at_any_point",
+            "sr_safe_neutral_on_release",
+            "sr_static_hold_negligible_drift",
+            "ac_negligible_drift_during_hold"
+          ],
+          "confidence": "high",
+          "needs_human_approval": false
+        },
+        {
+          "id": "as_no_overrunning_motion_load",
+          "statement": "Advance and return operating loads are treated as resistive, non-overrunning loads because the original states the carriage advances and returns 'against' the respective loads on a horizontal fixture.",
+          "rationale": "This supports the extracted meter-in, non-compensated moving-phase mapping and means counterbalance control is not required for the commanded moving phases unless later load details reveal an assisting or overrunning condition.",
+          "affects": [
+            "carriage_advance",
+            "carriage_return",
+            "metering_side",
+            "load_control"
+          ],
+          "confidence": "high",
+          "needs_human_approval": false
+        },
+        {
+          "id": "as_actuator_mounting_mapping_review",
+          "statement": "Advance is provisionally mapped to cylinder extension and return to cylinder retraction; if the cylinder is mounted oppositely, cap/rod chamber metering assignments must be reversed without changing the functional requirements.",
+          "rationale": "The original problem does not define cylinder mounting sense, while the extracted schema requires typed extend/retract and chamber mapping.",
+          "affects": [
+            "carriage_advance",
+            "carriage_return",
+            "metered_chamber"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        },
+        {
+          "id": "as_acceptance_tolerances_to_be_defined",
+          "statement": "The 300 mm travel and nominal 3.5 m/min and 5.5 m/min speeds are treated as nominal acceptance targets pending project-specific tolerances; final verification must define pass/fail tolerances before test.",
+          "rationale": "The original provides numeric targets but no practical measurement tolerances. This is not a topology blocker, but objective acceptance testing requires tolerances.",
+          "affects": [
+            "ac_travel_300_mm",
+            "ac_advance_speed_58_33_mm_s",
+            "ac_return_speed_91_67_mm_s"
+          ],
+          "confidence": "high",
+          "needs_human_approval": true
+        },
+        {
+          "id": "as_drift_limit_pending",
+          "statement": "The phrase 'negligible drift' is retained as a qualitative requirement until a numeric drift limit is approved; design should use conservative positive holding rather than treating the null drift target as objectively testable.",
+          "rationale": "The original does not quantify allowable drift, and the extracted acceptance criterion has no numeric target. This is a verification gap rather than a reason to change the hydraulic topology if conservative holding is used.",
+          "affects": [
+            "holding.drift_tolerance",
+            "ac_negligible_drift_during_hold",
+            "sr_static_hold_negligible_drift"
+          ],
+          "confidence": "high",
+          "needs_human_approval": true
+        }
+      ],
+      "consistency_issues": [
+        "The hold phase has metering_side='none' and flow_compensation='none', which is acceptable for a static phase, but load_control='unspecified' is not acceptable given the explicit stop-and-hold and safe-neutral requirements. It should encode a positive bidirectional holding/load-locking decision rather than remain unspecified.",
+        "The hold phase load_type='resistive' is an oversimplification. Static holding must resist the full stated directional loads in both directions; it should be represented as a bidirectional static holding load, not merely a moving resistive load.",
+        "Acceptance criterion ac_negligible_drift_during_hold uses comparator '<=' with a null numeric target. That records the source text but is not objectively verifiable until a drift tolerance is supplied.",
+        "Acceptance criterion ac_safe_neutral_on_command_release uses a null state target for 'safe neutral condition'. The extracted text explains 'hold rather than continued motion or float', but the target should be encoded as an explicit state such as neutral_hold / no_float / no_uncommanded_motion.",
+        "Motion phase 'carriage_hold_at_any_point' has an unspecified load_control decision."
+      ],
+      "physical_sanity_flags": [
+        "At 100 bar, producing 15 kN ideally requires at least about 1500 mm² effective piston area, corresponding to roughly a 44 mm bore before friction, pressure losses, and design margin. This is plausible but should drive cylinder sizing.",
+        "At 100 bar, producing 9.5 kN on return requires at least about 950 mm² effective annulus area before losses and margin. Rod diameter selection must preserve sufficient retract force capacity.",
+        "The specified speeds over 300 mm imply approximate motion times of 5.14 s advance and 3.27 s return; these are internally consistent with the extracted speeds.",
+        "Holding for 600 s with negligible drift under load should not be assumed achievable using ordinary directional-valve neutral leakage alone; a positive holding/locking strategy is required.",
+        "Because the loads are stated as 'against' the motion on a horizontal carriage, no overrunning phase is evident; meter-in control for the moving phases is not rejected on the provided facts."
+      ],
+      "missing_fields": [
+        "Numeric drift tolerance defining 'negligible drift' over the 10-minute hold.",
+        "Explicit load-control selection for the hold/safe-neutral phase.",
+        "Explicit encoded safe-neutral state definition, including whether neutral means blocked actuator ports, no float, and no continued motion.",
+        "Acceptance tolerances for 300 mm travel, 3.5 m/min advance speed, and 5.5 m/min return speed.",
+        "Cylinder mounting sense confirming whether advance is extension and return is retraction.",
+        "Required behavior on power loss and hose burst, if different from ordinary command release.",
+        "Actuator bore/rod dimensions, efficiency, and pressure-loss allowance needed to verify force capability within the 100 bar maximum."
+      ]
+    }
+  },
+  "research_audit": {
+    "searches_used": 0,
+    "rounds_used": 0,
+    "selected_unique_sources": 0,
+    "extracted_documents": 0,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 0,
+    "rejected_by_reason": {}
+  }
+}

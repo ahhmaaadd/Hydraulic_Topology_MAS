@@ -13,13 +13,20 @@ web research, and topology repair. A new `thread_id` isolates each problem.
    safety, acceptance criteria, typed metering mappings, load control, and
    synchronization strategy.
 3. A deterministic structural check detects phases incorrectly split into
-   multiple functions or load-independence applied to the wrong phases;
-   `repair_requirements` gets one correction pass when needed.
+   multiple functions, invalid sequence/phase references, or load-independence
+   applied to the wrong phases; only these structural errors invoke
+   `repair_requirements`.
 4. If a truly blocking question remains, `clarify_requirements` interrupts the
    graph. The terminal asks the user and resumes the same node/thread.
-5. `finalize_requirements` merges noncritical assumptions and records whether
-   unresolved ambiguity remains. Unresolved circuit-changing ambiguity now ends
-   at `requirements_failure`; it cannot silently enter design.
+5. `finalize_requirements` merges noncritical assumptions and classifies the
+   critic output. Advisory consistency notes are retained for audit but do not
+   block topology. Only `needs_clarification` or a remaining deterministic
+   structural error ends at `requirements_failure`.
+
+The gate prints its decision, blocking questions, structural errors,
+advisories, merged assumptions, and deterministic normalizations separately.
+An active function accidentally repeated in the same sequence step's
+`forbidden_overlap_function_ids` is removed as an unambiguous normalization.
 
 The extractor reruns after clarification so the answer is normalized into the
 same source-of-truth schema.
@@ -69,7 +76,11 @@ stateDiagram-v2
 2. `plan_components` runs a LangChain tool-using agent. It must list catalog
    types, search/shortlist generic classes, inspect chosen states/ports, and
    return two or three candidate component/connection plans with exact keys.
-   All tool calls and results are printed in the terminal.
+   All tool calls and results are printed in the terminal. The result uses a
+   tool-based structured-output strategy so schema validation feedback returns
+   to the planner. A remaining `StructuredOutputValidationError` receives up to
+   three bounded fresh attempts with the exact repair-action payload contract.
+   Recovered failures are retained in terminal and final JSON audits.
 3. Python applies executable repair actions, rejects ineligible candidates, and
    selects the highest-scoring valid plan. A bad model preference cannot override
    missing check/unloading/counterbalance or a blocking catalog gap.
@@ -147,6 +158,7 @@ Unless `--no-save` is used, the same JSON is written below `runs/`.
 | State field | Writer | Consumer |
 | --- | --- | --- |
 | `requirements` | extractor/finalizer | every downstream phase |
+| `requirements_gate` | requirements finalizer | terminal/failure audit |
 | `knowledge_needs` | research planner | coverage gate and synthesizer |
 | `research_findings` | parallel workers, append reducer | coverage/synthesis |
 | `research_query_history` | parallel workers, append reducer | duplicate prevention |
@@ -157,6 +169,7 @@ Unless `--no-save` is used, the same JSON is written below `runs/`.
 | `candidate_evaluations` | deterministic selector | final output/terminal |
 | `component_plan` | catalog-aware designer | netlist builder |
 | `catalog_tool_trace` | component designer wrapper | terminal audit |
+| `component_planner_recovery` | component designer wrapper | terminal/final JSON audit |
 | `repair_history` | component selector/repair pass | final output/terminal |
 | `topology` | netlist builder | validators and finalizer |
 | `topology_validation` | combined validator | repair router/finalizer |

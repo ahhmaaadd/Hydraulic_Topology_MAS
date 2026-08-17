@@ -189,7 +189,13 @@ def test_full_graph_reaches_validated_output_without_network() -> None:
     )
     suite = SimpleNamespace(
         extractor=StaticRunnable(requirements),
-        critic=StaticRunnable(CritiqueResult(completeness_status="sufficient", rationale="Complete.")),
+        critic=StaticRunnable(
+            CritiqueResult(
+                completeness_status="proceed_with_assumptions",
+                rationale="Complete enough for topology; verification tolerance is deferred.",
+                consistency_issues=["A final speed acceptance tolerance is not yet specified."],
+            )
+        ),
         research_planner=StaticRunnable(research_plan),
         research_distiller=StaticRunnable(finding),
         research_coverage=StaticRunnable(coverage),

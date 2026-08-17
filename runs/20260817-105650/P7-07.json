@@ -1,0 +1,908 @@
+{
+  "problem_id": "P7-07",
+  "status": "failed",
+  "failure": {
+    "stage": "requirements",
+    "message": "Circuit-changing requirements remain unresolved after clarification/repair limits.",
+    "critique": {
+      "completeness_status": "needs_clarification",
+      "rationale": "Most explicit numeric requirements from the original are captured with units and source tags, and the 200 mm / 4 s / 50 mm/s calculation is consistent. However, the RequirementsSpec invents critical load-character information not present in the original text: horizontal orientation, mechanical guidance, and no overrunning phases. That affects safe metering and load-control topology, so it is blocking. There are also non-blocking issues with sequence encoding, approximate tolerances, and inferred defaults being represented too strongly.",
+      "blocking_questions": [
+        {
+          "id": "cq_load_character_001",
+          "question": "For each motion and return phase, are the loads strictly resistive/non-overrunning, or can any phase be gravity-assisted, spring-assisted, externally driven, or support a suspended load?",
+          "why_it_matters": "Meter-in-only control is unsafe for an overrunning phase, and pilot checks cannot substitute for counterbalance/load-control valves where dynamic load control is required. The spec currently assumes all phases are horizontal and non-overrunning, but the original problem does not state that.",
+          "blocking": true,
+          "related": [
+            "clamp_extend_to_force",
+            "clamp_hold_during_work",
+            "clamp_retract_release",
+            "working_advance_feed",
+            "working_retract_return"
+          ]
+        }
+      ],
+      "proposed_assumptions": [
+        {
+          "id": "as_approx_tolerance_001",
+          "statement": "Interpret 'approximately' numeric targets as requiring an agreed tolerance band, provisionally ±10%, unless the customer specifies otherwise.",
+          "rationale": "The extracted acceptance criteria use comparator 'approx' for 12 kN, 4 s, and derived 50 mm/s but do not define a measurable tolerance.",
+          "affects": [
+            "ac_clamp_force",
+            "ac_working_advance_time",
+            "ac_working_advance_speed"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        },
+        {
+          "id": "as_return_stroke_001",
+          "statement": "Assume each return stroke equals the corresponding advance stroke: clamp return 50 mm and working return 200 mm.",
+          "rationale": "The original requires return sequencing but does not explicitly state return distances. Inferring full retraction over the prior travel is conservative and conventional.",
+          "affects": [
+            "clamp_retract_release",
+            "working_retract_return",
+            "ac_clamp_return_travel",
+            "ac_working_return_travel"
+          ],
+          "confidence": "high",
+          "needs_human_approval": false
+        },
+        {
+          "id": "as_holding_scope_001",
+          "statement": "Assume the clamp holding requirement applies during the normal powered cycle only, not during power loss or hose burst, unless separately specified.",
+          "rationale": "The original requires the clamp not be released until after working retraction, but does not state emergency retention, no-creep tolerance, or power-off holding requirements.",
+          "affects": [
+            "clamp_hold_during_work",
+            "holding",
+            "derived_design_drivers"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        },
+        {
+          "id": "as_pressure_measurement_001",
+          "statement": "Assume the 40 bar clamp and 60 bar working limits are actuator/function pressure limits, while the 70 bar limit is the maximum system supply/manifold pressure.",
+          "rationale": "The original gives pressure limits but not measurement locations. This interpretation matches the wording and allows verification.",
+          "affects": [
+            "sr_clamp_pressure_limit",
+            "sr_working_pressure_limit",
+            "sr_overall_pressure_limit",
+            "ac_clamp_pressure_limit",
+            "ac_working_pressure_limit",
+            "ac_overall_pressure_limit"
+          ],
+          "confidence": "medium",
+          "needs_human_approval": true
+        },
+        {
+          "id": "as_no_speed_adjustability_requirement_001",
+          "statement": "Treat lack of stated speed adjustability or load-independent speed as 'not specified', not as a prohibition on adjustable or compensated flow controls.",
+          "rationale": "The spec sets speed_adjustable=false and speed_load_independent=false. The original is silent; these should not constrain the design unless explicitly required.",
+          "affects": [
+            "clamp_motion",
+            "working_motion",
+            "working_advance_feed"
+          ],
+          "confidence": "high",
+          "needs_human_approval": false
+        }
+      ],
+      "consistency_issues": [
+        "The RequirementsSpec repeatedly states that both cylinders are horizontal, mechanically guided, and non-overrunning 'per authoritative clarification', but no such clarification exists in the original text. This is invented source content and affects safety-critical load-control decisions.",
+        "The operational sequence encodes clamp_hold_during_work as order 3 after working_advance_feed at order 2. In the original, clamp holding must begin once clamp force is established and continue concurrently during working advance and through working retract until clamp release.",
+        "working_retract_return lists forbidden_overlap_function_ids containing clamp_motion, but the original requires the clamp to remain applied during return until the working motion has retracted. Forbidding overlap with clamp_motion conflicts with the clamp-hold requirement.",
+        "The function-level flags speed_adjustable=false and speed_load_independent=false may read as design requirements, although the original only specifies timing for the working advance and is silent about adjustability or compensation.",
+        "Several inferred or design-decision fields are tagged or worded as if explicitly stated, including single-cylinder synchronization justification and no-overrunning load character. These should be marked as assumptions, not explicit requirements.",
+        "The spec does not split approach/feed/return of one actuator into separate FunctionRequirements; it correctly keeps phases under one physical actuator per function. No duplicate phase ids were found."
+      ],
+      "physical_sanity_flags": [
+        "The force/pressure requirements are physically plausible but imply relatively large minimum effective piston areas: 12 kN at 40 bar requires at least about 0.0030 m² effective area, approximately 62 mm bore ignoring losses; 30 kN at 60 bar requires at least about 0.0050 m², approximately 80 mm bore ignoring losses.",
+        "The derived working speed is consistent: 200 mm in 4 s gives 50 mm/s average speed.",
+        "Non-compensated meter-in for working advance may not reliably meet 'approximately 4 seconds' if machining load varies substantially. If load-independent timing is required, pressure-compensated flow control or equivalent would be needed.",
+        "If any phase is confirmed overrunning, the current meter-in/none load-control decisions are unsafe and must be replaced with suitable load-control/meter-out/counterbalance architecture as applicable.",
+        "Pilot-check holding is acceptable only as static holding for a non-overrunning clamp in a normal cycle. It must not be treated as a substitute for counterbalance control if the clamp load can drive motion."
+      ],
+      "missing_fields": [
+        "Load orientation and load character for each phase are not stated in the original but are assumed in the spec.",
+        "Acceptance tolerances are missing for approximate numeric requirements: approximately 12 kN clamp force, approximately 4 s advance time, and inferred approximately 50 mm/s speed.",
+        "Verification criteria are missing for the explicit non-numeric prohibition: no electrical pressure switch may be used.",
+        "Verification criteria are missing for the automatic sequencing requirement: working advance starts only after full clamping force is established, without an electrical pressure switch.",
+        "Clamp hold acceptance details are incomplete: allowable clamp force decay, drift, hold duration, and behavior on power loss or hose burst are not specified.",
+        "Pressure measurement locations for 40 bar clamp, 60 bar working, and 70 bar system limits are not specified."
+      ]
+    },
+    "requirements_gate": {
+      "decision": "blocked",
+      "completeness_status": "needs_clarification",
+      "blocking_question_ids": [
+        "cq_load_character_001"
+      ],
+      "structural_issues": [],
+      "advisory_issues": [
+        "The RequirementsSpec repeatedly states that both cylinders are horizontal, mechanically guided, and non-overrunning 'per authoritative clarification', but no such clarification exists in the original text. This is invented source content and affects safety-critical load-control decisions.",
+        "The operational sequence encodes clamp_hold_during_work as order 3 after working_advance_feed at order 2. In the original, clamp holding must begin once clamp force is established and continue concurrently during working advance and through working retract until clamp release.",
+        "working_retract_return lists forbidden_overlap_function_ids containing clamp_motion, but the original requires the clamp to remain applied during return until the working motion has retracted. Forbidding overlap with clamp_motion conflicts with the clamp-hold requirement.",
+        "The function-level flags speed_adjustable=false and speed_load_independent=false may read as design requirements, although the original only specifies timing for the working advance and is silent about adjustability or compensation.",
+        "Several inferred or design-decision fields are tagged or worded as if explicitly stated, including single-cylinder synchronization justification and no-overrunning load character. These should be marked as assumptions, not explicit requirements.",
+        "The spec does not split approach/feed/return of one actuator into separate FunctionRequirements; it correctly keeps phases under one physical actuator per function. No duplicate phase ids were found."
+      ],
+      "merged_assumption_ids": [
+        "as_approx_tolerance_001",
+        "as_return_stroke_001",
+        "as_holding_scope_001",
+        "as_pressure_measurement_001",
+        "as_no_speed_adjustability_requirement_001"
+      ],
+      "downgraded_nonblocking_question_ids": [],
+      "normalizations": []
+    }
+  },
+  "research_audit": {
+    "searches_used": 0,
+    "rounds_used": 0,
+    "selected_unique_sources": 0,
+    "extracted_documents": 0,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 0,
+    "rejected_by_reason": {}
+  },
+  "requirements": {
+    "title": "Hydraulic machine station with clamp and working motions",
+    "restated_problem": "Design requirements for a hydraulic machine station with two horizontal, mechanically guided linear cylinder motions: a clamp motion that travels 50 mm and establishes about 12 kN without exceeding 40 bar, followed automatically by a working motion that advances 200 mm in about 4 s and develops 30 kN at up to 60 bar. On return, the working motion must retract before the clamp is released. Overall system pressure must not exceed 70 bar, and no electrical pressure switch may be used.",
+    "application": "Machine station with clamping and working/machining advance motion",
+    "functions": [
+      {
+        "id": "clamp_motion",
+        "name": "Clamp part",
+        "description": "Horizontal clamp cylinder advances 50 mm to clamp the part with approximately 12 kN, remains clamped while the working motion occurs, and releases only after the working motion has retracted.",
+        "physical_actuator_id": "clamp_cylinder",
+        "actuator_type": "linear",
+        "orientation": "horizontal",
+        "primary_load": "Clamping resistance from the part/fixture",
+        "load_type": "resistive",
+        "motion_phases": [
+          {
+            "id": "clamp_extend_to_force",
+            "name": "Clamp advance and force build",
+            "description": "Clamp cylinder extends to the clamping position and establishes clamping force.",
+            "motion": "extend",
+            "distance": {
+              "value": 50.0,
+              "unit": "mm",
+              "raw_text": "travel 50 mm",
+              "qualifier": null,
+              "source": "explicit",
+              "notes": null
+            },
+            "speed": null,
+            "force": {
+              "value": 12.0,
+              "unit": "kN",
+              "raw_text": "approximately 12 kN",
+              "qualifier": "approximately",
+              "source": "explicit",
+              "notes": "Clamping force requirement."
+            },
+            "duration": null,
+            "load_type": "resistive",
+            "speed_adjustable": false,
+            "speed_load_independent": false,
+            "metering_side": "none",
+            "metered_chamber": "none",
+            "metered_flow": "none",
+            "flow_compensation": "none",
+            "load_control": "none",
+            "motion_control_justification": "No clamp speed requirement was stated. Clarifications state the horizontal extension load is strictly resistive and not overrunning, so no dynamic load-control requirement is indicated for the extend phase.",
+            "motion_control_source": "inferred"
+          },
+          {
+            "id": "clamp_hold_during_work",
+            "name": "Maintain clamp during working motion",
+            "description": "Clamp remains applied after full clamping force is established and until the working cylinder has retracted.",
+            "motion": "hold",
+            "distance": null,
+            "speed": null,
+            "force": {
+              "value": 12.0,
+              "unit": "kN",
+              "raw_text": "approximately 12 kN",
+              "qualifier": "approximately",
+              "source": "explicit",
+              "notes": "Clamp force to be maintained while the working motion occurs."
+            },
+            "duration": null,
+            "load_type": "resistive",
+            "speed_adjustable": false,
+            "speed_load_independent": false,
+            "metering_side": "none",
+            "metered_chamber": "none",
+            "metered_flow": "none",
+            "flow_compensation": "none",
+            "load_control": "pilot_check",
+            "motion_control_justification": "The clamp must remain applied during the working motion and must not be released until after working retraction. This is a static holding requirement, not dynamic counterbalance control.",
+            "motion_control_source": "inferred"
+          },
+          {
+            "id": "clamp_retract_release",
+            "name": "Clamp release return",
+            "description": "Clamp cylinder retracts to release the part after the working cylinder has retracted.",
+            "motion": "retract",
+            "distance": {
+              "value": 50.0,
+              "unit": "mm",
+              "raw_text": "return after 50 mm clamp travel",
+              "qualifier": "return stroke inferred from clamp travel",
+              "source": "inferred",
+              "notes": "Return distance inferred as the reverse of the explicit 50 mm clamp travel."
+            },
+            "speed": null,
+            "force": null,
+            "duration": null,
+            "load_type": "resistive",
+            "speed_adjustable": false,
+            "speed_load_independent": false,
+            "metering_side": "none",
+            "metered_chamber": "none",
+            "metered_flow": "none",
+            "flow_compensation": "none",
+            "load_control": "none",
+            "motion_control_justification": "Clarifications state retraction is horizontal and not driven by gravity, spring force, suspended mass, or other external force; only negligible frictional resistance is present. No return speed requirement was stated.",
+            "motion_control_source": "inferred"
+          }
+        ],
+        "total_travel": {
+          "value": 50.0,
+          "unit": "mm",
+          "raw_text": "travel 50 mm",
+          "qualifier": null,
+          "source": "explicit",
+          "notes": null
+        },
+        "peak_force": {
+          "value": 12.0,
+          "unit": "kN",
+          "raw_text": "approximately 12 kN",
+          "qualifier": "approximately",
+          "source": "explicit",
+          "notes": "Clamp force requirement."
+        },
+        "holding_force": {
+          "value": 12.0,
+          "unit": "kN",
+          "raw_text": "approximately 12 kN",
+          "qualifier": "approximately",
+          "source": "explicit",
+          "notes": "Force to be maintained during the working motion."
+        },
+        "speeds_adjustable": false,
+        "speed_load_independent": false,
+        "cycle_time": null,
+        "duty_cycle": null,
+        "holding": {
+          "must_hold_position": true,
+          "no_creep": false,
+          "drift_tolerance": null,
+          "hold_on_power_loss": false,
+          "hold_duration": null,
+          "retain_on_hose_burst": false,
+          "notes": "Clamp must remain applied until the working motion retracts; no drift tolerance, power-loss hold, or hose-burst retention requirement was stated."
+        },
+        "synchronization": {
+          "required": false,
+          "actuator_count": 1,
+          "strategy": "none",
+          "series_displacement_compatibility": "not_applicable",
+          "justification": "Single clamp cylinder; no multi-actuator synchronization requirement stated.",
+          "source": "explicit"
+        },
+        "special_modes": [],
+        "notes": "Clamp pressure must not exceed 40 bar. Clamp extension and retraction are not overrunning per authoritative clarification."
+      },
+      {
+        "id": "working_motion",
+        "name": "Working advance and return",
+        "description": "Horizontal working cylinder automatically advances after clamp force is established, travels 200 mm in approximately 4 seconds, develops 30 kN at up to 60 bar, and retracts before clamp release.",
+        "physical_actuator_id": "working_cylinder",
+        "actuator_type": "linear",
+        "orientation": "horizontal",
+        "primary_load": "Machining resistance during working advance; negligible friction during retraction",
+        "load_type": "resistive",
+        "motion_phases": [
+          {
+            "id": "working_advance_feed",
+            "name": "Working advance",
+            "description": "Working cylinder extends automatically after full clamping force is established.",
+            "motion": "extend",
+            "distance": {
+              "value": 200.0,
+              "unit": "mm",
+              "raw_text": "advance 200 mm",
+              "qualifier": null,
+              "source": "explicit",
+              "notes": null
+            },
+            "speed": {
+              "value": 50.0,
+              "unit": "mm/s",
+              "raw_text": "200 mm in approximately 4 seconds",
+              "qualifier": "approximately",
+              "source": "inferred",
+              "notes": "Computed from 200 mm / 4 s."
+            },
+            "force": {
+              "value": 30.0,
+              "unit": "kN",
+              "raw_text": "develop 30 kN",
+              "qualifier": null,
+              "source": "explicit",
+              "notes": null
+            },
+            "duration": {
+              "value": 4.0,
+              "unit": "s",
+              "raw_text": "approximately 4 seconds",
+              "qualifier": "approximately",
+              "source": "explicit",
+              "notes": null
+            },
+            "load_type": "resistive",
+            "speed_adjustable": false,
+            "speed_load_independent": false,
+            "metering_side": "meter_in",
+            "metered_chamber": "cap",
+            "metered_flow": "supply",
+            "flow_compensation": "non_compensated",
+            "load_control": "none",
+            "motion_control_justification": "A target advance time implies deliberate feed-rate control. The clarified extension load is horizontal and strictly resistive, with no overrunning condition; load-independent speed was not requested, so non-compensated meter-in of cap-end supply is sufficient as a requirements-level metering decision.",
+            "motion_control_source": "inferred"
+          },
+          {
+            "id": "working_retract_return",
+            "name": "Working return",
+            "description": "Working cylinder retracts before the clamp is released.",
+            "motion": "retract",
+            "distance": {
+              "value": 200.0,
+              "unit": "mm",
+              "raw_text": "return after 200 mm working advance",
+              "qualifier": "return stroke inferred from working advance travel",
+              "source": "inferred",
+              "notes": "Return distance inferred as the reverse of the explicit 200 mm working advance."
+            },
+            "speed": null,
+            "force": null,
+            "duration": null,
+            "load_type": "resistive",
+            "speed_adjustable": false,
+            "speed_load_independent": false,
+            "metering_side": "none",
+            "metered_chamber": "none",
+            "metered_flow": "none",
+            "flow_compensation": "none",
+            "load_control": "none",
+            "motion_control_justification": "Clarifications state retraction is horizontal and not driven by gravity, spring force, suspended mass, or other external force; only negligible frictional resistance is present. No return speed requirement was stated.",
+            "motion_control_source": "inferred"
+          }
+        ],
+        "total_travel": {
+          "value": 200.0,
+          "unit": "mm",
+          "raw_text": "advance 200 mm",
+          "qualifier": null,
+          "source": "explicit",
+          "notes": null
+        },
+        "peak_force": {
+          "value": 30.0,
+          "unit": "kN",
+          "raw_text": "develop 30 kN",
+          "qualifier": null,
+          "source": "explicit",
+          "notes": null
+        },
+        "holding_force": null,
+        "speeds_adjustable": false,
+        "speed_load_independent": false,
+        "cycle_time": null,
+        "duty_cycle": null,
+        "holding": {
+          "must_hold_position": false,
+          "no_creep": false,
+          "drift_tolerance": null,
+          "hold_on_power_loss": false,
+          "hold_duration": null,
+          "retain_on_hose_burst": false,
+          "notes": "No holding requirement for the working cylinder was stated."
+        },
+        "synchronization": {
+          "required": false,
+          "actuator_count": 1,
+          "strategy": "none",
+          "series_displacement_compatibility": "not_applicable",
+          "justification": "Single working cylinder; no multi-actuator synchronization requirement stated.",
+          "source": "explicit"
+        },
+        "special_modes": [
+          "automatic_advance_after_clamp_force"
+        ],
+        "notes": "Working pressure is limited to up to 60 bar. Working extension and retraction are not overrunning per authoritative clarification."
+      }
+    ],
+    "global_constraints": {
+      "max_system_pressure": {
+        "value": 70.0,
+        "unit": "bar",
+        "raw_text": "Overall pressure must not exceed 70 bar",
+        "qualifier": "maximum",
+        "source": "explicit",
+        "notes": null
+      },
+      "power_source": "unspecified",
+      "installation_environment": "stationary_industrial",
+      "pump_count_preference": null,
+      "fluid_cleanliness": null,
+      "energy_efficiency_intent": null,
+      "simplicity_intent": null,
+      "other_constraints": [
+        "No electrical pressure switch may be used.",
+        "Both cylinders are horizontal, mechanically guided, and have no overrunning phases per authoritative clarification."
+      ]
+    },
+    "operational_logic": {
+      "trigger": "External cycle command starts the clamp sequence; working advance is automatically triggered once full clamping force is established.",
+      "modes": [
+        "clamp_advance",
+        "clamp_hold_and_work_advance",
+        "return_working_then_release_clamp"
+      ],
+      "sequence": [
+        {
+          "order": 1,
+          "phase_id": "clamp_extend_to_force",
+          "description": "Clamp cylinder extends 50 mm and establishes approximately 12 kN clamping force without exceeding 40 bar.",
+          "function_ids": [
+            "clamp_motion"
+          ],
+          "predecessor_phase_id": null,
+          "precondition": "Cycle start command present and part ready for clamping.",
+          "trigger": "initial_command",
+          "hydraulically_enforced": false,
+          "forbidden_overlap_function_ids": []
+        },
+        {
+          "order": 2,
+          "phase_id": "working_advance_feed",
+          "description": "Once full clamping force is established, the working cylinder automatically advances 200 mm in approximately 4 seconds and develops 30 kN at up to 60 bar.",
+          "function_ids": [
+            "working_motion"
+          ],
+          "predecessor_phase_id": "clamp_extend_to_force",
+          "precondition": "Full clamping force established; clamp remains held.",
+          "trigger": "pressure",
+          "hydraulically_enforced": true,
+          "forbidden_overlap_function_ids": []
+        },
+        {
+          "order": 3,
+          "phase_id": "clamp_hold_during_work",
+          "description": "Clamp remains held during the working advance and until the working cylinder has retracted.",
+          "function_ids": [
+            "clamp_motion"
+          ],
+          "predecessor_phase_id": "clamp_extend_to_force",
+          "precondition": "Clamp force established.",
+          "trigger": "pressure",
+          "hydraulically_enforced": true,
+          "forbidden_overlap_function_ids": []
+        },
+        {
+          "order": 4,
+          "phase_id": "working_retract_return",
+          "description": "During return, the working cylinder retracts before the clamp is released.",
+          "function_ids": [
+            "working_motion"
+          ],
+          "predecessor_phase_id": "working_advance_feed",
+          "precondition": "Return command or return portion of cycle initiated.",
+          "trigger": "external_command",
+          "hydraulically_enforced": false,
+          "forbidden_overlap_function_ids": [
+            "clamp_motion"
+          ]
+        },
+        {
+          "order": 5,
+          "phase_id": "clamp_retract_release",
+          "description": "Clamp cylinder retracts to release the part only after the working cylinder has retracted.",
+          "function_ids": [
+            "clamp_motion"
+          ],
+          "predecessor_phase_id": "working_retract_return",
+          "precondition": "Working cylinder fully retracted.",
+          "trigger": "completion_of_previous",
+          "hydraulically_enforced": true,
+          "forbidden_overlap_function_ids": [
+            "working_motion"
+          ]
+        }
+      ],
+      "interlocks": [
+        "Working advance shall not occur until full clamping force is established.",
+        "Clamp release shall not occur until the working cylinder has retracted.",
+        "No electrical pressure switch may be used to detect clamp pressure or initiate the automatic working advance.",
+        "Overall system pressure shall not exceed 70 bar."
+      ],
+      "notes": "Automatic transition from clamping to working advance must be achieved without an electrical pressure switch."
+    },
+    "safety_requirements": [
+      {
+        "id": "sr_overall_pressure_limit",
+        "category": "overpressure",
+        "description": "Overall hydraulic system pressure must not exceed 70 bar.",
+        "related_function_ids": [
+          "clamp_motion",
+          "working_motion"
+        ],
+        "parameter": {
+          "value": 70.0,
+          "unit": "bar",
+          "raw_text": "Overall pressure must not exceed 70 bar",
+          "qualifier": "maximum",
+          "source": "explicit",
+          "notes": null
+        },
+        "standard": null,
+        "source": "explicit"
+      },
+      {
+        "id": "sr_clamp_pressure_limit",
+        "category": "overpressure",
+        "description": "Clamping pressure must not exceed 40 bar.",
+        "related_function_ids": [
+          "clamp_motion"
+        ],
+        "parameter": {
+          "value": 40.0,
+          "unit": "bar",
+          "raw_text": "Clamping pressure must not exceed 40 bar",
+          "qualifier": "maximum",
+          "source": "explicit",
+          "notes": null
+        },
+        "standard": null,
+        "source": "explicit"
+      },
+      {
+        "id": "sr_working_pressure_limit",
+        "category": "overpressure",
+        "description": "Working motion must develop the required force at up to 60 bar; working pressure is limited to 60 bar for that motion.",
+        "related_function_ids": [
+          "working_motion"
+        ],
+        "parameter": {
+          "value": 60.0,
+          "unit": "bar",
+          "raw_text": "at up to 60 bar",
+          "qualifier": "maximum",
+          "source": "explicit",
+          "notes": null
+        },
+        "standard": null,
+        "source": "explicit"
+      },
+      {
+        "id": "sr_no_electrical_pressure_switch",
+        "category": "other",
+        "description": "No electrical pressure switch may be used for the pressure-triggered automatic sequence.",
+        "related_function_ids": [
+          "clamp_motion",
+          "working_motion"
+        ],
+        "parameter": null,
+        "standard": null,
+        "source": "explicit"
+      },
+      {
+        "id": "sr_no_overrunning_load_control_required",
+        "category": "uncommanded_motion",
+        "description": "Authoritative clarifications state no motion phase is gravity-aided or otherwise overrunning; no actuator supports a suspended load, and stored elastic energy is negligible for load-control selection.",
+        "related_function_ids": [
+          "clamp_motion",
+          "working_motion"
+        ],
+        "parameter": null,
+        "standard": null,
+        "source": "explicit"
+      }
+    ],
+    "derived_design_drivers": [
+      {
+        "capability": "load_holding",
+        "evidence": "Clamp must remain applied after full clamping force is established and must not be released until the working cylinder has retracted.",
+        "related_function_ids": [
+          "clamp_motion"
+        ]
+      },
+      {
+        "capability": "pressure_limiting_stall",
+        "evidence": "Clamping pressure is limited to 40 bar, working motion pressure to 60 bar, and overall system pressure to 70 bar while forces are developed against resistive loads.",
+        "related_function_ids": [
+          "clamp_motion",
+          "working_motion"
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "ac_clamp_travel",
+        "description": "Clamp cylinder travel shall be 50 mm.",
+        "related_function_id": "clamp_motion",
+        "metric": "clamp travel",
+        "comparator": "==",
+        "target": {
+          "value": 50.0,
+          "unit": "mm",
+          "raw_text": "travel 50 mm",
+          "qualifier": null,
+          "source": "explicit",
+          "notes": null
+        },
+        "source": "explicit"
+      },
+      {
+        "id": "ac_clamp_force",
+        "description": "Clamp cylinder shall clamp with approximately 12 kN.",
+        "related_function_id": "clamp_motion",
+        "metric": "clamping force",
+        "comparator": "approx",
+        "target": {
+          "value": 12.0,
+          "unit": "kN",
+          "raw_text": "approximately 12 kN",
+          "qualifier": "approximately",
+          "source": "explicit",
+          "notes": null
+        },
+        "source": "explicit"
+      },
+      {
+        "id": "ac_clamp_pressure_limit",
+        "description": "Clamping pressure shall not exceed 40 bar.",
+        "related_function_id": "clamp_motion",
+        "metric": "clamping pressure",
+        "comparator": "<=",
+        "target": {
+          "value": 40.0,
+          "unit": "bar",
+          "raw_text": "Clamping pressure must not exceed 40 bar",
+          "qualifier": "maximum",
+          "source": "explicit",
+          "notes": null
+        },
+        "source": "explicit"
+      },
+      {
+        "id": "ac_clamp_return_travel",
+        "description": "Clamp return shall release the full 50 mm clamp travel after working retraction.",
+        "related_function_id": "clamp_motion",
+        "metric": "clamp return travel",
+        "comparator": "==",
+        "target": {
+          "value": 50.0,
+          "unit": "mm",
+          "raw_text": "return after 50 mm clamp travel",
+          "qualifier": "inferred return stroke",
+          "source": "inferred",
+          "notes": "Return travel inferred from clamp travel."
+        },
+        "source": "inferred"
+      },
+      {
+        "id": "ac_working_advance_travel",
+        "description": "Working cylinder advance travel shall be 200 mm.",
+        "related_function_id": "working_motion",
+        "metric": "working advance travel",
+        "comparator": "==",
+        "target": {
+          "value": 200.0,
+          "unit": "mm",
+          "raw_text": "advance 200 mm",
+          "qualifier": null,
+          "source": "explicit",
+          "notes": null
+        },
+        "source": "explicit"
+      },
+      {
+        "id": "ac_working_advance_time",
+        "description": "Working cylinder shall advance 200 mm in approximately 4 seconds.",
+        "related_function_id": "working_motion",
+        "metric": "working advance duration",
+        "comparator": "approx",
+        "target": {
+          "value": 4.0,
+          "unit": "s",
+          "raw_text": "approximately 4 seconds",
+          "qualifier": "approximately",
+          "source": "explicit",
+          "notes": null
+        },
+        "source": "explicit"
+      },
+      {
+        "id": "ac_working_advance_speed",
+        "description": "Working advance average speed shall be approximately 50 mm/s, inferred from 200 mm in approximately 4 seconds.",
+        "related_function_id": "working_motion",
+        "metric": "working advance average speed",
+        "comparator": "approx",
+        "target": {
+          "value": 50.0,
+          "unit": "mm/s",
+          "raw_text": "200 mm in approximately 4 seconds",
+          "qualifier": "approximately",
+          "source": "inferred",
+          "notes": "Computed from 200 mm / 4 s."
+        },
+        "source": "inferred"
+      },
+      {
+        "id": "ac_working_force",
+        "description": "Working cylinder shall develop at least 30 kN.",
+        "related_function_id": "working_motion",
+        "metric": "working force capacity",
+        "comparator": ">=",
+        "target": {
+          "value": 30.0,
+          "unit": "kN",
+          "raw_text": "develop 30 kN",
+          "qualifier": null,
+          "source": "explicit",
+          "notes": null
+        },
+        "source": "explicit"
+      },
+      {
+        "id": "ac_working_pressure_limit",
+        "description": "Working motion pressure shall not exceed 60 bar while developing the required force.",
+        "related_function_id": "working_motion",
+        "metric": "working pressure",
+        "comparator": "<=",
+        "target": {
+          "value": 60.0,
+          "unit": "bar",
+          "raw_text": "at up to 60 bar",
+          "qualifier": "maximum",
+          "source": "explicit",
+          "notes": null
+        },
+        "source": "explicit"
+      },
+      {
+        "id": "ac_working_return_travel",
+        "description": "Working return shall retract the full 200 mm working advance before clamp release.",
+        "related_function_id": "working_motion",
+        "metric": "working return travel",
+        "comparator": "==",
+        "target": {
+          "value": 200.0,
+          "unit": "mm",
+          "raw_text": "return after 200 mm working advance",
+          "qualifier": "inferred return stroke",
+          "source": "inferred",
+          "notes": "Return travel inferred from working advance travel."
+        },
+        "source": "inferred"
+      },
+      {
+        "id": "ac_overall_pressure_limit",
+        "description": "Overall system pressure shall not exceed 70 bar.",
+        "related_function_id": null,
+        "metric": "overall system pressure",
+        "comparator": "<=",
+        "target": {
+          "value": 70.0,
+          "unit": "bar",
+          "raw_text": "Overall pressure must not exceed 70 bar",
+          "qualifier": "maximum",
+          "source": "explicit",
+          "notes": null
+        },
+        "source": "explicit"
+      }
+    ],
+    "assumptions": [
+      {
+        "id": "as_approx_tolerance_001",
+        "statement": "Interpret 'approximately' numeric targets as requiring an agreed tolerance band, provisionally ±10%, unless the customer specifies otherwise.",
+        "rationale": "The extracted acceptance criteria use comparator 'approx' for 12 kN, 4 s, and derived 50 mm/s but do not define a measurable tolerance.",
+        "affects": [
+          "ac_clamp_force",
+          "ac_working_advance_time",
+          "ac_working_advance_speed"
+        ],
+        "confidence": "medium",
+        "needs_human_approval": true
+      },
+      {
+        "id": "as_return_stroke_001",
+        "statement": "Assume each return stroke equals the corresponding advance stroke: clamp return 50 mm and working return 200 mm.",
+        "rationale": "The original requires return sequencing but does not explicitly state return distances. Inferring full retraction over the prior travel is conservative and conventional.",
+        "affects": [
+          "clamp_retract_release",
+          "working_retract_return",
+          "ac_clamp_return_travel",
+          "ac_working_return_travel"
+        ],
+        "confidence": "high",
+        "needs_human_approval": false
+      },
+      {
+        "id": "as_holding_scope_001",
+        "statement": "Assume the clamp holding requirement applies during the normal powered cycle only, not during power loss or hose burst, unless separately specified.",
+        "rationale": "The original requires the clamp not be released until after working retraction, but does not state emergency retention, no-creep tolerance, or power-off holding requirements.",
+        "affects": [
+          "clamp_hold_during_work",
+          "holding",
+          "derived_design_drivers"
+        ],
+        "confidence": "medium",
+        "needs_human_approval": true
+      },
+      {
+        "id": "as_pressure_measurement_001",
+        "statement": "Assume the 40 bar clamp and 60 bar working limits are actuator/function pressure limits, while the 70 bar limit is the maximum system supply/manifold pressure.",
+        "rationale": "The original gives pressure limits but not measurement locations. This interpretation matches the wording and allows verification.",
+        "affects": [
+          "sr_clamp_pressure_limit",
+          "sr_working_pressure_limit",
+          "sr_overall_pressure_limit",
+          "ac_clamp_pressure_limit",
+          "ac_working_pressure_limit",
+          "ac_overall_pressure_limit"
+        ],
+        "confidence": "medium",
+        "needs_human_approval": true
+      },
+      {
+        "id": "as_no_speed_adjustability_requirement_001",
+        "statement": "Treat lack of stated speed adjustability or load-independent speed as 'not specified', not as a prohibition on adjustable or compensated flow controls.",
+        "rationale": "The spec sets speed_adjustable=false and speed_load_independent=false. The original is silent; these should not constrain the design unless explicitly required.",
+        "affects": [
+          "clamp_motion",
+          "working_motion",
+          "working_advance_feed"
+        ],
+        "confidence": "high",
+        "needs_human_approval": false
+      }
+    ],
+    "open_questions": []
+  },
+  "requirements_gate": {
+    "decision": "blocked",
+    "completeness_status": "needs_clarification",
+    "blocking_question_ids": [
+      "cq_load_character_001"
+    ],
+    "structural_issues": [],
+    "advisory_issues": [
+      "The RequirementsSpec repeatedly states that both cylinders are horizontal, mechanically guided, and non-overrunning 'per authoritative clarification', but no such clarification exists in the original text. This is invented source content and affects safety-critical load-control decisions.",
+      "The operational sequence encodes clamp_hold_during_work as order 3 after working_advance_feed at order 2. In the original, clamp holding must begin once clamp force is established and continue concurrently during working advance and through working retract until clamp release.",
+      "working_retract_return lists forbidden_overlap_function_ids containing clamp_motion, but the original requires the clamp to remain applied during return until the working motion has retracted. Forbidding overlap with clamp_motion conflicts with the clamp-hold requirement.",
+      "The function-level flags speed_adjustable=false and speed_load_independent=false may read as design requirements, although the original only specifies timing for the working advance and is silent about adjustability or compensation.",
+      "Several inferred or design-decision fields are tagged or worded as if explicitly stated, including single-cylinder synchronization justification and no-overrunning load character. These should be marked as assumptions, not explicit requirements.",
+      "The spec does not split approach/feed/return of one actuator into separate FunctionRequirements; it correctly keeps phases under one physical actuator per function. No duplicate phase ids were found."
+    ],
+    "merged_assumption_ids": [
+      "as_approx_tolerance_001",
+      "as_return_stroke_001",
+      "as_holding_scope_001",
+      "as_pressure_measurement_001",
+      "as_no_speed_adjustability_requirement_001"
+    ],
+    "downgraded_nonblocking_question_ids": [],
+    "normalizations": []
+  },
+  "repair_history": []
+}

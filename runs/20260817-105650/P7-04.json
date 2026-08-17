@@ -1,0 +1,1124 @@
+{
+  "problem_id": "P7-04",
+  "title": "Machine slide hydraulic requirements",
+  "status": "unresolved",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Repaired port-level topology implements the selected pressure-triggered regenerative rapid-approach circuit with sequenced rod exhaust. The open-circuit supply path is Tank.S to Pump.S, with Pump.P branching directly to ReliefValve.P and DCV.P; ReliefValve.T and DCV.T return directly to Tank.R. During fast approach, DCV is in extend and FeedTransitionSequence is closed because cap/load pilot pressure is below its setting; the cylinder rod exhaust path to DCV.B/T is blocked, so rod flow passes through RegenerationCheck into the cap meter-in inlet and joins pump flow upstream of CapMeterInFlowControl. During working feed, cap/load pressure pilots FeedTransitionSequence open, enabling rod exhaust from the cylinder rod line through the sequence valve, reverse-free through RodMeterInFlowControl, and to tank through DCV.B/T, while cap supply remains metered through CapMeterInFlowControl. During return, DCV retract supplies the rod side through RodMeterInFlowControl and the sequence valve reverse check, while cap-end exhaust returns through CapMeterInFlowControl reverse-free flow to DCV.A/T. ReliefValve remains the maximum pressure limiter and must be set no higher than 20 bar during sizing/implementation.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "Open-circuit reservoir boundary for pump suction and hydraulic returns.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "Use S as pump suction source and R as common hydraulic return sink."
+      ],
+      "selection_basis": "Required open-circuit suction and return boundary."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "Positive-displacement pressure supply for the slide circuit.",
+      "function_id": "machine_slide_motion",
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed-displacement supply; displacement and drive are deferred to sizing."
+      ],
+      "selection_basis": "Compatible with the brief stating that a fixed-displacement pump may be preferred when no efficiency intent is stated."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "Main system pressure limiter.",
+      "function_id": "machine_slide_motion",
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Set no higher than 20 bar during sizing/implementation."
+      ],
+      "selection_basis": "Required safety essential to limit maximum system pressure."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "Directional control for slide extend, neutral, and retract.",
+      "function_id": "machine_slide_motion",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Extend state connects P to A and B to T.",
+        "Retract state connects P to B and A to T.",
+        "Neutral unloads pump P to T and blocks A/B work ports; not credited as leakage-safe load holding."
+      ],
+      "selection_basis": "Provides bidirectional actuator control with neutral pump unloading for a fixed-pump open circuit."
+    },
+    {
+      "id": "SlideCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Linear slide actuator for approach, working feed, and return.",
+      "function_id": "machine_slide_motion",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap port used for extension toward the workpiece.",
+        "Rod port used for retraction away from the workpiece.",
+        "Bore, rod, and stroke are deferred to sizing."
+      ],
+      "selection_basis": "Required powered bidirectional linear actuator."
+    },
+    {
+      "id": "CapMeterInFlowControl",
+      "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+      "name": "One-Way Speed Control",
+      "comp_type": "one_way_flow_control",
+      "role": "Non-compensated cap-end meter-in control for extension.",
+      "function_id": "machine_slide_motion",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Orient A to B from the cap supply/regeneration junction toward cylinder Cap for metered extension supply.",
+        "Reverse free flow B to A permits cap-end exhaust during retraction.",
+        "Adjustment values are deferred to sizing for the required approximate approach and feed speeds."
+      ],
+      "selection_basis": "Catalog supports load-dependent non-compensated metering and free reverse flow; matches supplied cap meter-in decisions."
+    },
+    {
+      "id": "RodMeterInFlowControl",
+      "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+      "name": "One-Way Speed Control",
+      "comp_type": "one_way_flow_control",
+      "role": "Non-compensated rod-end meter-in control for retract supply and reverse-free rod exhaust during feed.",
+      "function_id": "machine_slide_motion",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Orient A to B from DCV B work port toward FeedTransitionSequence.A for metered retraction supply.",
+        "Reverse free flow B to A permits sequenced rod-end exhaust to reach DCV.B and DCV.T during working feed.",
+        "Return speed setting is deferred because return speed is unspecified."
+      ],
+      "selection_basis": "Carries the supplied non-compensated rod-side meter-in return decision while allowing the sequenced rod exhaust path."
+    },
+    {
+      "id": "FeedTransitionSequence",
+      "catalog_key": "GENERIC_EXTERNALLY_PILOTED_SEQUENCE_VALVE",
+      "name": "Externally Piloted Sequence Valve with Reverse Check",
+      "comp_type": "sequence_valve",
+      "role": "Hydraulic load/pressure-triggered fast-approach to working-feed changeover by opening the rod exhaust path.",
+      "function_id": "machine_slide_motion",
+      "ports": [
+        "P",
+        "A",
+        "X",
+        "T"
+      ],
+      "configuration": [
+        "P connected to cylinder rod line; A connected toward DCV.B/T; X piloted from cylinder cap/load pressure; T drained to tank."
+      ],
+      "selection_basis": "Provides the required pressure-triggered sequencing state change without an electrical pressure switch."
+    },
+    {
+      "id": "RegenerationCheck",
+      "catalog_key": "GENERIC_CHECK_VALVE",
+      "name": "Check Valve",
+      "comp_type": "check_valve",
+      "role": "One-way regenerative rapid-approach path from cylinder rod line to cap meter-in inlet.",
+      "function_id": "machine_slide_motion",
+      "ports": [
+        "P",
+        "A"
+      ],
+      "configuration": [
+        "P from cylinder rod line; A toward CapMeterInFlowControl.A."
+      ],
+      "selection_basis": "Plain check valve provides one-way rapid regenerative flow and reverse isolation."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Reservoir suction source to pump suction inlet."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure outlet supplies the directional valve pressure port."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branch feeds the main relief valve inlet directly; repeated Pump.P endpoint represents branching without a tee."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief flow returns directly to tank."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Directional valve tank port returns directly to tank."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "CapMeterInFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "DCV A work port feeds the cap-end meter-in inlet for extension supply."
+    },
+    {
+      "from_component": "RegenerationCheck",
+      "from_port": "A",
+      "to_component": "CapMeterInFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Regenerative rod flow joins the same cap meter-in inlet upstream of the cap-end restriction; repeated CapMeterInFlowControl.A endpoint represents the branch."
+    },
+    {
+      "from_component": "CapMeterInFlowControl",
+      "from_port": "B",
+      "to_component": "SlideCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Metered cap-end supply reaches the cylinder cap port; reverse free flow permits cap-end exhaust during retraction."
+    },
+    {
+      "from_component": "SlideCylinder",
+      "from_port": "Cap",
+      "to_component": "FeedTransitionSequence",
+      "to_port": "X",
+      "line": "pilot",
+      "notes": "Cylinder cap/load pressure provides the external pilot signal that opens the sequence valve at the feed-transition threshold."
+    },
+    {
+      "from_component": "FeedTransitionSequence",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "drain",
+      "notes": "Sequence valve drain returns directly to tank."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "B",
+      "to_component": "RodMeterInFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "DCV B work port feeds the rod-end meter-in flow control for retraction."
+    },
+    {
+      "from_component": "RodMeterInFlowControl",
+      "from_port": "B",
+      "to_component": "FeedTransitionSequence",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Rod-end flow control connects to the sequence-valve A port for metered retract supply through the sequence reverse check and for reverse-free sequenced exhaust during working feed."
+    },
+    {
+      "from_component": "FeedTransitionSequence",
+      "from_port": "P",
+      "to_component": "SlideCylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "Sequence valve primary port connects directly to the cylinder rod line."
+    },
+    {
+      "from_component": "SlideCylinder",
+      "from_port": "Rod",
+      "to_component": "RegenerationCheck",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Cylinder rod line feeds the one-way regeneration check during low-load rapid approach."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "machine_slide_motion",
+      "phase_id": "slide_fast_approach",
+      "phase_name": "Fast approach to workpiece",
+      "motion": "extend",
+      "load_type": "resistive",
+      "metering_side": "meter_in",
+      "metered_chamber": "cap",
+      "metered_flow": "supply",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "The phase has a specified approach speed and an explicitly resisting load; for a conventional double-acting slide actuator, meter-in on cap-end supply is acceptable because no overrunning or load-independent speed requirement is stated.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "machine_slide_motion",
+      "phase_id": "slide_working_feed",
+      "phase_name": "Working movement after contact",
+      "motion": "extend",
+      "load_type": "resistive",
+      "metering_side": "meter_in",
+      "metered_chamber": "cap",
+      "metered_flow": "supply",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "The phase has a specified lower feed speed under an explicitly resisting load. Load-independent speed is not required; the speed reduction is required to occur from the load change without an electrical pressure switch, so non-compensated supply metering is the topology-neutral motion-control decision captured here.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "machine_slide_motion",
+      "phase_id": "slide_return",
+      "phase_name": "Full return stroke",
+      "motion": "retract",
+      "load_type": "resistive",
+      "metering_side": "meter_in",
+      "metered_chamber": "rod",
+      "metered_flow": "supply",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "Return load is stated as resisting and no over-running condition, holding requirement, or load-independent speed requirement is specified; for a conventional double-acting slide actuator, retract meter-in corresponds to rod-end supply metering.",
+      "source": "inferred"
+    }
+  ],
+  "synchronization_decisions": [],
+  "phase_configurations": [
+    {
+      "phase_id": "slide_fast_approach",
+      "function_id": "machine_slide_motion",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Extend state connects P to A and B to T so pump flow is directed to the cap-side branch and DCV.B is available as the tank return branch, although the sequence valve blocks rod exhaust to that branch in this phase."
+        },
+        {
+          "component_id": "FeedTransitionSequence",
+          "state": "closed",
+          "reason": "Cap/load pilot pressure is below the sequence setting; sequence P-A is blocked, so cylinder rod exhaust cannot reach the DCV.B/T path and is instead routed through RegenerationCheck to the cap meter-in inlet for regenerative rapid approach."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_slide_motion"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Fast approach uses DCV.P-to-A plus regenerative rod flow through RegenerationCheck.P-to-A. Cap supply remains through CapMeterInFlowControl A-to-B. ReliefValve is normally closed unless overpressure occurs."
+    },
+    {
+      "phase_id": "slide_working_feed",
+      "function_id": "machine_slide_motion",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Working feed remains an extension phase with P to A and B to T; cap supply is delivered through the cap meter-in path and the B work port provides the return-to-tank route for rod exhaust."
+        },
+        {
+          "component_id": "FeedTransitionSequence",
+          "state": "open",
+          "reason": "Cylinder cap/load pressure at workpiece contact pilots X high enough to open sequence P-A, enabling rod exhaust from the cylinder rod line through the sequence valve to RodMeterInFlowControl reverse-free flow and DCV.B/T, thereby removing regeneration and producing the feed condition."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_slide_motion"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "The phase transition from fast approach to working feed is proven by the sequence valve state change from closed to open. RegenerationCheck prevents reverse flow from the cap meter-in inlet back to the rod line."
+    },
+    {
+      "phase_id": "slide_return",
+      "function_id": "machine_slide_motion",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "retract",
+          "reason": "Retract state connects P to B and A to T so pump flow supplies the rod-side branch and cap-end exhaust returns through DCV.A/T."
+        },
+        {
+          "component_id": "FeedTransitionSequence",
+          "state": "closed",
+          "reason": "The sequence valve closed state still provides the internal A-to-P reverse check path, allowing retract supply from RodMeterInFlowControl.B through FeedTransitionSequence.A-to-P to the cylinder rod line without requiring the pressure-sequence P-to-A path."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_slide_motion"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Retract meter-in is through RodMeterInFlowControl A-to-B. Cap-end exhaust uses CapMeterInFlowControl B-to-A free reverse flow toward DCV.A/T. RegenerationCheck blocks cap-side backflow toward the rod line."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1",
+      "eligible": true,
+      "score": 95.5,
+      "component_count": 9,
+      "errors": [],
+      "warnings": [],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2",
+      "eligible": true,
+      "score": 95.5,
+      "component_count": 9,
+      "errors": [],
+      "warnings": [],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "PRESSURE_SEQUENCE_VALVE_MISSING",
+        "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN",
+        "MISSING_PRESSURE_RESPONSIVE_PHASE_CHANGE"
+      ],
+      "rationale": "Add the required hydraulic pressure-responsive sequence element so fast approach and working feed are separated by a pressure/load-triggered valve state change.",
+      "target_component_id": null,
+      "component": {
+        "id": "PressureSequenceValve",
+        "catalog_key": "GENERIC_EXTERNALLY_PILOTED_SEQUENCE_VALVE",
+        "comp_type": "sequence_valve",
+        "role": "Hydraulic pressure/load-responsive phase-change element for fast approach to working feed.",
+        "function_id": "machine_slide_motion",
+        "configuration": [
+          "External pilot X senses cap/load pressure associated with workpiece contact.",
+          "At threshold the valve changes state to remove the rapid bypass effect and force feed through the cap-end flow control.",
+          "Setpoint is deferred to sizing and must remain below the 20 bar relief limit."
+        ],
+        "selection_basis": "Catalog class provides external-pressure sequencing and a hydraulically triggered state change without an electrical pressure switch."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "RAPID_APPROACH_BYPASS_FEED_PATH_MISSING"
+      ],
+      "rationale": "Add a one-way bypass element so the fast approach path is distinct from the slow feed flow-control path.",
+      "target_component_id": null,
+      "component": {
+        "id": "FastBypassCheck",
+        "catalog_key": "GENERIC_CHECK_VALVE",
+        "comp_type": "check_valve",
+        "role": "One-way rapid approach bypass path around the cap-end feed flow control.",
+        "function_id": "machine_slide_motion",
+        "configuration": [
+          "Free-flow direction from rapid bypass source toward the cylinder cap port.",
+          "Reverse flow from cap port into the rapid branch is blocked."
+        ],
+        "selection_basis": "Plain check valve provides the required one-way bypass isolation with no added control function."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "RAPID_APPROACH_BYPASS_FEED_PATH_MISSING"
+      ],
+      "rationale": "Connect DCV A to the pressure-responsive bypass branch inlet.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "DCV A work port also feeds the pressure-responsive rapid bypass sequence branch.",
+        "from_hint": "DCV.A",
+        "to_hint": "PressureSequenceValve.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "RAPID_APPROACH_BYPASS_FEED_PATH_MISSING"
+      ],
+      "rationale": "Connect the sequence-controlled branch outlet to the bypass check inlet.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Sequence-controlled rapid branch feeds the bypass check valve.",
+        "from_hint": "PressureSequenceValve.A",
+        "to_hint": "FastBypassCheck.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "RAPID_APPROACH_BYPASS_FEED_PATH_MISSING"
+      ],
+      "rationale": "Connect the bypass check outlet to the cylinder cap port so the bypass path can supply rapid approach.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Bypass check valve outlet joins the cylinder cap port for rapid approach supply.",
+        "from_hint": "FastBypassCheck.A",
+        "to_hint": "SlideCylinder.Cap",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN",
+        "MISSING_PRESSURE_RESPONSIVE_PHASE_CHANGE"
+      ],
+      "rationale": "Pilot the sequence valve from cylinder cap/load pressure so the rise at workpiece contact triggers the phase change.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Cylinder cap/load pressure pilots the pressure-responsive sequence valve.",
+        "from_hint": "SlideCylinder.Cap",
+        "to_hint": "PressureSequenceValve.X",
+        "line": "pilot"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN"
+      ],
+      "rationale": "Provide the required drain/return path for the externally piloted sequence valve.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Sequence valve drain returns to tank.",
+        "from_hint": "PressureSequenceValve.T",
+        "to_hint": "Tank.R",
+        "line": "drain"
+      }
+    },
+    {
+      "action": "delete_component",
+      "issue_codes": [
+        "PRESSURE_SEQUENCE_CLOSE_ON_PILOT_NOT_SUPPORTED",
+        "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN"
+      ],
+      "rationale": "Remove the unsupported sequence valve because the catalog sequence_valve opens on pressure and cannot be used as a proven close-on-rising-pressure bypass shutoff.",
+      "target_component_id": "PressureSequenceValve",
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_component",
+      "issue_codes": [
+        "METERING_BYPASSED_IN_PHASE"
+      ],
+      "rationale": "Remove the rapid bypass check because the active bypass path allowed extension supply to reach the cap port without passing through the declared cap meter-in flow control.",
+      "target_component_id": "FastBypassCheck",
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "METERING_BYPASSED_IN_PHASE",
+        "PRESSURE_SEQUENCE_CLOSE_ON_PILOT_NOT_SUPPORTED"
+      ],
+      "rationale": "Remove the branch from DCV A to the unsupported rapid-bypass sequence valve.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "DCV A work port also feeds the pressure-responsive rapid bypass sequence branch.",
+        "from_hint": "DCV.A",
+        "to_hint": "PressureSequenceValve.P",
+        "line": "work"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "METERING_BYPASSED_IN_PHASE",
+        "PRESSURE_SEQUENCE_CLOSE_ON_PILOT_NOT_SUPPORTED"
+      ],
+      "rationale": "Remove the sequence-controlled path to the bypass check.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Sequence-controlled rapid branch feeds the bypass check valve.",
+        "from_hint": "PressureSequenceValve.A",
+        "to_hint": "FastBypassCheck.P",
+        "line": "work"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "METERING_BYPASSED_IN_PHASE"
+      ],
+      "rationale": "Remove the unmetered bypass connection to the cylinder cap port.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Bypass check valve outlet joins the cylinder cap port for rapid approach supply.",
+        "from_hint": "FastBypassCheck.A",
+        "to_hint": "SlideCylinder.Cap",
+        "line": "work"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN",
+        "PRESSURE_SEQUENCE_CLOSE_ON_PILOT_NOT_SUPPORTED"
+      ],
+      "rationale": "Remove the pilot line to the unsupported sequence-valve function.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Cylinder cap/load pressure pilots the pressure-responsive sequence valve.",
+        "from_hint": "SlideCylinder.Cap",
+        "to_hint": "PressureSequenceValve.X",
+        "line": "pilot"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_connection",
+      "issue_codes": [
+        "PRESSURE_SEQUENCE_CLOSE_ON_PILOT_NOT_SUPPORTED"
+      ],
+      "rationale": "Remove the drain line for the deleted sequence valve.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Sequence valve drain returns to tank.",
+        "from_hint": "PressureSequenceValve.T",
+        "to_hint": "Tank.R",
+        "line": "drain"
+      },
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "PRESSURE_SEQUENCE_VALVE_MISSING",
+        "PRESSURE_TRIGGERED_FEED_TRANSITION_MISSING",
+        "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN"
+      ],
+      "rationale": "Add a catalog-supported externally piloted sequence valve so cap/load pressure rise creates an explicit closed-to-open hydraulic state change for the fast-to-feed transition.",
+      "target_component_id": null,
+      "component": {
+        "id": "FeedTransitionSequence",
+        "catalog_key": "GENERIC_EXTERNALLY_PILOTED_SEQUENCE_VALVE",
+        "comp_type": "sequence_valve",
+        "role": "Hydraulic load/pressure-triggered fast-approach to working-feed changeover by opening the rod exhaust path.",
+        "function_id": "machine_slide_motion",
+        "configuration": [
+          "P connected to cylinder rod line; A connected toward DCV.B/T; X piloted from cylinder cap/load pressure; T drained to tank."
+        ],
+        "selection_basis": "Provides the required pressure-triggered sequencing state change without an electrical pressure switch."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "RAPID_APPROACH_FEED_PATH_NOT_DISTINCT",
+        "PRESSURE_TRIGGERED_FEED_TRANSITION_MISSING"
+      ],
+      "rationale": "Add a one-way regeneration path so rapid approach has a distinct hydraulic path that is removed when the sequence valve opens the rod exhaust path.",
+      "target_component_id": null,
+      "component": {
+        "id": "RegenerationCheck",
+        "catalog_key": "GENERIC_CHECK_VALVE",
+        "comp_type": "check_valve",
+        "role": "One-way regenerative rapid-approach path from cylinder rod line to cap meter-in inlet.",
+        "function_id": "machine_slide_motion",
+        "configuration": [
+          "P from cylinder rod line; A toward CapMeterInFlowControl.A."
+        ],
+        "selection_basis": "Plain check valve provides one-way rapid regenerative flow and reverse isolation."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "PRESSURE_TRIGGERED_FEED_TRANSITION_MISSING",
+        "RAPID_APPROACH_FEED_PATH_NOT_DISTINCT"
+      ],
+      "rationale": "Insert the sequence valve between the rod meter-in control and the cylinder rod line so the rod exhaust path changes state with load pressure.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Rod-end flow control outlet feeds cylinder rod port.",
+        "from_hint": "RodMeterInFlowControl.B",
+        "to_hint": "SlideCylinder.Rod",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "Rod-end flow control connects to the sequence valve reverse-check side for retract supply and to the sequenced exhaust path for feed.",
+        "from_hint": "RodMeterInFlowControl.B",
+        "to_hint": "FeedTransitionSequence.A",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "PRESSURE_TRIGGERED_FEED_TRANSITION_MISSING"
+      ],
+      "rationale": "Connect the sequence valve primary port to the cylinder rod line.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Sequence valve primary port connects to the cylinder rod line.",
+        "from_hint": "FeedTransitionSequence.P",
+        "to_hint": "SlideCylinder.Rod",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN",
+        "PRESSURE_TRIGGERED_FEED_TRANSITION_MISSING"
+      ],
+      "rationale": "Pilot the sequence valve from cylinder cap/load pressure so the valve opens at workpiece contact/load rise.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Cylinder cap/load pressure pilots the feed-transition sequence valve.",
+        "from_hint": "SlideCylinder.Cap",
+        "to_hint": "FeedTransitionSequence.X",
+        "line": "pilot"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "PRESSURE_SEQUENCE_VALVE_MISSING"
+      ],
+      "rationale": "Provide the required drain/return path for the sequence valve.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Sequence valve drain returns to tank.",
+        "from_hint": "FeedTransitionSequence.T",
+        "to_hint": "Tank.R",
+        "line": "drain"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "RAPID_APPROACH_FEED_PATH_NOT_DISTINCT"
+      ],
+      "rationale": "Connect cylinder rod exhaust to the regeneration check inlet for low-load rapid approach.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Cylinder rod line feeds the one-way regeneration check during rapid approach.",
+        "from_hint": "SlideCylinder.Rod",
+        "to_hint": "RegenerationCheck.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "RAPID_APPROACH_FEED_PATH_NOT_DISTINCT"
+      ],
+      "rationale": "Return the regenerative rod flow to the cap meter-in inlet so rapid approach and feed remain tied to the declared cap meter-in control.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Regenerative rod flow joins upstream of the cap meter-in flow control.",
+        "from_hint": "RegenerationCheck.A",
+        "to_hint": "CapMeterInFlowControl.A",
+        "line": "work"
+      }
+    }
+  ],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "system_power_and_return",
+      "component_ids": [
+        "Tank"
+      ],
+      "circuit_pattern": "Open-circuit reservoir boundary",
+      "how_requirements_met": "Tank provides the common open-circuit suction source at S and return sink at R for pump suction, relief return, DCV return, and sequence-valve drain. This carries the ledger entry for Tank: the open hydraulic circuit requires a reservoir boundary."
+    },
+    {
+      "function_id": "machine_slide_motion",
+      "component_ids": [
+        "Pump"
+      ],
+      "circuit_pattern": "Fixed-displacement open-circuit pressure supply",
+      "how_requirements_met": "Pump draws from Tank.S through Pump.S and supplies pressure flow from Pump.P directly to the relief and DCV branches for extend and retract states. This carries the ledger entry for Pump: slide motion requires hydraulic power supply."
+    },
+    {
+      "function_id": "machine_slide_motion",
+      "component_ids": [
+        "ReliefValve",
+        "Tank"
+      ],
+      "circuit_pattern": "Main relief valve returning to tank",
+      "how_requirements_met": "ReliefValve is connected from the Pump.P pressure branch to Tank.R and opens P-to-T at its set pressure. The setting is deferred but must be no higher than 20 bar. This carries the ledger entry for ReliefValve: maximum system pressure shall not exceed 20 bar."
+    },
+    {
+      "function_id": "machine_slide_motion",
+      "component_ids": [
+        "DCV",
+        "SlideCylinder"
+      ],
+      "circuit_pattern": "Single double-acting slide cylinder with 4/3 directional control",
+      "how_requirements_met": "DCV extend state drives the cap-end branch and provides the B-to-T path used after FeedTransitionSequence opens; DCV retract state drives the rod-end branch through RodMeterInFlowControl and the sequence valve reverse check. SlideCylinder converts commanded hydraulic flow into bidirectional linear slide motion toward and away from the workpiece. This carries the ledger entry for DCV and SlideCylinder: bidirectional slide motion toward and away from the workpiece."
+    },
+    {
+      "function_id": "machine_slide_motion",
+      "component_ids": [
+        "CapMeterInFlowControl"
+      ],
+      "circuit_pattern": "Non-compensated cap-end meter-in control",
+      "how_requirements_met": "CapMeterInFlowControl is installed with A at the cap supply/regeneration junction and B at SlideCylinder.Cap, so pump flow and regenerative rod flow entering the cap side pass through the non-compensated A-to-B metering path during extension. This carries the ledger entry for CapMeterInFlowControl: cap-end supply metering is implemented for both fast approach and working feed decisions."
+    },
+    {
+      "function_id": "machine_slide_motion",
+      "component_ids": [
+        "FeedTransitionSequence",
+        "RegenerationCheck",
+        "CapMeterInFlowControl",
+        "RodMeterInFlowControl"
+      ],
+      "circuit_pattern": "Pressure-triggered regenerative rapid approach with sequenced rod exhaust",
+      "how_requirements_met": "Below the pilot threshold, FeedTransitionSequence is closed and blocks rod exhaust from the DCV.B/T return route, so rod flow passes through RegenerationCheck into CapMeterInFlowControl.A for regenerative rapid approach. When cap/load pressure rises, external pilot X opens FeedTransitionSequence P-to-A, so rod exhaust reaches DCV.B/T via RodMeterInFlowControl reverse-free flow, ending regeneration and forcing working feed with cap supply through the cap meter-in path. This carries the ledger entry for FeedTransitionSequence: load/pressure-triggered fast-approach to working-feed transition without an electrical pressure switch."
+    },
+    {
+      "function_id": "machine_slide_motion",
+      "component_ids": [
+        "RodMeterInFlowControl",
+        "FeedTransitionSequence"
+      ],
+      "circuit_pattern": "Non-compensated rod-end meter-in control through sequence-valve reverse check",
+      "how_requirements_met": "RodMeterInFlowControl is installed with A connected to DCV.B and B connected to FeedTransitionSequence.A. During retract, supply is metered A-to-B through RodMeterInFlowControl and then passes through the sequence valve reverse check A-to-P into the rod chamber. During working-feed extension, rod exhaust returns reverse-free through RodMeterInFlowControl toward DCV.B/T after the sequence valve opens. This carries the ledger entry for RodMeterInFlowControl: the supplied non-compensated rod-side meter-in return decision is realized."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Add and use an externally piloted sequence valve as the pressure-triggered rod-exhaust changeover element.",
+      "rationale": "The selected generic sequence valve explicitly supports a closed P-A state below threshold and an open P-A state enabled by external pilot X. Piloting X from cylinder cap/load pressure provides the required hydraulic state change from fast approach to working feed without an electrical pressure switch.",
+      "driven_by": [
+        "PRESSURE_SEQUENCE_VALVE_MISSING",
+        "PRESSURE_TRIGGERED_FEED_TRANSITION_MISSING",
+        "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN",
+        "machine_slide_motion",
+        "slide_fast_approach",
+        "slide_working_feed"
+      ],
+      "evidence_urls": [
+        "https://powersource.danfoss.com/products/hydraulic-valves/cartridge-valves/sequence-and-unloading-valves",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884334/book-2-chapter-20-sequence-valves",
+        "https://mechanicalengineering120.files.wordpress.com/2017/11/lecture-25_hydraulic-circuit-design-and-analysis-continued.pdf"
+      ]
+    },
+    {
+      "decision": "Use the sequence valve as a rod-exhaust changeover valve, not as an unsupported normally-open close-on-pressure bypass.",
+      "rationale": "The selected catalog behavior proves closed-to-open P-A sequencing with external pilot pressure. In this topology, the closed state blocks rod exhaust to tank and causes regeneration; the open state enables rod exhaust to tank and ends regeneration, satisfying the pressure-triggered phase change using supported state paths.",
+      "driven_by": [
+        "PRESSURE_TRIGGERED_FEED_TRANSITION_MISSING",
+        "RAPID_APPROACH_FEED_PATH_NOT_DISTINCT",
+        "machine_slide_motion"
+      ],
+      "evidence_urls": [
+        "https://powersource.danfoss.com/products/hydraulic-valves/cartridge-valves/sequence-and-unloading-valves",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884334/book-2-chapter-20-sequence-valves"
+      ]
+    },
+    {
+      "decision": "Add a plain check valve from the rod line to the cap meter-in inlet for one-way regenerative rapid approach.",
+      "rationale": "RegenerationCheck provides one-way flow from the cylinder rod line into the cap supply/meter-in inlet during low-load extension while preventing cap-side backflow into the rod line during working feed and return.",
+      "driven_by": [
+        "RAPID_APPROACH_FEED_PATH_NOT_DISTINCT",
+        "PRESSURE_TRIGGERED_FEED_TRANSITION_MISSING",
+        "slide_fast_approach"
+      ],
+      "evidence_urls": [
+        "https://mechanicalengineering120.files.wordpress.com/2017/11/lecture-25_hydraulic-circuit-design-and-analysis-continued.pdf"
+      ]
+    },
+    {
+      "decision": "Keep CapMeterInFlowControl as the metered cap-supply element in both extension phases.",
+      "rationale": "The typed motion decisions require non-compensated meter-in on cap supply for both fast approach and working feed. Pump flow and regenerative rod flow join upstream of CapMeterInFlowControl.A, so the cap-end supply path remains through the selected one-way flow-control A-to-B metering direction.",
+      "driven_by": [
+        "machine_slide_motion",
+        "slide_fast_approach",
+        "slide_working_feed"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Metered_Flow_Circuits/16.01%3A_The_Operation_of_a_Meter-In_Flow_Control_Circuit_and_an_Application",
+        "https://www.powermotiontech.com/pneumatics/pneumatic-valves/article/21884324/book-2-chapter-10-flow-control-circuits"
+      ]
+    },
+    {
+      "decision": "Retain the open-circuit fixed-displacement pump, main relief valve, tandem-center 4/3 DCV, and double-acting cylinder.",
+      "rationale": "The base power path and actuator-directional-control arrangement are coherent for the slide motion. Pump.P feeds both the DCV pressure port and the main relief valve inlet; ReliefValve.T and DCV.T return directly to Tank.R. The relief setting must be no higher than 20 bar.",
+      "driven_by": [
+        "machine_slide_motion",
+        "system_power_and_return",
+        "pressure_limit_20_bar"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2:_Basic_Hydraulics_(NWTC)/02:_Power_Units/2.01:_Operation_of_a_Hydraulic_Power_Unit",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/13%3A_Relief_Valves/13.03%3A_The_Role_of_a_Relief_Valve_in_System_Protection",
+        "https://www.fluidpowerworld.com/hydraulic-symbology-203-pressure-valves",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Cylinder_Circuits/4.03%3A_Function_and_Appliction_of_a_4_3_DCV",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Cylinder_Circuits/4.04%3A_Operation_and_Schematic_Symbol_of_a_4_3_DCV",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Retain RodMeterInFlowControl to implement the supplied retract meter-in decision while allowing sequenced rod exhaust.",
+      "rationale": "Return load is resistive and the selected plan carries the typed retract meter-in decision. The one-way flow control meters A-to-B from DCV.B toward the sequence valve for retraction and provides internal free reverse flow B-to-A for rod exhaust during working-feed extension after the sequence valve opens.",
+      "driven_by": [
+        "machine_slide_motion",
+        "slide_return",
+        "slide_working_feed"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Metered_Flow_Circuits/16.01%3A_The_Operation_of_a_Meter-In_Flow_Control Circuit_and_an_Application",
+        "https://www.powermotiontech.com/pneumatics/pneumatic-valves/article/21884324/book-2-chapter-10-flow-control-circuits"
+      ]
+    },
+    {
+      "decision": "Do not select pilot checks or counterbalance valves.",
+      "rationale": "All stated loads are resistive and no leakage-safe holding, no-drift, hose-burst, suspended-load, or overrunning-load control requirement is stated.",
+      "driven_by": [
+        "machine_slide_motion",
+        "slide_fast_approach",
+        "slide_working_feed",
+        "slide_return"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Metered_Flow_Circuits/16.01%3A_The_Operation_of_a_Meter-In_Flow_Control_Circuit_and_an_Application",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_1%3A_Fluid_Power_and_Pneumatics_(NWTC)/15%3A_Speed_Control/15.03%3A_Meter-OutFlow_Control_Circuits"
+      ]
+    }
+  ],
+  "catalog_gaps": [],
+  "assumptions": [
+    "The slide loads for approach, working feed, and return are resistive and non-overrunning.",
+    "Load-independent speed regulation is not required.",
+    "The selected tandem-center DCV neutral is not treated as leakage-safe actuator holding.",
+    "Reverse free flow is internal to the selected one-way flow-control and sequence-valve classes; no separate check valve is added for those reverse paths.",
+    "Pump drive hardware, coupling, filters, gauges, coolers, hoses, and electrical solenoid interfaces are outside this hydraulic port-level topology and are not instantiated.",
+    "Relief valve setting, sequence-valve setting, pump displacement/flow, cylinder bore/rod/stroke, and flow-control settings are deferred to sizing."
+  ],
+  "open_issues": [
+    "Cylinder effective areas must be sized so 12.5 kN working load is achievable with system pressure limited to 20 bar.",
+    "The sequence-valve pilot threshold must be set above the pressure required for the 2.5 kN low-load approach and below the pressure associated with workpiece contact/working load, while remaining compatible with the 20 bar relief limit.",
+    "Pump flow, cylinder areas, regenerative area ratio, and cap-flow-control setting must be sized so rapid approach is approximately 25 mm/s and working feed is approximately 8.33 mm/s.",
+    "Return speed remains unspecified; rod-side metering setting is deferred.",
+    "Phase 'slide_fast_approach' has no directed SlideCylinder.Rod-to-tank exhaust path.",
+    "In phase slide_fast_approach the DCV is in extend, but FeedTransitionSequence is declared closed and blocks the SlideCylinder.Rod path to DCV.B/T. The only directed rod-side outflow is through RegenerationCheck into the cap supply junction, so there is no directed rod-to-tank exhaust/return path for this actuator phase. The deterministic phase invariant reports the same missing exhaust path and it cannot be accepted based on undirected connectivity or narrative regeneration intent."
+  ],
+  "research_audit": {
+    "searches_used": 4,
+    "rounds_used": 1,
+    "selected_unique_sources": 12,
+    "extracted_documents": 12,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 42,
+    "rejected_by_reason": {
+      "lower_rank": 36,
+      "low_quality_source": 16
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "The accumulated evidence is sufficient to proceed with topology design. Each critical knowledge need has at least one real citation and includes usable engineering connection/placement guidance. The two-speed pressure-responsive transition is not documented as one identical pre-existing schematic, but the findings contain supported component behavior and essential connection principles that the topology designer can combine: rapid/feed flow-control bypassing plus hydraulically pilot-operated normally-open sequence/spool valve closure at a load-pressure threshold.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Covered with cited textbook/technical evidence for an open hydraulic power path: reservoir to suction line/filter to pump, pump outlet to pressure/supply line, downstream directional/actuator circuit, return line to reservoir, and a main relief valve teed near the pump outlet discharging to tank. Findings also support relief operation at a preset maximum pressure and explain deadheading/end-of-stroke/stall overpressure protection.",
+        "evidence_task_ids": [
+          "task_system_power_and_relief_open_circuit"
+        ]
+      },
+      {
+        "need_id": "function_machine_slide_motion_directional_control",
+        "status": "covered",
+        "rationale": "Covered with cited evidence for using a double-acting cylinder controlled by a single 3-position, 4-way directional control valve. Findings include essential port logic: A to cap end, B to rod end, A operator extends and B operator retracts, plus supported neutral-center options and leakage/holding cautions.",
+        "evidence_task_ids": [
+          "task_double_acting_slide_directional_control"
+        ]
+      },
+      {
+        "need_id": "function_machine_slide_motion_motion_profile",
+        "status": "covered",
+        "rationale": "Covered by combined cited evidence. Meter-in placement for the typed decisions is directly supported: extension speed controlled by metering inlet flow to the cap end, and retraction speed by metering inlet flow to the rod side. Multi-speed approach/feed behavior is supported by cited rapid-traverse/feed evidence showing full-flow fast approach through a bypass and slower feed through a flow-control valve. Automatic phase transition is supported by cited hydraulic sequence/spool valve evidence: pilot-operated valves can change state at a set hydraulic pressure, including normally-open valves that close a bypass path at the set pilot pressure.",
+        "evidence_task_ids": [
+          "task_pressure_responsive_two_speed_transition",
+          "task_resistive_load_meter_in_speed_control"
+        ]
+      },
+      {
+        "need_id": "driver_two_speed_force_switching",
+        "status": "covered",
+        "rationale": "Covered sufficiently for topology design. The findings support a non-electrical, pressure-responsive fast/slow switching topology: use a flow-control valve for slow feed with a parallel normally-open hydraulically pilot-operated bypass valve; pilot the bypass valve from cylinder/load pressure so low-load approach bypasses the flow control for high speed, and rising load pressure closes the bypass to force flow through the flow control for slow feed. The evidence also supports pressure sequence/unloading valves as hydraulic pressure-actuated devices, satisfying the requirement to avoid an electrical pressure switch. Exact setpoint and sizing remain design calculations, not research gaps.",
+        "evidence_task_ids": [
+          "task_pressure_responsive_two_speed_transition"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Noncritical: exact cylinder bore/rod sizing, pump flow, flow-control settings, and the hydraulic switching pressure corresponding to 2.5 kN and 12.5 kN must be calculated from selected actuator areas and losses.",
+      "Noncritical: the evidence supports meter-in for resistive/opposing loads and warns against aiding/overrunning loads. The final design should confirm the slide load is not overrunning in any phase, or add meter-out/counterbalance protection if it is.",
+      "Noncritical: pressure-compensated versus non-pressure-compensated flow-control selection was not substantiated in the findings; choose during detailed design if speed accuracy across load/temperature variation is important.",
+      "Noncritical: exact neutral-center choice remains an application decision. Tandem center unloads the pump while blocking the cylinder only non-positively; add load-holding valves if external-force holding is required."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "invalid",
+    "deterministic": {
+      "verdict": "invalid",
+      "issues": [
+        {
+          "code": "PHASE_EXHAUST_PATH_MISSING",
+          "severity": "error",
+          "scope": "wiring",
+          "description": "Phase 'slide_fast_approach' has no directed SlideCylinder.Rod-to-tank exhaust path.",
+          "related": [
+            "Rod",
+            "SlideCylinder",
+            "slide_fast_approach"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "9 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": false,
+          "details": "3 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": true,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "invalid",
+      "design_issues": [
+        {
+          "code": "FAST_APPROACH_ROD_EXHAUST_TO_TANK_MISSING",
+          "severity": "error",
+          "scope": "wiring",
+          "description": "In phase slide_fast_approach the DCV is in extend, but FeedTransitionSequence is declared closed and blocks the SlideCylinder.Rod path to DCV.B/T. The only directed rod-side outflow is through RegenerationCheck into the cap supply junction, so there is no directed rod-to-tank exhaust/return path for this actuator phase. The deterministic phase invariant reports the same missing exhaust path and it cannot be accepted based on undirected connectivity or narrative regeneration intent.",
+          "related": [
+            "slide_fast_approach",
+            "SlideCylinder",
+            "SlideCylinder.Rod",
+            "FeedTransitionSequence",
+            "RegenerationCheck",
+            "DCV"
+          ]
+        }
+      ],
+      "summary": "Invalid. The power unit, relief placement, directional valve, pressure-triggered changeover concept, and return/feed paths are otherwise coherent at topology level, but the declared fast-approach phase lacks a directed rod-side exhaust path to tank because the sequence valve is closed and blocks the DCV.B/T return route."
+    },
+    "repair_scope": "wiring",
+    "topology_round": 4,
+    "summary": "Deterministic validation: invalid. Engineering review: invalid. Invalid. The power unit, relief placement, directional valve, pressure-triggered changeover concept, and return/feed paths are otherwise coherent at topology level, but the declared fast-approach phase lacks a directed rod-side exhaust path to tank because the sequence valve is closed and blocks the DCV.B/T return route."
+  }
+}

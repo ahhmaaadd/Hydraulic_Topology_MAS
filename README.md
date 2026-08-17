@@ -20,7 +20,9 @@ For each problem it:
    in separate directed phase graphs, then runs a topology-only LLM review;
 9. repairs selection or wiring errors with executable add/delete/replace actions,
    or returns an unsupported pattern to targeted research; and
-10. prints every stage and the final selected components/connections in detail.
+10. automatically corrects or retries malformed component-planner structured
+    output instead of terminating the LangGraph run; and
+11. prints every stage and the final selected components/connections in detail.
 
 The schemas and core prompts are adapted from
 [`ahhmaaadd/Paper_2_Current`](https://github.com/ahhmaaadd/Paper_2_Current)

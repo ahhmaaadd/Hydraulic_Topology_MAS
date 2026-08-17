@@ -58,6 +58,9 @@ def _initial_state(problem_id: str, problem: str, settings: Settings, *, interac
         "clarification_answers": [],
         "requirements_round": 0,
         "requirements_repair_attempted": False,
+        "requirements_structural_issues": [],
+        "requirements_advisories": [],
+        "requirements_normalizations": [],
         "max_requirements_rounds": settings.max_requirements_rounds,
         "research_findings": [],
         "research_search_log": [],
@@ -114,6 +117,19 @@ def run_problem(
                 "failure": state["failure"],
                 "research_audit": summarize_research_audit(state),
             }
+            for key in (
+                "requirements",
+                "requirements_gate",
+                "research_coverage",
+                "component_plan",
+                "component_planner_recovery",
+                "topology",
+                "deterministic_validation",
+                "topology_validation",
+                "repair_history",
+            ):
+                if state.get(key) is not None:
+                    record[key] = state[key]
             save_path.parent.mkdir(parents=True, exist_ok=True)
             save_path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
             reporter.saved(str(save_path.resolve()))

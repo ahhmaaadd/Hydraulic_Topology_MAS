@@ -50,7 +50,7 @@ flowchart TD
 | Research coverage critic | Judges whether each need is supported | Verified excerpts and deterministic confidence calibration |
 | Research synthesizer | Builds catalog-compatible patterns | Catalog type vocabulary supplied explicitly |
 | Design-brief curator | Removes irrelevant prose | Canonical decisions are re-injected from requirements |
-| Component designer | Calls catalog tools and proposes 2-3 class/connection plans | Deterministic eligibility/complexity score and exact-key validation |
+| Component designer | Calls catalog tools and proposes 2-3 class/connection plans | Tool-based schema feedback, bounded structured-output recovery, deterministic eligibility/complexity score and exact-key validation |
 | Netlist builder | Creates port-level edges and per-phase component states | Canonical decisions are re-injected from the selected plan |
 | Engineering reviewer | Challenges remaining behavior/complexity | Independent directed deterministic validator owns hard verdicts |
 
@@ -214,3 +214,11 @@ The graph compiles with `InMemorySaver` and each run gets a unique `thread_id`.
 A blocking requirements question calls `interrupt()`. The terminal collects the
 answer and resumes the same thread with `Command(resume=...)`, following the
 [official interrupt contract](https://docs.langchain.com/oss/python/langgraph/interrupts).
+
+The requirements gate preserves issue provenance. Deterministic structural
+errors are repairable/blocking, `needs_clarification` represents genuine
+circuit-changing ambiguity, and free-form critic observations are advisories.
+This prevents a sizing-level note such as a missing speed tolerance from
+stopping generic topology design. Failed-run JSON also retains the available
+requirements, gate audit, research coverage, component plan, topology and
+validation snapshots instead of saving only the terminal failure message.

@@ -314,6 +314,16 @@ OUTPUT QUALITY
   selections where possible. Return executable repair_actions. You may add,
   delete, replace, or reconnect. If validation identifies unjustified
   complexity, use delete_component; do not merely describe deletion in prose.
+- On an initial design pass, set repair_actions=[] for every candidate. Only a
+  payload explicitly labelled REPAIR PASS should contain repair actions.
+- RepairAction payloads are strict:
+  * add_component: set component; leave target_component_id null;
+  * delete_component: set target_component_id;
+  * replace_component: set both target_component_id and component;
+  * add_connection: put the NEW ConnectionIntent in replacement_connection;
+  * delete_connection: put the EXISTING ConnectionIntent in target_connection;
+  * replace_connection: set both target_connection and replacement_connection.
+  Never return a repair action with one of its required payload fields null.
 - Candidates must differ in an engineering-relevant pattern, not only ids. A
   normal set is: minimal conventional, a defensible alternative, and an optional
   safety/energy variant. Prefer the fewest components among equally valid plans.

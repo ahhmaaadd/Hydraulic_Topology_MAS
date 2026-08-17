@@ -17,6 +17,10 @@ class OverallState(TypedDict, total=False):
     max_requirements_rounds: int
     requirements_unresolved: bool
     requirements_repair_attempted: bool
+    requirements_structural_issues: list[str]
+    requirements_advisories: list[str]
+    requirements_normalizations: list[str]
+    requirements_gate: dict[str, Any]
 
     # Adaptive research
     research_plan: dict[str, Any]
@@ -42,6 +46,7 @@ class OverallState(TypedDict, total=False):
     candidate_evaluations: list[dict[str, Any]]
     component_plan: dict[str, Any]
     catalog_tool_trace: list[dict[str, Any]]
+    component_planner_recovery: list[dict[str, Any]]
     repair_history: Annotated[list[dict[str, Any]], operator.add]
     topology: dict[str, Any]
     deterministic_validation: dict[str, Any]

@@ -1,3 +1,77 @@
+# Component-Planner Structured-Output Recovery — v0.2.2 — 2026-08-14
+
+## Failure diagnosed
+
+The live component planner returned two `add_connection` repair actions with
+`replacement_connection=null`. `RepairAction` correctly rejected those
+objects, but provider-native structured-output parsing raised
+`StructuredOutputValidationError` inside the LangChain agent before
+`plan_components` could inspect or retry the candidate set.
+
+## Changes made
+
+- Switched the tool-using component planner to LangChain `ToolStrategy`, which
+  returns schema validation feedback to the same agent for correction.
+- Added a three-attempt outer recovery boundary specifically for
+  `StructuredOutputValidationError`; unrelated API/network failures are not
+  silently swallowed.
+- Added an explicit action-to-payload contract to the component planner prompt.
+  Initial candidates must keep `repair_actions=[]`; repair actions are emitted
+  only during an explicit repair pass.
+- Added a safe pre-validation normalization for the common field mix-up where
+  an `add_connection` puts its new connection in `target_connection` (or
+  `connection`) instead of `replacement_connection`.
+- Kept a truly payload-free action invalid, so no connection is invented or
+  silently executed.
+- Added `component_planner_recovery` to terminal output, graph state, failed-run
+  snapshots and final JSON.
+- Added regression tests for field normalization, genuinely empty payload
+  rejection, and successful planner recovery after the exact exception class.
+
+## Verification
+
+- Full offline suite: **41 passed**.
+
+---
+
+# Requirements-Gate Hotfix — v0.2.1 — 2026-08-14
+
+## Failure diagnosed
+
+P7-03 repeatedly stopped at `requirements_failure` even though the critic
+returned `proceed_with_assumptions` with zero blocking questions. The finalizer
+incorrectly treated every free-form `consistency_issues` entry as a hard error,
+so topology-neutral notes about verification tolerances prevented all research
+and design.
+
+## Changes made
+
+- Separated deterministic `requirements_structural_issues` from critic
+  `requirements_advisories` throughout graph state and routing.
+- Restricted automatic requirement repair to structural errors. Advisory
+  review notes no longer consume the single repair attempt.
+- Restricted the final stop condition to a genuine `needs_clarification`
+  result or structural errors that survive repair.
+- Added sequence-reference checks for unknown functions/phases, duplicate
+  ordering, phase/function mismatch, and invalid predecessors.
+- Deterministically removes an impossible active-and-forbidden function
+  self-reference while recording the normalization in the gate audit.
+- Merges nonblocking assumptions and downgrades stale blocking flags on open
+  questions when the critic explicitly decides the topology can proceed.
+- Resets structural-repair eligibility after a human clarification and fresh
+  extraction.
+- Prints a classified requirements-gate audit in the terminal.
+- Failed-run JSON now preserves requirements and all available downstream
+  diagnostic snapshots.
+- Added regression coverage for advisory, genuinely blocking, structurally
+  invalid, normalization, and full offline graph cases.
+
+## Verification
+
+- Full offline suite: **38 passed**.
+
+---
+
 # Phase-Aware Correctness Revision — 2026-08-14
 
 ## Why another revision was required

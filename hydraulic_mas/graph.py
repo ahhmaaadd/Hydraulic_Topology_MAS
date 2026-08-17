@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain.agents.structured_output import StructuredOutputValidationError
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send, interrupt
@@ -15,7 +16,7 @@ from .catalog import CATALOG, catalog_type_reference, selected_catalog_reference
 from .config import Settings
 from .decision_flow import inject_design_brief_decisions, inject_topology_decisions
 from .models import build_chat_model
-from .requirements_quality import requirements_quality_issues
+from .requirements_quality import normalize_requirements, requirements_quality_issues
 from .research_guards import calibrate_finding, derive_research_need_hints, enforce_coverage_gate, enforce_minimum_plan
 from .schemas import (
     CombinedTopologyValidation,
@@ -105,32 +106,59 @@ class Workflow:
         return {"requirements": result.model_dump(mode="json")}
 
     def critique_requirements(self, state: OverallState) -> dict[str, Any]:
+        requirements, normalization_notes = normalize_requirements(state["requirements"])
         payload = (
             "ORIGINAL PROBLEM:\n"
             + state["user_query"]
             + "\n\nEXTRACTED REQUIREMENTS:\n"
-            + _json(state["requirements"])
+            + _json(requirements)
         )
         result: CritiqueResult = self.agents.critic.invoke(
             [SystemMessage(PROMPT_BY_AGENT["critic"]), HumanMessage(payload)]
         )
-        deterministic_issues = requirements_quality_issues(state["requirements"], state["user_query"])
+        advisory_issues = list(result.consistency_issues)
+        deterministic_issues = requirements_quality_issues(requirements, state["user_query"])
         for issue in deterministic_issues:
             if issue not in result.consistency_issues:
                 result.consistency_issues.append(issue)
-        return {"critique": result.model_dump(mode="json")}
+        return {
+            "requirements": requirements.model_dump(mode="json"),
+            "critique": result.model_dump(mode="json"),
+            "requirements_structural_issues": deterministic_issues,
+            "requirements_advisories": advisory_issues,
+            "requirements_normalizations": normalization_notes,
+        }
 
     def route_after_requirements_critique(
         self, state: OverallState
     ) -> Literal["repair_requirements", "clarify_requirements", "finalize_requirements"]:
         critique = state["critique"]
-        if critique.get("consistency_issues") and not state.get("requirements_repair_attempted", False):
+        structural_issues = state.get("requirements_structural_issues", [])
+        if structural_issues and not state.get("requirements_repair_attempted", False):
             return "repair_requirements"
-        has_blocking = critique.get("completeness_status") == "needs_clarification" and critique.get("blocking_questions")
+        has_blocking = critique.get("completeness_status") == "needs_clarification"
+        has_questions = bool(self._blocking_questions(state))
         rounds_left = state.get("requirements_round", 0) < state.get("max_requirements_rounds", self.settings.max_requirements_rounds)
-        if has_blocking and rounds_left and state.get("interactive", True):
+        if has_blocking and has_questions and rounds_left and state.get("interactive", True):
             return "clarify_requirements"
         return "finalize_requirements"
+
+    @staticmethod
+    def _blocking_questions(state: OverallState) -> list[dict[str, Any]]:
+        questions = [
+            question
+            for question in state.get("critique", {}).get("blocking_questions", [])
+            if question.get("blocking", True)
+        ]
+        if questions:
+            return questions
+        if state.get("critique", {}).get("completeness_status") != "needs_clarification":
+            return []
+        return [
+            question
+            for question in state.get("requirements", {}).get("open_questions", [])
+            if question.get("blocking", False)
+        ]
 
     def repair_requirements(self, state: OverallState) -> dict[str, Any]:
         payload = (
@@ -139,8 +167,10 @@ class Workflow:
             + "\n\nCURRENT EXTRACTION:\n"
             + _json(state["requirements"])
             + "\n\nSTRUCTURAL ISSUES TO REPAIR:\n"
-            + _json(state["critique"].get("consistency_issues", []))
-            + "\n\nReturn a complete corrected RequirementsSpec. Preserve explicit values and do not invent requirements."
+            + _json(state.get("requirements_structural_issues", []))
+            + "\n\nReturn a complete corrected RequirementsSpec. Preserve explicit values and do not invent "
+            "requirements. Do not change topology-neutral tolerances merely because the critic listed them as "
+            "advisories."
         )
         result: RequirementsSpec = self.agents.extractor.invoke(
             [SystemMessage(PROMPT_BY_AGENT["extractor"]), HumanMessage(payload)]
@@ -157,7 +187,7 @@ class Workflow:
                 "question": question.get("question"),
                 "why_it_matters": question.get("why_it_matters"),
             }
-            for question in state["critique"].get("blocking_questions", [])
+            for question in self._blocking_questions(state)
         ]
         response = interrupt({"kind": "requirements_clarification", "questions": questions})
         if isinstance(response, dict):
@@ -172,20 +202,51 @@ class Workflow:
         return {
             "clarification_answers": answers,
             "requirements_round": state.get("requirements_round", 0) + 1,
+            "requirements_repair_attempted": False,
         }
 
     def finalize_requirements(self, state: OverallState) -> dict[str, Any]:
-        requirements = RequirementsSpec.model_validate(state["requirements"])
+        requirements, normalization_notes = normalize_requirements(state["requirements"])
         critique = CritiqueResult.model_validate(state["critique"])
         existing = {assumption.id for assumption in requirements.assumptions}
+        merged_assumption_ids: list[str] = []
         for assumption in critique.proposed_assumptions:
             if assumption.id not in existing:
                 requirements.assumptions.append(assumption)
                 existing.add(assumption.id)
-        unresolved = critique.completeness_status == "needs_clarification" or bool(critique.consistency_issues)
+                merged_assumption_ids.append(assumption.id)
+
+        downgraded_question_ids: list[str] = []
+        if critique.completeness_status != "needs_clarification":
+            for question in requirements.open_questions:
+                if question.blocking:
+                    question.blocking = False
+                    downgraded_question_ids.append(question.id)
+
+        structural_issues = requirements_quality_issues(requirements, state["user_query"])
+        needs_clarification = critique.completeness_status == "needs_clarification"
+        unresolved = needs_clarification or bool(structural_issues)
+        advisory_issues = [
+            issue
+            for issue in critique.consistency_issues
+            if issue not in structural_issues
+        ]
+        gate = {
+            "decision": "blocked" if unresolved else "proceed",
+            "completeness_status": critique.completeness_status,
+            "blocking_question_ids": [question.get("id") for question in self._blocking_questions(state)],
+            "structural_issues": structural_issues,
+            "advisory_issues": advisory_issues,
+            "merged_assumption_ids": merged_assumption_ids,
+            "downgraded_nonblocking_question_ids": downgraded_question_ids,
+            "normalizations": [*state.get("requirements_normalizations", []), *normalization_notes],
+        }
         return {
             "requirements": requirements.model_dump(mode="json"),
             "requirements_unresolved": unresolved,
+            "requirements_structural_issues": structural_issues,
+            "requirements_advisories": advisory_issues,
+            "requirements_gate": gate,
         }
 
     @staticmethod
@@ -198,6 +259,7 @@ class Workflow:
                 "stage": "requirements",
                 "message": "Circuit-changing requirements remain unresolved after clarification/repair limits.",
                 "critique": state.get("critique"),
+                "requirements_gate": state.get("requirements_gate"),
             }
         }
 
@@ -444,22 +506,52 @@ class Workflow:
 
         result: dict[str, Any] | None = None
         trace: list[dict[str, Any]] = []
-        for attempt in range(2):
+        recovery_events: list[dict[str, Any]] = []
+        catalog_retry_needed = False
+        for attempt in range(3):
             attempt_payload = payload
-            if attempt:
+            if catalog_retry_needed:
                 attempt_payload += (
                     "\n\nYour previous pass did not demonstrate catalog inspection. You MUST call "
                     "list_component_types plus search/list/detail tools before returning."
                 )
-            result = self.agents.component_planner.invoke({"messages": [HumanMessage(attempt_payload)]})
+            if recovery_events:
+                attempt_payload += (
+                    "\n\nSTRUCTURED OUTPUT CORRECTION. The previous ComponentPlanSet was rejected. "
+                    "For add_connection put the new ConnectionIntent in replacement_connection; "
+                    "for delete_connection use target_connection; for replace_connection provide both. "
+                    "Never emit an action whose required payload is null. Re-run the required catalog "
+                    "tools and return a complete corrected candidate set. Last validation error:\n"
+                    + recovery_events[-1]["error"]
+                )
+            try:
+                result = self.agents.component_planner.invoke({"messages": [HumanMessage(attempt_payload)]})
+            except StructuredOutputValidationError as exc:
+                recovery_events.append(
+                    {
+                        "attempt": attempt + 1,
+                        "error_type": type(exc).__name__,
+                        "error": str(exc)[:4000],
+                        "outcome": "retry",
+                    }
+                )
+                result = None
+                trace = []
+                catalog_retry_needed = True
+                continue
             trace = self._catalog_tool_trace(result.get("messages", []))
             tool_names = {item.get("tool") for item in trace if item.get("tool")}
             if "list_component_types" in tool_names and tool_names.intersection(
                 {"list_components", "search_catalog", "get_component_details", "compare_components"}
             ):
                 break
+            catalog_retry_needed = True
         if result is None or "structured_response" not in result:
-            raise RuntimeError("Catalog-aware component planner returned no structured_response")
+            detail = recovery_events[-1]["error"] if recovery_events else "no structured_response"
+            raise RuntimeError(
+                "Catalog-aware component planner did not return a valid ComponentPlanSet after "
+                f"three bounded attempts: {detail}"
+            )
         structured = result["structured_response"]
         if isinstance(structured, ComponentPlanSet):
             plan_set = structured
@@ -490,6 +582,7 @@ class Workflow:
             "candidate_evaluations": [item.model_dump(mode="json") for item in evaluations],
             "component_plan": selected.model_dump(mode="json"),
             "catalog_tool_trace": trace,
+            "component_planner_recovery": recovery_events,
             "repair_history": repair_actions,
         }
 
@@ -694,6 +787,7 @@ class Workflow:
             synchronization_decisions=topology.synchronization_decisions,
             phase_configurations=topology.phase_configurations,
             candidate_evaluations=state.get("candidate_evaluations", []),
+            component_planner_recovery=state.get("component_planner_recovery", []),
             repair_history=state.get("repair_history", []),
             external_interfaces=topology.external_interfaces,
             port_terminations=topology.port_terminations,
