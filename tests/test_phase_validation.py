@@ -55,7 +55,7 @@ def test_wrong_dcv_state_does_not_pass_via_another_possible_state() -> None:
     assert "PHASE_EXHAUST_PATH_MISSING" in codes
 
 
-def test_every_topology_catalog_gap_blocks_even_if_model_marks_nonblocking() -> None:
+def test_available_class_cannot_be_misclassified_as_catalog_gap() -> None:
     design = deepcopy(valid_topology())
     design["catalog_gaps"] = [
         {
@@ -67,7 +67,9 @@ def test_every_topology_catalog_gap_blocks_even_if_model_marks_nonblocking() -> 
             "blocking": False,
         }
     ]
-    assert "BLOCKING_TOPOLOGY_CATALOG_GAP" in _codes(design)
+    codes = _codes(design)
+    assert "MISCLASSIFIED_CATALOG_GAP" in codes
+    assert "BLOCKING_TOPOLOGY_CATALOG_GAP" not in codes
 
 
 def test_pilot_check_is_not_accepted_as_counterbalance_capability() -> None:

@@ -138,6 +138,98 @@ CATALOG = {
         default_state="neutral",
         requires_phase_state=True,
     ),
+    "GENERIC_4_3_SOLENOID_FLOAT_CENTER_DCV": _entry(
+        "4/3 Solenoid DCV, Float Center",
+        "dcv",
+        ["P", "T", "A", "B"],
+        {"P": "pressure_in", "T": "tank_out", "A": "work", "B": "work"},
+        (
+            "Four-way, three-position directional valve whose neutral blocks P and interconnects "
+            "A, B and T. Neutral vents both work lines to tank, which is what allows a pilot-operated "
+            "check or dual load lock to reseat after the command is released."
+        ),
+        capabilities=[
+            "bidirectional actuator control",
+            "neutral work-port venting to tank",
+            "pilot-release decay for load locks",
+        ],
+        states=[
+            "extend: P-A and B-T",
+            "neutral: P blocked, A and B both connected to T",
+            "retract: P-B and A-T",
+        ],
+        actuation="solenoid operated, spring centered; electrical command is outside hydraulic topology",
+        state_paths={
+            "extend": [("P", "A", "directed"), ("B", "T", "directed")],
+            "neutral": [("A", "T", "neutral_vent"), ("B", "T", "neutral_vent")],
+            "retract": [("P", "B", "directed"), ("A", "T", "directed")],
+        },
+        default_state="neutral",
+        requires_phase_state=True,
+    ),
+    "GENERIC_4_3_SOLENOID_OPEN_CENTER_DCV": _entry(
+        "4/3 Solenoid DCV, Open Center",
+        "dcv",
+        ["P", "T", "A", "B"],
+        {"P": "pressure_in", "T": "tank_out", "A": "work", "B": "work"},
+        (
+            "Four-way, three-position directional valve whose neutral interconnects P, T, A and B. "
+            "It both unloads a fixed-displacement pump and vents the work lines, so it suits a fixed "
+            "pump combined with actuator-port load locks."
+        ),
+        capabilities=[
+            "bidirectional actuator control",
+            "neutral pump unloading",
+            "neutral work-port venting to tank",
+            "pilot-release decay for load locks",
+        ],
+        states=[
+            "extend: P-A and B-T",
+            "neutral: P, T, A and B all interconnected",
+            "retract: P-B and A-T",
+        ],
+        actuation="solenoid operated, spring centered; electrical command is outside hydraulic topology",
+        state_paths={
+            "extend": [("P", "A", "directed"), ("B", "T", "directed")],
+            "neutral": [
+                ("P", "T", "neutral_unloading"),
+                ("A", "T", "neutral_vent"),
+                ("B", "T", "neutral_vent"),
+            ],
+            "retract": [("P", "B", "directed"), ("A", "T", "directed")],
+        },
+        default_state="neutral",
+        requires_phase_state=True,
+    ),
+    "GENERIC_VENTED_PILOT_OPERATED_RELIEF_VALVE": _entry(
+        "Pilot-Operated Relief Valve with Vent Port",
+        "relief_valve",
+        ["P", "T", "X"],
+        {"P": "pressure_in", "T": "tank_out", "X": "vent_in"},
+        (
+            "Pressure limiter whose pilot stage can be vented. Venting X to tank opens P to T at "
+            "near-zero pressure, which gives true single-pump unloading and staged decompression "
+            "without adding a second pump."
+        ),
+        capabilities=[
+            "overpressure protection",
+            "pressure limiting",
+            "remote venting",
+            "single-pump unloading",
+        ],
+        states=[
+            "closed: P blocked from T below setting",
+            "relieving: P connected to T at setting",
+            "vented: P connected to T at near-zero pressure while X is open to tank",
+        ],
+        state_paths={
+            "closed": [],
+            "relieving": [("P", "T", "pressure_relief")],
+            "vented": [("P", "T", "unloading")],
+        },
+        default_state="closed",
+        requires_phase_state=True,
+    ),
     "GENERIC_4_2_SOLENOID_DCV": _entry(
         "4/2 Solenoid DCV",
         "dcv",

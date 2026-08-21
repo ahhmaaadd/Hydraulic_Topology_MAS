@@ -1,0 +1,583 @@
+{
+  "problem_id": "P7-03",
+  "title": "Horizontal Positioning Fixture Hydraulic Requirements",
+  "status": "validated",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "The topology implements the selected minimal conventional open-circuit hydraulic system. Tank feeds a fixed-displacement pump; pump pressure branches directly to the relief valve and the open-centre 4/3 DCV. Relief and DCV return ports terminate directly at the tank. The DCV work ports connect through the selected dual pilot-operated check/load-lock to the double-acting carriage cylinder, with the A-side feeding the cap chamber for advance and the B-side feeding the rod chamber for return. No flow-control component is added because advance and return speeds are sizing-only decisions. In neutral, the selected open-centre DCV vents A and B to tank while unloading P to T, allowing the pilot-operated check valve-side work lines to depressurize so the load-lock checks can reseat for low-leakage holding.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "open-circuit reservoir for pump suction and all returns",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "Open-circuit tank boundary with suction outlet S and common return inlet R."
+      ],
+      "selection_basis": "Required open-circuit reservoir boundary."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "primary hydraulic supply",
+      "function_id": null,
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed-displacement supply; drive hardware and displacement are deferred to sizing.",
+        "Chosen for simplicity because no efficiency or standby unloading requirement is stated."
+      ],
+      "selection_basis": "Provides positive-displacement open-circuit supply with minimal complexity."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "system overpressure protection",
+      "function_id": null,
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Pressure-limiting function to enforce the specified maximum system pressure of 100 bar during final setting/commissioning."
+      ],
+      "selection_basis": "Required to protect the open-circuit system from exceeding the specified pressure limit."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_OPEN_CENTER_DCV",
+      "name": "4/3 Solenoid DCV, Open Center",
+      "comp_type": "dcv",
+      "role": "operator-commanded advance, return and released neutral for carriage actuator",
+      "function_id": "carriage_positioning",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Spring-centred 4/3 open-centre directional valve.",
+        "Extend state: P to A and B to T.",
+        "Retract state: P to B and A to T.",
+        "Neutral state: P, T, A and B interconnected, giving no commanded motion, pump unloading and pilot-line venting."
+      ],
+      "selection_basis": "Provides bidirectional cylinder control and a safe released neutral compatible with a fixed-displacement pump and pilot-check reseating."
+    },
+    {
+      "id": "LoadLock",
+      "catalog_key": "GENERIC_DUAL_PILOT_OPERATED_CHECK",
+      "name": "Dual Pilot-Operated Check Valve",
+      "comp_type": "pilot_check_valve",
+      "role": "bidirectional low-leakage actuator-port load lock",
+      "function_id": "carriage_positioning",
+      "ports": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "configuration": [
+        "Install between DCV work ports and both cylinder chambers, close to the actuator work ports.",
+        "Free flow from DCV side to actuator side on each work line.",
+        "Reverse flow from each actuator chamber is blocked until released by pressure in the opposite valve-side work line.",
+        "Neutral vents A1 and B1 through the open-centre DCV so pilot pressure decays and checks reseat."
+      ],
+      "selection_basis": "Satisfies the positive pilot-check load holding requirement for stopped-position negligible drift without relying on DCV spool sealing."
+    },
+    {
+      "id": "Cylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "linear carriage actuator",
+      "function_id": "carriage_positioning",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Double-acting cylinder; bore, rod and 300 mm travel implementation are deferred to sizing.",
+        "Cap-end feed corresponds to carriage advance; rod-end feed corresponds to return."
+      ],
+      "selection_basis": "Required bidirectional linear actuator for horizontal carriage positioning."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Open-circuit reservoir suction supply to fixed-displacement pump."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branch to system pressure-limiting relief valve; branch is represented by repeated Pump.P endpoints."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relieved flow returns directly to tank."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branch directly supplies the directional-control valve."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Directional-valve return and neutral unloading flow return directly to tank."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "LoadLock",
+      "to_port": "A1",
+      "line": "work",
+      "notes": "Advance-side valve-side work line. Pressure at A1 also provides the selected load-lock class's internal cross-pilot release for B2-to-B1 return flow during advance."
+    },
+    {
+      "from_component": "LoadLock",
+      "from_port": "A2",
+      "to_component": "Cylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Advance-side actuator-side load-lock port connects directly to cylinder cap chamber."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "B",
+      "to_component": "LoadLock",
+      "to_port": "B1",
+      "line": "work",
+      "notes": "Return-side valve-side work line. Pressure at B1 also provides the selected load-lock class's internal cross-pilot release for A2-to-A1 return flow during retraction."
+    },
+    {
+      "from_component": "LoadLock",
+      "from_port": "B2",
+      "to_component": "Cylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "Return-side actuator-side load-lock port connects directly to cylinder rod chamber."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "carriage_positioning",
+      "phase_id": "carriage_advance",
+      "phase_name": "Advance carriage",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "The stated advance speed and force are sizing targets only; no adjustable or load-independent speed control is specified. Horizontal load is stated as resistance, so no dynamic load-control strategy is required during powered advance.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "carriage_positioning",
+      "phase_id": "carriage_return",
+      "phase_name": "Return carriage",
+      "motion": "retract",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "The stated return speed and force are sizing targets only; no adjustable or load-independent speed control is specified. Horizontal load is stated as resistance, so no dynamic load-control strategy is required during powered return.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "carriage_positioning",
+      "phase_id": "carriage_hold_any_position",
+      "phase_name": "Hold carriage at any position",
+      "motion": "hold",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "pilot_check",
+      "justification": "Static retention is explicitly required at any stopped position with negligible drift under load. A static load-locking capability is required; the load is horizontal and not overrunning, so counterbalance behavior is not indicated.",
+      "source": "inferred"
+    }
+  ],
+  "synchronization_decisions": [],
+  "phase_configurations": [
+    {
+      "phase_id": "carriage_advance",
+      "function_id": "carriage_positioning",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Selected catalog state internally connects P to A and B to T for cylinder cap-end supply and rod-end exhaust through the load lock."
+        }
+      ],
+      "expected_active_function_ids": [
+        "carriage_positioning"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "In this phase, DCV.A pressurizes LoadLock.A1 for free flow A1-to-A2 to Cylinder.Cap. A1 pressure internally pilots the selected dual pilot-check to release Cylinder.Rod exhaust from B2 to B1, then through DCV.B to DCV.T and Tank.R."
+    },
+    {
+      "phase_id": "carriage_return",
+      "function_id": "carriage_positioning",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "retract",
+          "reason": "Selected catalog state internally connects P to B and A to T for cylinder rod-end supply and cap-end exhaust through the load lock."
+        }
+      ],
+      "expected_active_function_ids": [
+        "carriage_positioning"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "In this phase, DCV.B pressurizes LoadLock.B1 for free flow B1-to-B2 to Cylinder.Rod. B1 pressure internally pilots the selected dual pilot-check to release Cylinder.Cap exhaust from A2 to A1, then through DCV.A to DCV.T and Tank.R."
+    },
+    {
+      "phase_id": "carriage_hold_any_position",
+      "function_id": "carriage_positioning",
+      "motion": "hold",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "neutral",
+          "reason": "Selected open-centre neutral unloads P to T and vents A and B to T so LoadLock.A1 and LoadLock.B1 pilot pressure decays and the pilot-operated checks reseat."
+        }
+      ],
+      "expected_active_function_ids": [
+        "carriage_positioning"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "Holding is provided by the dual pilot-operated check valve blocking reverse flow from both actuator chambers while the open-centre DCV vents the valve-side work/pilot lines to tank."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1",
+      "eligible": true,
+      "score": 91.0,
+      "component_count": 6,
+      "errors": [],
+      "warnings": [],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2",
+      "eligible": true,
+      "score": 91.0,
+      "component_count": 6,
+      "errors": [],
+      "warnings": [],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "system_power_supply",
+      "component_ids": [
+        "Tank",
+        "Pump"
+      ],
+      "circuit_pattern": "open_circuit_power_and_pressure_relief",
+      "how_requirements_met": "Tank.S supplies Pump.S and Pump.P provides the open-circuit pressure source for the relief branch and carriage DCV branch. Pump displacement and drive details remain sizing tasks."
+    },
+    {
+      "function_id": "system_overpressure_protection",
+      "component_ids": [
+        "Pump",
+        "ReliefValve",
+        "Tank"
+      ],
+      "circuit_pattern": "open_circuit_power_and_pressure_relief",
+      "how_requirements_met": "Pump.P connects directly to ReliefValve.P and ReliefValve.T returns to Tank.R. The relief setting is to be commissioned to enforce the specified 100 bar maximum system pressure."
+    },
+    {
+      "function_id": "carriage_positioning",
+      "component_ids": [
+        "DCV",
+        "LoadLock",
+        "Cylinder"
+      ],
+      "circuit_pattern": "spring_centered_bidirectional_cylinder_control with bidirectional_pilot_check_load_lock_with_vented_neutral",
+      "how_requirements_met": "DCV extend state routes pump flow to the cap-side branch for carriage advance and rod-side exhaust to tank. DCV retract state routes pump flow to the rod-side branch for return and cap-side exhaust to tank. The Cylinder converts hydraulic power to bidirectional linear carriage motion."
+    },
+    {
+      "function_id": "carriage_positioning_hold",
+      "component_ids": [
+        "LoadLock",
+        "DCV",
+        "Cylinder"
+      ],
+      "circuit_pattern": "bidirectional_pilot_check_load_lock_with_vented_neutral",
+      "how_requirements_met": "LoadLock blocks reverse flow from both actuator chambers in the stopped condition. The DCV neutral state vents A and B through T to Tank.R, allowing pilot pressure at A1 and B1 to decay so the pilot-operated checks can reseat for the required low-drift hold."
+    },
+    {
+      "function_id": "carriage_positioning_speed_sizing",
+      "component_ids": [
+        "Pump",
+        "Cylinder"
+      ],
+      "circuit_pattern": "carriage_positioning_sizing_only_speed",
+      "how_requirements_met": "Advance and return speed targets are realized by pump flow and cylinder-area sizing rather than by topology-level flow-control valves, matching the selected sizing_only motion-control decisions."
+    },
+    {
+      "function_id": "carriage_positioning_synchronization",
+      "component_ids": [
+        "Cylinder"
+      ],
+      "circuit_pattern": "none",
+      "how_requirements_met": "Only one carriage actuator is selected, so no synchronization topology is required."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use a fixed-displacement open-circuit supply with tank, pump and direct relief branch.",
+      "rationale": "This matches the selected simple conventional topology and the deterministic open-circuit power-and-relief pattern. Tank.S feeds Pump.S; Pump.P branches directly to ReliefValve.P and DCV.P; ReliefValve.T and DCV.T return directly to Tank.R.",
+      "driven_by": [
+        "Selected the fixed-displacement pump because no energy-efficiency or standby-unloading intent is specified and simplicity is prioritized.",
+        "Open-circuit reservoir and pump are required for the hydraulic power supply.",
+        "System overpressure protection is required at the specified 100 bar maximum."
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/reservoirs-accessories/article/21882642/fundamentals-of-hydraulic-reservoirs",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/12%3A_Pressure/12.01%3A_Pressure_in_a_Hydraulic_System",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/13%3A_Relief_Valves/13.03%3A_The_Role_of_a_Relief_Valve_in_System_Protection"
+      ]
+    },
+    {
+      "decision": "Use the selected spring-centred 4/3 open-centre DCV for advance, return and released neutral.",
+      "rationale": "The selected DCV provides extend, neutral and retract states for the double-acting cylinder. Its open-centre neutral unloads the fixed-displacement pump and vents both work lines to tank, which is compatible with pilot-check load-lock reseating.",
+      "driven_by": [
+        "Selected the open-centre 4/3 DCV because its neutral interconnects P, T, A and B, unloading the fixed pump and venting both pilot-check valve-side work lines.",
+        "Safe neutral with no commanded carriage motion on command release is required.",
+        "Bidirectional carriage positioning is required."
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/04%3A_Basic_Cylinder_Circuits/4.04%3A_Operation_and_Schematic_Symbol_of_a_4_3_DCV",
+        "https://www.baileyintl.com/post/everything-you-need-to-know-about-directional-control-valves",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Install the selected dual pilot-operated check valve between the DCV work ports and the cylinder ports.",
+      "rationale": "The load lock provides free flow from valve-side ports to actuator-side ports during commanded motion and blocks reverse flow from the actuator chambers when not piloted open. Pairing it with the open-centre DCV neutral provides the required pilot pressure decay path to tank for low-leakage holding.",
+      "driven_by": [
+        "Selected a dual pilot-operated check valve rather than relying on DCV spool leakage for the explicit 10 minute negligible-drift hold requirement.",
+        "Timed negligible-drift hold at any stopped position requires positive load holding.",
+        "Neutral/power-off must leave the load-supporting reverse path blocked while pilot pressure decays."
+      ],
+      "evidence_urls": [
+        "https://delta-power.com/wp-content/uploads/hd-double.pdf",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves",
+        "https://www.fluidpowerworld.com/how-can-you-prevent-hydraulic-cylinder-drift"
+      ]
+    },
+    {
+      "decision": "Do not add a flow-control valve for the advance or return speeds.",
+      "rationale": "The selected motion-control decisions classify both motion speeds as sizing_only. Therefore the topology uses direct work paths through the DCV and load lock; final pump displacement and cylinder geometry must meet the speed and force requirements.",
+      "driven_by": [
+        "No flow-control valve is included; advance and return speeds are sizing-only targets per the typed motion decisions.",
+        "Numeric speed and force targets are deferred to pump/cylinder sizing and do not justify a flow-control valve."
+      ],
+      "evidence_urls": []
+    },
+    {
+      "decision": "Do not include a counterbalance valve.",
+      "rationale": "The typed load for advance, return and hold is resistive for a horizontal carriage. Static holding is handled by the pilot-check load lock; dynamic overrunning-load control is not specified.",
+      "driven_by": [
+        "No counterbalance valve is included because the carriage load is horizontal/resistive and dynamic overrunning-load control is not specified.",
+        "Motion-control decisions specify load_type resistive and load_control none during powered advance and return."
+      ],
+      "evidence_urls": []
+    },
+    {
+      "decision": "Represent load-lock cross-pilot release as internal conditional behavior of the selected component rather than as separate pilot-line components.",
+      "rationale": "The selected dual pilot-operated check catalog metadata provides only ports A1, A2, B1 and B2 and declares internal conditional release paths requiring pressure at the opposite valve-side port. No separate external pilot ports are listed, so no extra pilot connections or components are added.",
+      "driven_by": [
+        "Use only ports listed for each selected key.",
+        "Do not insert line, manifold, tee or other unselected components.",
+        "Selected load-lock metadata defines conditional internal cross-pilot release from pressure at A1 or B1."
+      ],
+      "evidence_urls": [
+        "https://delta-power.com/wp-content/uploads/hd-double.pdf"
+      ]
+    }
+  ],
+  "catalog_gaps": [],
+  "evidence_gaps": [],
+  "assumptions": [
+    "The selected dual pilot-operated check valve has internal cross-pilot passages as declared in its catalog metadata; it exposes no separate pilot or drain ports that need topology connections.",
+    "ReliefValve remains normally closed in ordinary advance, return and hold phases and opens only under overpressure; no phase command state is required by the selected catalog metadata.",
+    "Cylinder stroke, bore, rod diameter, pump displacement and relief setting are finalized during sizing and commissioning."
+  ],
+  "open_issues": [
+    "Final sizing must select pump displacement and cylinder geometry to achieve the specified advance/return speeds, forces and 300 mm travel within the 100 bar system limit.",
+    "Detailed implementation must ensure the load lock is mounted close enough to the actuator work ports to meet the project interpretation of negligible drift; no numeric drift tolerance was supplied.",
+    "Final relief-valve setting and commissioning method are outside topology selection."
+  ],
+  "research_audit": {
+    "searches_used": 3,
+    "rounds_used": 1,
+    "selected_unique_sources": 9,
+    "extracted_documents": 9,
+    "duplicate_urls_skipped": 1,
+    "verified_evidence_claims": 28,
+    "rejected_by_reason": {
+      "lower_rank": 28,
+      "low_quality_source": 10,
+      "duplicate_url": 1
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "The basic open-circuit power/return/relief topology is well supported. The double-acting cylinder plus spring-centered 4/3 directional valve pattern is mostly supported, and the use of pilot-operated check/load-lock valves for low-leakage static holding is supported. However, the accumulated evidence is not yet sufficient to design the complete carriage topology safely and unambiguously because two critical details remain weak: the exact neutral-center connection that both vents the pilot/check valve work lines and remains compatible with the pump/unloading strategy, and the controlled-motion/load-control choice for any overrunning or inertia-driven carriage load. Current findings support static holding with pilot-operated checks, but do not adequately establish when that is sufficient versus when counterbalance/over-center load-control valves or metering are required.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Findings include cited engineering guidance for reservoir-to-pump suction, pump/control/actuator/return flow path, return to reservoir, and a relief valve connected to the pressure line with outlet to reservoir/return to limit maximum system pressure. The specific 100 bar setting is a design requirement rather than an external research fact, and the evidence supports the preset-pressure principle.",
+        "evidence_task_ids": [
+          "task_open_circuit_power_relief_reservoir"
+        ]
+      },
+      {
+        "need_id": "function_carriage_positioning_directional_control",
+        "status": "covered",
+        "rationale": "The actuator and basic directional-control pattern is supported: double-acting cylinder, 3-position 4-way spring-centered DCV, P/T/A/B port assignments, and shifted advance/retract behavior. But the safe neutral is not yet fully unambiguous when combined with the load-lock valves: the holding evidence recommends cylinder/work ports connected to tank with pilot-operated checks, while the directional-control evidence separately discusses open/tandem/closed centers for pump compatibility. The missing supported claim is the exact 4/3 center configuration and pump/unloading arrangement that simultaneously vents A/B pilot lines, avoids unintended pilot pressure, and avoids unsafe/overheating blocked-pump neutral behavior.",
+        "evidence_task_ids": [
+          "task_double_acting_cylinder_directional_control_safe_neutral",
+          "task_pilot_operated_check_load_lock_holding"
+        ]
+      },
+      {
+        "need_id": "function_carriage_positioning_holding",
+        "status": "covered",
+        "rationale": "Static load holding is supported by cited evidence for double pilot-operated check/load-lock valves in both cylinder work lines, cross-pilot release, and the inadequacy of relying on closed-center spool valves due to leakage/drift. However, the need also asks for a controlled-motion pattern. The current evidence does not establish whether pilot-operated checks alone are appropriate for the carriage’s load dynamics or whether counterbalance/over-center load-control valves, meter-out control, or other motion-control elements are required to prevent uncontrolled motion under overrunning/inertial loads.",
+        "evidence_task_ids": [
+          "task_pilot_operated_check_load_lock_holding"
+        ]
+      },
+      {
+        "need_id": "driver_load_holding",
+        "status": "covered",
+        "rationale": "The leak-resistant static holding topology is substantially supported: poppet/check-type load-locking is preferred over spool-only holding, double pilot-operated checks can block reverse flow on both cylinder ports, and neutral should vent work/pilot lines so the checks reseat. Still missing is a sufficiently supported neutral-center implementation with pump compatibility, and evidence tying the chosen load-holding element to controlled release/motion under the actual carriage load condition. Exact part selection and leakage-rate verification can be handled later by catalog/design calculations, but the topology-level choice between pilot-operated checks and counterbalance/load-control valves remains unresolved.",
+        "evidence_task_ids": [
+          "task_pilot_operated_check_load_lock_holding"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Exact supported neutral-center connection for the 4/3 DCV when used with double pilot-operated checks: A and B/work lines must be vented to tank in neutral so pilot pressure decays, while the pump port must be handled safely for the chosen pump type.",
+      "Whether the carriage load can become overrunning or inertia-driven, and if so whether pilot-operated checks alone are unsafe/inadequate and counterbalance or other load-control valves are required for controlled motion.",
+      "Placement guidance for load-holding/load-control valves close to or directly on the actuator is not strongly evidenced in the accumulated findings; this may be important if hose/line failure protection is part of the safety intent."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "valid",
+    "deterministic": {
+      "verdict": "valid",
+      "issues": [],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "6 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": true,
+          "details": "3 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": true,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "valid",
+      "design_issues": [],
+      "summary": "The topology functionally satisfies the brief: open-circuit tank/pump/relief supply is correctly arranged with direct relief protection and returns to tank; the 4/3 open-centre DCV provides extend, retract, and released neutral paths; the dual pilot-operated check/load-lock is correctly placed between the DCV work ports and cylinder ports with opposite-line pilot release; neutral vents both valve-side work/pilot lines to tank so the checks can reseat and hold the carriage without relying on DCV spool leakage. No unjustified flow-control, counterbalance, synchronization, or sequence components are added."
+    },
+    "repair_scope": "none",
+    "topology_round": 1,
+    "summary": "Deterministic validation: valid. Engineering review: valid. The topology functionally satisfies the brief: open-circuit tank/pump/relief supply is correctly arranged with direct relief protection and returns to tank; the 4/3 open-centre DCV provides extend, retract, and released neutral paths; the dual pilot-operated check/load-lock is correctly placed between the DCV work ports and cylinder ports with opposite-line pilot release; neutral vents both valve-side work/pilot lines to tank so the checks can reseat and hold the carriage without relying on DCV spool leakage. No unjustified flow-control, counterbalance, synchronization, or sequence components are added."
+  },
+  "repair_stop_reason": null,
+  "validation_fingerprints": [
+    "5d936c404c7c170c"
+  ]
+}

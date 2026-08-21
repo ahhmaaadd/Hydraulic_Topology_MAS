@@ -1,0 +1,600 @@
+{
+  "problem_id": "P7-04",
+  "title": "Machine slide two-speed hydraulic motion requirements",
+  "status": "validated_with_warnings",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Preferred fixed-pump open-circuit topology for one horizontal resistive machine-slide cylinder. Tank suction feeds a fixed-displacement pump; pump pressure branches directly to the relief valve and the 4/3 tandem-center DCV. The relief valve and DCV return directly to tank. The DCV A port connects directly to the cylinder cap end. The cylinder rod-end work line passes through exactly one non-compensated one-way flow control, oriented so extension rod-end exhaust flows A-to-B through the throttle to DCV B, while retraction supply from DCV B returns B-to-A through the integral free-reverse path. The same throttled path remains in circuit for rapid approach and working feed; the speed reduction is produced by the load/contact increase rather than by a switched bypass or sequence valve. The tandem neutral unloads the fixed pump to tank while blocking the work ports.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "Open-circuit reservoir for pump suction and all hydraulic returns.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "Use S as pump suction source and R as common return sink."
+      ],
+      "selection_basis": "Required open-circuit power boundary."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "Primary hydraulic supply for the slide circuit.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed-displacement open-circuit supply; drive and displacement deferred to sizing."
+      ],
+      "selection_basis": "No energy-efficiency requirement is stated; fixed pump is the simplest suitable supply."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "System overpressure limiter.",
+      "function_id": null,
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Connect directly from pump pressure to tank return.",
+        "Specify/set as the 20 bar maximum system pressure limiter in sizing."
+      ],
+      "selection_basis": "Safety essential requires system pressure not exceed 20 bar."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "Command extend, neutral, and retract states for the slide cylinder.",
+      "function_id": "machine_slide_linear_motion",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Use extend state P-A and B-T for rapid approach and working feed.",
+        "Use retract state P-B and A-T for full return.",
+        "Use tandem neutral P-T with A and B blocked to unload the fixed pump when no motion is commanded."
+      ],
+      "selection_basis": "Provides bidirectional cylinder control and a fixed-pump neutral unloading path without adding load-control components."
+    },
+    {
+      "id": "SlideCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Horizontal machine-slide linear actuator.",
+      "function_id": "machine_slide_linear_motion",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap end is the extension/toward-workpiece chamber.",
+        "Rod end is the retract/return chamber and extension exhaust chamber.",
+        "Bore, rod and stroke are deferred to sizing."
+      ],
+      "selection_basis": "Single powered extension and powered retraction actuator required by the machine-slide function."
+    },
+    {
+      "id": "RodEndMeterOutFlowControl",
+      "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+      "name": "One-Way Speed Control",
+      "comp_type": "one_way_flow_control",
+      "role": "Single load-sensitive non-compensated rod-end meter-out control for extension; free reverse path for retraction supply.",
+      "function_id": "machine_slide_linear_motion",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Install in the rod-end work line between Cylinder.Rod and DCV.B.",
+        "Orient A-B as the throttled direction from Cylinder.Rod exhaust toward DCV.B during extension.",
+        "Orient B-A as the integral free-reverse check direction from DCV.B toward Cylinder.Rod during retraction.",
+        "This is the only speed-control valve for both load-sensitive extension phases."
+      ],
+      "selection_basis": "Directive requires exactly one non-compensated one-way flow control in the declared rod-chamber exhaust meter-out path."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Open-circuit reservoir supplies the fixed-displacement pump inlet."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branches directly to the relief valve inlet for overpressure protection; no isolating device is inserted."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure also supplies the directional valve pressure port as the control branch."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief discharge returns directly to the reservoir return port."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Directional valve tank port and neutral unloading flow return directly to the reservoir."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "SlideCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "DCV A work port supplies the cap end for extension and receives cap-end exhaust during retraction."
+    },
+    {
+      "from_component": "SlideCylinder",
+      "from_port": "Rod",
+      "to_component": "RodEndMeterOutFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Rod-end exhaust during extension enters the A port of the one-way flow control for metered A-to-B flow."
+    },
+    {
+      "from_component": "RodEndMeterOutFlowControl",
+      "from_port": "B",
+      "to_component": "DCV",
+      "to_port": "B",
+      "line": "work",
+      "notes": "Metered extension exhaust leaves the flow control at B and returns through DCV B-to-T; retraction supply from DCV B uses the valve's internal free-reverse B-to-A path."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "machine_slide_linear_motion",
+      "phase_id": "slide_rapid_approach",
+      "phase_name": "Rapid approach toward workpiece",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "load_sensitive_throttled",
+      "metering_side": "meter_out",
+      "metered_chamber": "rod",
+      "metered_flow": "exhaust",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "This is the faster approach phase of the same extension motion, followed by a specified load-triggered slower feed; load is stated as resisting, with no holding or overrunning requirement.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "machine_slide_linear_motion",
+      "phase_id": "slide_working_feed",
+      "phase_name": "Working movement after contact",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "load_sensitive_throttled",
+      "metering_side": "meter_out",
+      "metered_chamber": "rod",
+      "metered_flow": "exhaust",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "The slower speed is explicitly required to result from the load increase/contact without an electrical pressure switch; for a horizontal resistive extension requiring deliberate throttled feed, meter-out on rod exhaust is the conventional inferred default.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "machine_slide_linear_motion",
+      "phase_id": "slide_full_return",
+      "phase_name": "Full return stroke",
+      "motion": "retract",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Return speed is not specified; only return travel and resisting load are stated, with no holding or overrunning requirement.",
+      "source": "explicit"
+    }
+  ],
+  "synchronization_decisions": [],
+  "phase_configurations": [
+    {
+      "phase_id": "slide_rapid_approach",
+      "function_id": "machine_slide_linear_motion",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Extend command connects P-to-A and B-to-T so the cap end is supplied and rod-end exhaust is forced through the selected rod-end meter-out flow control."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_slide_linear_motion"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "The one-way flow control has fixed A-to-B metered and B-to-A free-reverse paths; no phase state is required. No unmetered bypass is present."
+    },
+    {
+      "phase_id": "slide_working_feed",
+      "function_id": "machine_slide_linear_motion",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Same extend state as rapid approach; the load increase/contact changes pressure drop across the same non-compensated restriction and reduces speed without switching valves."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_slide_linear_motion"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "The throttle remains in circuit with the same topology and state; no sequence valve, pressure switch, or bypass is used."
+    },
+    {
+      "phase_id": "slide_full_return",
+      "function_id": "machine_slide_linear_motion",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "retract",
+          "reason": "Retract command connects P-to-B and A-to-T, supplying the rod end through the one-way flow control free-reverse path and exhausting the cap end directly to tank."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_slide_linear_motion"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "Return speed is sizing-only; no separate return speed-control component is selected."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1",
+      "eligible": true,
+      "score": 85.0,
+      "component_count": 6,
+      "errors": [],
+      "warnings": [
+        "evidence gap (Exact combined schematic for this specific load-caused two-speed machine-slide duty): The synthesis supports the component sub-patterns but states that an exact combined cited schematic remains uncited."
+      ],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2",
+      "eligible": true,
+      "score": 85.0,
+      "component_count": 6,
+      "errors": [],
+      "warnings": [
+        "evidence gap (Exact combined schematic for this specific load-caused two-speed machine-slide duty): The synthesis supports the sub-patterns but does not cite an exact combined schematic for this duty."
+      ],
+      "selected": false
+    },
+    {
+      "candidate_id": "candidate_3",
+      "eligible": true,
+      "score": 85.0,
+      "component_count": 6,
+      "errors": [],
+      "warnings": [
+        "evidence gap (Exact combined schematic for this specific load-caused two-speed machine-slide duty): The synthesis supports the sub-patterns but does not cite an exact combined schematic for this duty."
+      ],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "system_power_supply",
+      "component_ids": [
+        "Tank",
+        "Pump"
+      ],
+      "circuit_pattern": "Open-circuit power unit",
+      "how_requirements_met": "Tank.S supplies Pump.S and the fixed-displacement Pump.P provides open-circuit pressure flow to the relief branch and DCV supply branch. Drive hardware and displacement remain sizing tasks."
+    },
+    {
+      "function_id": "system_overpressure_limit_20_bar",
+      "component_ids": [
+        "Pump",
+        "ReliefValve",
+        "Tank"
+      ],
+      "circuit_pattern": "Open-circuit power unit with 20 bar relief protection",
+      "how_requirements_met": "ReliefValve.P is connected directly to Pump.P and ReliefValve.T returns directly to Tank.R. The valve is specified in sizing as the 20 bar maximum-pressure limiter."
+    },
+    {
+      "function_id": "machine_slide_linear_motion",
+      "component_ids": [
+        "DCV",
+        "SlideCylinder"
+      ],
+      "circuit_pattern": "Double-acting slide cylinder with 4-way directional control",
+      "how_requirements_met": "DCV extend state powers SlideCylinder.Cap and exhausts SlideCylinder.Rod through the B-to-T path; DCV retract state powers the rod end through port B and exhausts the cap end through A-to-T."
+    },
+    {
+      "function_id": "machine_slide_linear_motion",
+      "component_ids": [
+        "RodEndMeterOutFlowControl",
+        "SlideCylinder",
+        "DCV"
+      ],
+      "circuit_pattern": "Single non-compensated rod-end meter-out control for load-caused two-speed extension",
+      "how_requirements_met": "SlideCylinder.Rod connects to RodEndMeterOutFlowControl.A and RodEndMeterOutFlowControl.B connects to DCV.B. During both extension phases, rod exhaust is throttled A-to-B before reaching DCV B-to-T. The higher work load reduces pressure drop across the non-compensated restriction, reducing extension speed. During retraction, DCV supplies B and the same component permits free reverse B-to-A flow into the rod chamber."
+    },
+    {
+      "function_id": "machine_slide_linear_motion_synchronization",
+      "component_ids": [
+        "SlideCylinder"
+      ],
+      "circuit_pattern": "Single-actuator motion; no synchronization circuit",
+      "how_requirements_met": "Only one actuator is selected for the slide function, so no flow divider, hydraulic series circuit, or synchronization valve is required."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use a fixed-displacement open-circuit pump supply.",
+      "rationale": "No energy-efficiency or standby-unloading requirement is stated, and the selected tandem-center DCV unloads the fixed pump in neutral.",
+      "driven_by": [
+        "Selected a fixed-displacement pump because no energy-efficiency or standby-unloading requirement is stated and the brief allows fixed pump preference.",
+        "Open-circuit reservoir supplies pump suction and accepts returns."
+      ],
+      "evidence_urls": [
+        "https://hk-hydraulik.com/en/knowledge/glossary/open-hydraulic-circuit"
+      ]
+    },
+    {
+      "decision": "Use a direct relief valve from pump pressure to tank for the 20 bar maximum-pressure limit.",
+      "rationale": "The relief valve is connected directly to the pump pressure branch and returns to tank, providing the required overpressure protection when set/specified to 20 bar in sizing.",
+      "driven_by": [
+        "Selected a simple relief valve from pump pressure to tank as the system overpressure protection device; its 20 bar setting is a sizing/specification task.",
+        "Safety essential requires maximum system pressure protection at 20 bar."
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/12%3A_Pressure/12.01%3A_Pressure_in_a_Hydraulic_System",
+        "https://hk-hydraulik.com/en/knowledge/glossary/open-hydraulic-circuit"
+      ]
+    },
+    {
+      "decision": "Use a 4/3 tandem-center DCV for extend, neutral unloading, and retract.",
+      "rationale": "The 4-way DCV provides P-to-A/B-to-T extension and P-to-B/A-to-T retraction. Tandem neutral unloads the fixed pump to tank while blocking work ports, with no separate load-holding valve because the slide is treated as horizontal/resistive and no holding or hose-burst retention requirement is stated.",
+      "driven_by": [
+        "Selected a 4/3 tandem-center DCV so the fixed pump is unloaded in neutral while the work ports are blocked; no separate load-holding valve is added because the slide is horizontal/resistive and no holding or hose-burst retention requirement is stated.",
+        "Single horizontal slide must advance, work, and return."
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves",
+        "https://www.hydraulicstatic.com/20190512_control-of-a-double-acting-hydraulic-cylinder.html"
+      ]
+    },
+    {
+      "decision": "Place exactly one non-compensated one-way flow control in the rod-end meter-out path.",
+      "rationale": "The selected topology forces rod-end exhaust during extension through the A-to-B throttled path and permits retraction supply through the B-to-A free-reverse path. The same non-compensated restriction stays active for both rapid approach and working feed, so speed decreases as load/contact increases without an electrical pressure switch or switched hydraulic bypass.",
+      "driven_by": [
+        "Placed exactly one non-compensated one-way flow control in the rod-end line, oriented so cylinder rod exhaust during extension is throttled and reverse flow into the rod end during retraction is free.",
+        "The same A-B throttled path meters rod-end exhaust during both extension phases; the higher work load reduces pressure drop and therefore flow through the non-compensated restriction.",
+        "During retraction, DCV supplies B and flow passes through the flow control B-A free-reverse path to the rod chamber."
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow",
+        "https://www.fluidpowerworld.com/5-ways-to-control-hydraulic-cylinder-speed",
+        "https://www.valmet.com/flowcontrol/valves/flow-control-manual/liquid-flow"
+      ]
+    },
+    {
+      "decision": "Do not add a sequence valve, pressure switch, position valve, second pump, unloading valve, external bypass check, or synchronization device.",
+      "rationale": "The required rapid-to-feed behavior is achieved by load-sensitive throttling through one selected flow-control component. Additional switched or bypass hardware would defeat or alter the selected mechanism and is not requested; only one actuator is present, so synchronization is not required.",
+      "driven_by": [
+        "Did not add a sequence valve, pressure switch, position valve, second pump, unloading valve, or external bypass check because the speed change is required to result from the load/contact change through the fixed restriction.",
+        "Only one actuator is selected; no divider or synchronization valve is included."
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow",
+        "https://www.fluidpowerworld.com/5-ways-to-control-hydraulic-cylinder-speed"
+      ]
+    }
+  ],
+  "catalog_gaps": [],
+  "evidence_gaps": [
+    {
+      "capability": "Exact combined schematic for this specific load-caused two-speed machine-slide duty",
+      "reason": "The synthesis supports the component sub-patterns but states that an exact combined cited schematic remains uncited.",
+      "related_function_ids": [
+        "machine_slide_linear_motion"
+      ],
+      "evidence_needed": "Application-specific validation or test evidence for the final sized circuit meeting the two approximate speeds at the stated loads.",
+      "blocking": false
+    }
+  ],
+  "assumptions": [
+    "The slide load is horizontal/resistive as stated by the selected plan; no overrunning, suspended, gravity-lowering, hose-burst retention, or timed no-drift holding requirement is imposed.",
+    "The relief-valve 20 bar setting, cylinder dimensions, pump displacement/flow, and flow-control setting are sizing tasks rather than topology changes.",
+    "Solenoid actuation is a property of the selected DCV class; no electrical interface is represented in the hydraulic topology."
+  ],
+  "open_issues": [
+    "Sizing must verify cylinder area, pump flow, restriction setting, pressure drops, and relief setting tolerance so both approximate speeds and the 20 bar limit are met.",
+    "Return initiation logic and return speed are unspecified and are outside this topology selection.",
+    "Acceptance tolerances for the approximate rapid and feed speeds are not specified."
+  ],
+  "research_audit": {
+    "searches_used": 5,
+    "rounds_used": 2,
+    "selected_unique_sources": 15,
+    "extracted_documents": 15,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 38,
+    "rejected_by_reason": {
+      "lower_rank": 41,
+      "low_quality_source": 24
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "The basic open-circuit power/relief topology and the double-acting cylinder with 4-way directional control are adequately supported. Meter-out speed control at the cylinder exhaust side, one-way/free reverse flow, and position/cam-based rapid/slow speed sequencing are also supported. However, the critical requirement that the rapid-to-feed transition occur automatically from load/pressure rise at workpiece contact, without an electrical pressure switch, is not yet supported by a real topology source. Existing evidence only shows general load-sensitive flow reduction through a non-pressure-compensated restriction and a separate cam-operated position-transition circuit; it does not establish an automatic pressure/load-actuated fast/slow switching circuit or its connection logic.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Findings include supported component classes and connection placement: reservoir/tank to pump suction, pump outlet pressure line to directional branch, relief valve in parallel/bypass from pump pressure line directly to tank with no shutoff between pump and relief, and return flow to reservoir. Citations include HK Hydraulik, LibreTexts, and a technical thesis/source, with verified excerpts for relief-valve protection and open-circuit return path.",
+        "evidence_task_ids": [
+          "task_open_circuit_power_relief_topology"
+        ]
+      },
+      {
+        "need_id": "function_machine_slide_linear_motion_directional_control",
+        "status": "covered",
+        "rationale": "Findings support a double-acting cylinder controlled by a 4-way directional valve, with clear A-to-cap/B-to-rod connections, P-to-A/B-to-T for extension, P-to-B/A-to-T for retraction, and neutral-center behavior guidance including tandem-center pump unloading and cylinder locking. Citations include Power & Motion Tech and other hydraulic technical/training sources.",
+        "evidence_task_ids": [
+          "task_double_acting_cylinder_directional_control"
+        ]
+      },
+      {
+        "need_id": "function_machine_slide_linear_motion_motion_profile",
+        "status": "covered",
+        "rationale": "The evidence supports meter-out speed control, one-way flow-control/check-valve free reverse flow, rod-end exhaust throttling during extension by connection logic, and a cam-operated 2-way bypass for position-based rapid/slow sequencing. It also supports that a non-pressure-compensated restriction is load/pressure-drop sensitive. What remains weak is the required automatic phase transition specifically caused by load rise at workpiece contact: the current sources do not show a load/pressure-actuated valve arrangement that switches/bypasses/restricts the metered path for rapid approach versus working feed.",
+        "evidence_task_ids": [
+          "followup_r2_function_machine_slide_linear_motion_motion_profile",
+          "task_meter_out_one_way_flow_control_load_sensitive_speed"
+        ]
+      },
+      {
+        "need_id": "driver_two_speed_force_switching",
+        "status": "covered",
+        "rationale": "This critical need is not covered. The follow-up findings explicitly state that no supplied document directly describes an automatic fast/slow or low/high-pressure switching topology. Existing evidence about non-pressure-compensated restrictions only shows continuous load-dependent speed variation, not a supported hydraulic switching topology that changes from rapid approach to slow feed when load/pressure rises, without an electrical pressure switch.",
+        "evidence_task_ids": [
+          "followup_r2_driver_two_speed_force_switching",
+          "task_meter_out_one_way_flow_control_load_sensitive_speed"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Missing exact supported claim: a hydraulic pressure/load-actuated fast-to-slow feed circuit can automatically switch at workpiece contact without an electrical pressure switch.",
+      "Missing connection logic for that claim: which valve class performs the switch, where it is connected relative to the pump, directional valve, cylinder ports, meter-out restriction, bypass, and tank, and how rising load/pressure closes/opens the rapid bypass or otherwise forces slow-feed flow.",
+      "Weak current substitute: non-pressure-compensated meter-out throttling is load-sensitive, but the evidence does not show it can provide a defined two-speed rapid/feed transition topology by itself."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "valid",
+    "deterministic": {
+      "verdict": "valid",
+      "issues": [
+        {
+          "code": "NONBLOCKING_EVIDENCE_GAP",
+          "severity": "warning",
+          "scope": "research",
+          "description": "Evidence gap for Exact combined schematic for this specific load-caused two-speed machine-slide duty: The synthesis supports the component sub-patterns but states that an exact combined cited schematic remains uncited.",
+          "related": [
+            "machine_slide_linear_motion"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "6 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": true,
+          "details": "3 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": true,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "valid",
+      "design_issues": [
+        {
+          "code": "NONBLOCKING_EVIDENCE_GAP_EXACT_COMBINED_SCHEMATIC",
+          "severity": "warning",
+          "scope": "research",
+          "description": "The topology is functionally consistent with the brief and supported sub-patterns, but the research synthesis notes that an exact cited combined schematic for this specific machine-slide duty remains uncited. This is not blocking because the open-circuit power/relief, 4-way double-acting cylinder control, and non-compensated rod-end meter-out sub-patterns are supported and correctly composed.",
+          "related": [
+            "machine_slide_linear_motion",
+            "slide_rapid_approach",
+            "slide_working_feed",
+            "slide_full_return"
+          ]
+        }
+      ],
+      "summary": "Valid topology. The circuit provides open-circuit tank-pump supply, direct pump-to-tank relief protection, correct extend and retract directional paths, one double-acting slide actuator, and exactly one non-compensated one-way flow control in the rod-end exhaust meter-out path. The same throttle remains active during both load-sensitive extension phases with no electrical pressure switch, sequence valve, second pump, unloading valve, or external bypass check. Retraction is powered through the integral free-reverse path, and no unsupported holding, hose-burst, synchronization, or load-control requirement is imposed."
+    },
+    "repair_scope": "none",
+    "topology_round": 1,
+    "summary": "Deterministic validation: valid. Engineering review: valid. Valid topology. The circuit provides open-circuit tank-pump supply, direct pump-to-tank relief protection, correct extend and retract directional paths, one double-acting slide actuator, and exactly one non-compensated one-way flow control in the rod-end exhaust meter-out path. The same throttle remains active during both load-sensitive extension phases with no electrical pressure switch, sequence valve, second pump, unloading valve, or external bypass check. Retraction is powered through the integral free-reverse path, and no unsupported holding, hose-burst, synchronization, or load-control requirement is imposed."
+  },
+  "repair_stop_reason": null,
+  "validation_fingerprints": [
+    "c1a1c20e4f25207b"
+  ]
+}

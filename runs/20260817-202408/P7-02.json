@@ -1,0 +1,783 @@
+{
+  "problem_id": "P7-02",
+  "title": "Vertical Production Press Hydraulic Requirements",
+  "status": "validated_with_warnings",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Port-level topology for the selected minimal conventional open-circuit press ram circuit. The tank feeds a fixed-displacement pump; pump pressure branches directly to the relief valve and tandem-center 4/3 DCV. The DCV A work branch feeds the cap side through the cap section of the dual pilot-operated check load lock. The rod side exhausts through the rod section of the load lock, then through parallel rod-side paths: a one-way flow-control metered path and a position-operated bypass. The bypass is open for rapid approach, closed for both controlled feed phases, and reopened for unmetered return. Neutral uses the tandem-center DCV with actuator ports blocked and the actuator-port pilot check assembly trapping both cylinder chambers for commanded upper hold.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "open-circuit reservoir boundary for suction and returns",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "Use S as pump suction source and R as common return sink."
+      ],
+      "selection_basis": "Required open-circuit hydraulic power unit component."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "simple positive-displacement hydraulic supply",
+      "function_id": null,
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed-displacement class; displacement and drive are deferred to sizing."
+      ],
+      "selection_basis": "Preferred for simplicity where no efficiency requirement is stated."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "system pressure limiting",
+      "function_id": null,
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Set/selected in sizing so hydraulic system pressure does not exceed 100 bar."
+      ],
+      "selection_basis": "Required pressure-limiting path from pump pressure line to tank."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "extend-down, retract-up, and neutral command for the press ram",
+      "function_id": "press_ram_actuation",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Extend state routes P to A and B to T.",
+        "Retract state routes P to B and A to T.",
+        "Neutral routes P to T with A and B blocked; load-holding is provided by the pilot check valve, not by the DCV alone.",
+        "Assumed A side is cap-side/downward extension and B side is rod-side/upward retraction."
+      ],
+      "selection_basis": "Provides 4-way 3-position directional control and neutral pump unloading suitable for a fixed pump."
+    },
+    {
+      "id": "RamCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "vertical press ram actuator",
+      "function_id": "press_ram_actuation",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap-end pressurization extends cylinder downward under the stated convention.",
+        "Rod-end pressurization retracts cylinder upward.",
+        "Bore, rod, stroke, and mounting are deferred to sizing/layout confirmation."
+      ],
+      "selection_basis": "Required double-acting linear actuator for powered downstroke and return."
+    },
+    {
+      "id": "RamLoadLock",
+      "catalog_key": "GENERIC_DUAL_PILOT_OPERATED_CHECK",
+      "name": "Dual Pilot-Operated Check Valve",
+      "comp_type": "pilot_check_valve",
+      "role": "actuator-port load lock for secure upper-position commanded hold",
+      "function_id": "press_ram_actuation",
+      "ports": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "configuration": [
+        "Install between DCV/metering branches and both cylinder chambers.",
+        "A1/A2 used for cap-side branch; B1/B2 used for rod-side branch.",
+        "Cross-piloted release is inherent to the catalog class; opposite work-line pressure releases reverse flow.",
+        "Provides normal commanded no-creep holding; no claim of hose-burst or power-loss retention is made."
+      ],
+      "selection_basis": "Meets the safety requirement that closed-center or blocked work ports alone are not leakage-safe holding devices."
+    },
+    {
+      "id": "RodMeterOutFlowControl",
+      "catalog_key": "GENERIC_ONE_WAY_FLOW_CONTROL",
+      "name": "One-Way Speed Control",
+      "comp_type": "one_way_flow_control",
+      "role": "single non-compensated rod-side meter-out feed control",
+      "function_id": "press_ram_actuation",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Controlled A-to-B direction is rod exhaust from the cylinder/load-lock side toward DCV.B/T during extension feed.",
+        "Free reverse B-to-A direction permits unmetered rod-side supply during retract return.",
+        "One setting/path serves both working feed and pressing feed; no separate approach or return controls."
+      ],
+      "selection_basis": "Typed motion decisions require load-sensitive non-compensated meter-out at rod chamber exhaust for the two feed phases."
+    },
+    {
+      "id": "RapidFeedBypass",
+      "catalog_key": "GENERIC_POSITION_OPERATED_BYPASS",
+      "name": "Position-Operated Bypass/Changeover",
+      "comp_type": "position_valve",
+      "role": "position-triggered bypass around rod meter-out control",
+      "function_id": "press_ram_actuation",
+      "ports": [
+        "P",
+        "A"
+      ],
+      "configuration": [
+        "Connect in parallel with RodMeterOutFlowControl between the same upstream and downstream rod-line nodes.",
+        "Open before the position trip for unrestricted rapid approach.",
+        "Closed after the position trip for working feed and pressing feed so no unmetered bypass is simultaneously open.",
+        "Bidirectional open path may be used for unmetered return as required."
+      ],
+      "selection_basis": "Required position-operated rapid/feed changeover without adding sensors or electrical controls."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Reservoir suction source to pump inlet."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branch to pressure-limiting relief valve."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branch to supplied directional-control valve."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief discharge returns directly to reservoir."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Directional valve tank port returns directly to reservoir."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "RamLoadLock",
+      "to_port": "A1",
+      "line": "work",
+      "notes": "Cap-side commanded work branch from DCV A to valve-side port of dual pilot check."
+    },
+    {
+      "from_component": "RamLoadLock",
+      "from_port": "A2",
+      "to_component": "RamCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Cap-side actuator port from load-lock actuator-side port to cylinder cap chamber."
+    },
+    {
+      "from_component": "RamCylinder",
+      "from_port": "Rod",
+      "to_component": "RamLoadLock",
+      "to_port": "B2",
+      "line": "work",
+      "notes": "Rod chamber to rod-side actuator-side port of the dual pilot check; extend exhaust passes this way when pilot released by cap-side pressure."
+    },
+    {
+      "from_component": "RamLoadLock",
+      "from_port": "B1",
+      "to_component": "RodMeterOutFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Rod-side metering upstream branch into the one-way flow-control metered A-to-B direction."
+    },
+    {
+      "from_component": "RodMeterOutFlowControl",
+      "from_port": "B",
+      "to_component": "DCV",
+      "to_port": "B",
+      "line": "work",
+      "notes": "Rod-side metering downstream branch to DCV B; during extension feed this exhausts to DCV B then T."
+    },
+    {
+      "from_component": "RamLoadLock",
+      "from_port": "B1",
+      "to_component": "RapidFeedBypass",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Parallel bypass upstream branch sharing the same upstream node as the flow-control inlet."
+    },
+    {
+      "from_component": "RapidFeedBypass",
+      "from_port": "A",
+      "to_component": "DCV",
+      "to_port": "B",
+      "line": "work",
+      "notes": "Parallel bypass downstream branch sharing the same downstream node as the flow-control outlet at DCV B."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "press_ram_actuation",
+      "phase_id": "press_ram_fast_approach_down",
+      "phase_name": "Fast downward approach",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "unrestricted_rapid",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "This is the faster downward phase before slower feed phases in the same motion direction; no adjustability, load independence, or regeneration intent is stated.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "press_ram_actuation",
+      "phase_id": "press_ram_working_feed_down",
+      "phase_name": "Downward working feed",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "load_sensitive_throttled",
+      "metering_side": "meter_out",
+      "metered_chamber": "rod",
+      "metered_flow": "exhaust",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "Same downward actuator motion changes from fast approach to slower feed; no load-independent or adjustable speed requirement is stated. Meter-out is inferred for controlled vertical downstroke.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "press_ram_actuation",
+      "phase_id": "press_ram_pressing_feed_down",
+      "phase_name": "Final downward pressing feed",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "load_sensitive_throttled",
+      "metering_side": "meter_out",
+      "metered_chamber": "rod",
+      "metered_flow": "exhaust",
+      "flow_compensation": "non_compensated",
+      "load_control": "none",
+      "justification": "Final downward phase remains at the slower feed speed while force demand rises; no load-independent or adjustable speed requirement is stated. Meter-out is inferred for controlled vertical downstroke.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "press_ram_actuation",
+      "phase_id": "press_ram_return_up",
+      "phase_name": "Upward return",
+      "motion": "retract",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Return time and resistance are sizing requirements only; no deliberate throttling, adjustability, load independence, or regeneration is specified.",
+      "source": "explicit"
+    },
+    {
+      "function_id": "press_ram_actuation",
+      "phase_id": "press_ram_upper_hold",
+      "phase_name": "Secure upper-position hold",
+      "motion": "hold",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Authoritative clarification limits secure holding requirement to normal commanded stop only, not loss of power/pressure or hose rupture.",
+      "source": "explicit"
+    }
+  ],
+  "synchronization_decisions": [],
+  "phase_configurations": [
+    {
+      "phase_id": "press_ram_fast_approach_down",
+      "function_id": "press_ram_actuation",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Extend state supplies DCV.A/cap side and returns DCV.B/rod side to tank for downward approach."
+        },
+        {
+          "component_id": "RapidFeedBypass",
+          "state": "open",
+          "reason": "Open bypass provides the required unrestricted rapid rod-side exhaust path around the rod meter-out flow control."
+        }
+      ],
+      "expected_active_function_ids": [
+        "press_ram_actuation"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Rod exhaust can bypass the flow control through RapidFeedBypass.P-to-A, so the unrestricted_rapid decision is implemented by an actually open parallel path."
+    },
+    {
+      "phase_id": "press_ram_working_feed_down",
+      "function_id": "press_ram_actuation",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Extend state supplies cap side and returns rod side to tank."
+        },
+        {
+          "component_id": "RapidFeedBypass",
+          "state": "closed",
+          "reason": "Closed bypass prevents an unmetered parallel path from defeating the rod-side meter-out flow control."
+        }
+      ],
+      "expected_active_function_ids": [
+        "press_ram_actuation"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Rod exhaust is forced through RodMeterOutFlowControl.A-to-B for load-sensitive non-compensated meter-out control."
+    },
+    {
+      "phase_id": "press_ram_pressing_feed_down",
+      "function_id": "press_ram_actuation",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Extend state supplies cap side and returns rod side to tank for final pressing feed."
+        },
+        {
+          "component_id": "RapidFeedBypass",
+          "state": "closed",
+          "reason": "Closed bypass keeps the same single rod-side meter-out path active for final pressing feed."
+        }
+      ],
+      "expected_active_function_ids": [
+        "press_ram_actuation"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "The same one-way flow-control metered A-to-B path serves both controlled feed phases."
+    },
+    {
+      "phase_id": "press_ram_return_up",
+      "function_id": "press_ram_actuation",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "retract",
+          "reason": "Retract state supplies DCV.B/rod side and returns DCV.A/cap side to tank for upward return."
+        },
+        {
+          "component_id": "RapidFeedBypass",
+          "state": "open",
+          "reason": "Open bypass provides an unmetered bidirectional return path in parallel with the one-way flow-control free-reverse path."
+        }
+      ],
+      "expected_active_function_ids": [
+        "press_ram_actuation"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Return is treated as sizing_only with no deliberate throttling; rod-side supply can pass through the reopened bypass and/or the one-way flow-control free-reverse direction."
+    },
+    {
+      "phase_id": "press_ram_upper_hold",
+      "function_id": "press_ram_actuation",
+      "motion": "hold",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "neutral",
+          "reason": "Neutral tandem center unloads P to T while A and B are blocked as the commanded stop state."
+        },
+        {
+          "component_id": "RapidFeedBypass",
+          "state": "closed",
+          "reason": "Closed bypass leaves the rod-side branch blocked except for the load-lock conditions; holding is provided by the actuator-port pilot check assembly."
+        }
+      ],
+      "expected_active_function_ids": [
+        "press_ram_actuation"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Both pilot-check reverse paths are unpiloted in neutral, trapping cylinder-port oil for normal commanded upper-position hold."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1",
+      "eligible": true,
+      "score": 82.0,
+      "component_count": 8,
+      "errors": [],
+      "warnings": [
+        "evidence gap (complete cited schematic for position-operated bypass around the rod-side one-way flow control): Research synthesis says the exact combined rapid/feed bypass schematic was not directly verified by citation, although the catalog contains the required position-operated bypass and one-way flow-control classes and the deterministic pattern authorizes the composition."
+      ],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2",
+      "eligible": true,
+      "score": 82.0,
+      "component_count": 8,
+      "errors": [],
+      "warnings": [
+        "evidence gap (complete cited schematic for position-operated bypass around the rod-side one-way flow control): Research synthesis says the exact combined rapid/feed bypass schematic was not directly verified by citation, although the catalog contains the required position-operated bypass and one-way flow-control classes and the deterministic pattern authorizes the composition."
+      ],
+      "selected": false
+    },
+    {
+      "candidate_id": "candidate_3",
+      "eligible": true,
+      "score": 82.0,
+      "component_count": 8,
+      "errors": [],
+      "warnings": [
+        "evidence gap (complete cited schematic for position-operated bypass around the rod-side one-way flow control): Research synthesis says the exact combined rapid/feed bypass schematic was not directly verified by citation, although the catalog contains the required position-operated bypass and one-way flow-control classes and the deterministic pattern authorizes the composition."
+      ],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "system_power_and_relief",
+      "component_ids": [
+        "Tank",
+        "Pump",
+        "ReliefValve"
+      ],
+      "circuit_pattern": "Open-circuit power unit with 100 bar relief protection",
+      "how_requirements_met": "Tank.S supplies Pump.S. Pump.P branches directly to ReliefValve.P and DCV.P without a manifold component. ReliefValve.T returns directly to Tank.R and is selected/set during sizing so system pressure does not exceed 100 bar."
+    },
+    {
+      "function_id": "press_ram_actuation",
+      "component_ids": [
+        "DCV",
+        "RamCylinder",
+        "RamLoadLock",
+        "RodMeterOutFlowControl",
+        "RapidFeedBypass"
+      ],
+      "circuit_pattern": "Double-acting press cylinder directional control; fast approach then rod-side meter-out feed using position bypass; cross-piloted actuator-port load lock for normal commanded hold",
+      "how_requirements_met": "DCV extend supplies the cap-side branch through RamLoadLock.A1/A2 to RamCylinder.Cap while rod exhaust passes from RamCylinder.Rod through RamLoadLock.B2/B1 to either the open RapidFeedBypass for rapid approach or through RodMeterOutFlowControl.A-to-B for the two controlled feed phases. DCV retract supplies the rod-side branch through the unmetered bypass/free-reverse path and exhausts the cap side to tank. DCV neutral blocks work ports and the dual pilot-operated check traps both cylinder chambers for the commanded upper hold."
+    },
+    {
+      "function_id": "press_ram_actuation_synchronization",
+      "component_ids": [],
+      "circuit_pattern": null,
+      "how_requirements_met": "No synchronization component is selected because the design uses one actuator only; synchronization is not required."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use a fixed-displacement open-circuit power unit with relief protection.",
+      "rationale": "The brief prioritizes simplicity and states no energy-efficiency requirement. The open-circuit tank, pump, and relief valve pattern provides the required supply and pressure limiting with the relief valve set within the 100 bar ceiling.",
+      "driven_by": [
+        "Selected fixed-displacement pump because the brief prioritizes simplicity and states no energy-efficiency requirement.",
+        "System pressure shall not exceed 100 bar.",
+        "Open-circuit power unit directive."
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/12%3A_Pressure/12.01%3A_Pressure_in_a_Hydraulic_System",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-pumps-motors/article/21884136/engineering-essentials-fundamentals-of-hydraulic-pumps",
+        "https://www.powermotiontech.com/hydraulics/reservoirs-accessories/article/21882642/fundamentals-of-hydraulic-reservoirs"
+      ]
+    },
+    {
+      "decision": "Use a tandem-center 4/3 DCV for extend, retract, and neutral unloading.",
+      "rationale": "The tandem-center valve unloads the fixed pump to tank in neutral while work ports are blocked. It provides conventional P-to-A/B-to-T extension and P-to-B/A-to-T retraction for the double-acting press cylinder.",
+      "driven_by": [
+        "Selected tandem-center 4/3 DCV so the fixed pump can unload to tank in neutral while work ports are blocked by the spool and by the actuator-port pilot check load lock.",
+        "Press ram actuation through approach, feed, return, and stop phases."
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/04%3A_Basic_Cylinder_Circuits/4.04%3A_Operation_and_Schematic_Symbol_of_a_4_3_DCV",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/04%3A_Basic_Cylinder_Circuits/4.03%3A_Function_and_Appliction_of_a_4_3_DCV",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Use one rod-side non-compensated one-way flow control for both feed phases.",
+      "rationale": "Both typed feed phases share the same downward motion, same rod-chamber meter-out exhaust path, and same load-sensitive non-compensated speed realization. A single A-to-B metered path in the rod exhaust line implements both without separate approach or return controls.",
+      "driven_by": [
+        "Used exactly one non-compensated one-way flow control in the rod-chamber meter-out exhaust path for both working feed and pressing feed because both typed feed phases share the same metering path and speed type.",
+        "Typed non-compensated load-sensitive meter-out feed requirement."
+      ],
+      "evidence_urls": [
+        "https://irp.cdn-website.com/361bb333/files/uploaded/koguvipawali.pdf",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow",
+        "https://www.e4training.com/hydraulic_circuits/loadcontrol1.php"
+      ]
+    },
+    {
+      "decision": "Use a position-operated bypass in parallel with the rod meter-out control.",
+      "rationale": "The bypass is open for unrestricted rapid approach, then closes at the position trip so feed exhaust must pass through the one-way flow control. It is reopened for return to keep the return phase unmetered at topology level.",
+      "driven_by": [
+        "Added a position-operated bypass in parallel with the single feed-control path: open for unrestricted rapid approach, closed after the position trip during controlled feed, and usable bidirectionally/free-reverse for return.",
+        "Fast approach then slow feed topology with position-operated rapid/feed transition."
+      ],
+      "evidence_urls": [
+        "https://www.evolutionmotion.com/data-sheet/designing-slow-feed-circuits-part-2-air-cylinders",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow"
+      ]
+    },
+    {
+      "decision": "Use a dual pilot-operated check valve assembly at the actuator ports for commanded hold.",
+      "rationale": "The secure upper-position normal commanded stop must not rely on DCV spool sealing alone. The dual pilot-operated check traps both cylinder chambers in neutral and releases reverse flow only when the opposite work line is pressurized.",
+      "driven_by": [
+        "Added a dual pilot-operated check valve at the actuator ports because the secure upper-position normal commanded stop must not rely on DCV spool leakage alone.",
+        "Secure upper-position normal commanded hold must not rely on DCV spool sealing alone."
+      ],
+      "evidence_urls": [
+        "https://www.bosthydraulic.com/news/a-comprehensive-guide-to-pilot-operated-check-valves-in-hydraulic-systems",
+        "https://hfdhydraulic.com/hydraulic-pilot-operated-check-valve-flow-control",
+        "https://www.kamchau.com/industry-news/a-comprehensive-guide-to-pilot-operated-check-valves-in-hydraulic-systems",
+        "https://www.fluidpowerworld.com/load-holding-valves-made-simple",
+        "https://www.e4training.com/hydraulic_circuits/loadcontrol1.php"
+      ]
+    },
+    {
+      "decision": "Do not add pressure-compensated controls, sequence valves, flow dividers, sensors, manifolds, piping components, or electrical components.",
+      "rationale": "The typed motion decisions and selected generic catalog classes are sufficient for the required topology. Branches are represented by repeated endpoints, and solenoid/position actuation are properties of the selected valve classes rather than separate interfaces or components.",
+      "driven_by": [
+        "No pressure-compensated flow control, sequence valve, flow divider, sensors, manifolds, piping, or electrical components are selected because they are not required by the typed decisions."
+      ],
+      "evidence_urls": []
+    }
+  ],
+  "catalog_gaps": [],
+  "evidence_gaps": [
+    {
+      "capability": "complete cited schematic for position-operated bypass around the rod-side one-way flow control",
+      "reason": "Research synthesis says the exact combined rapid/feed bypass schematic was not directly verified by citation, although the catalog contains the required position-operated bypass and one-way flow-control classes and the deterministic pattern authorizes the composition.",
+      "related_function_ids": [
+        "press_ram_actuation"
+      ],
+      "evidence_needed": "A directly cited hydraulic schematic showing a position-operated bypass in parallel with a meter-out one-way flow control for rapid-to-feed changeover.",
+      "blocking": false
+    }
+  ],
+  "assumptions": [
+    "Cap-end pressurization extends the ram downward and rod-end pressurization retracts it upward.",
+    "The dual pilot-operated check catalog class provides internal cross-pilot release using opposite work-line pressure at B1 or A1; no separate pilot ports are listed in the selected metadata.",
+    "RapidFeedBypass is reopened for the return phase to preserve an unmetered topology-level return path, while the one-way flow control also provides free reverse flow.",
+    "ReliefValve is normally closed during ordinary phase operation and opens only on overpressure; no phase command is required for it."
+  ],
+  "open_issues": [
+    "Sizing must verify 50 kN at no more than 100 bar, approach/feed/return flow requirements, relief setting tolerance, pressure drops, and pilot-check release behavior.",
+    "Cylinder mounting convention must be confirmed: this plan assumes cap-end pressurization extends the ram downward and rod-end pressurization retracts it upward.",
+    "The requirement does not specify numeric drift tolerance or hold duration for the secure normal commanded upper hold.",
+    "Press-specific safety standards, emergency stop, guarding, hose rupture retention, and loss-of-power behavior are outside the stated topology requirement and must be assessed separately if applicable."
+  ],
+  "research_audit": {
+    "searches_used": 6,
+    "rounds_used": 2,
+    "selected_unique_sources": 18,
+    "extracted_documents": 18,
+    "duplicate_urls_skipped": 1,
+    "verified_evidence_claims": 53,
+    "rejected_by_reason": {
+      "lower_rank": 56,
+      "low_quality_source": 21,
+      "duplicate_url": 1
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "Most base hydraulic topology, directional-control, and load-holding needs are supported by cited engineering sources. The critical gap is the required multi-speed/automatic changeover pattern for the press ram: the evidence supports meter-out slow feed on rod-end exhaust and the general idea of rapid travel before metering, but it does not yet support an unambiguous automatic fast-approach-to-slow-feed/pressing topology, such as a position/limit-operated bypass around the meter-out control, a pressure/sequence-operated fast/slow changeover, or a high-flow/low-pressure to low-flow/high-pressure unloading arrangement. Because this is a critical required behavior, the design cannot proceed safely and unambiguously.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "The findings provide cited, relevant open-circuit topology guidance: reservoir supplies pump suction, pump outlet feeds the pressure line/control circuit, returns route to tank/reservoir, and a relief valve connects high-pressure side to tank to limit overpressure. This is sufficient for the required suction, pump, relief, return, and reservoir topology; exact relief setting is a design parameter rather than a separate research gap.",
+        "evidence_task_ids": [
+          "RT1_open_circuit_power_relief_topology"
+        ]
+      },
+      {
+        "need_id": "function_press_ram_actuation_directional_control",
+        "status": "covered",
+        "rationale": "The findings support a double-acting cylinder controlled by a 3-position 4-way DCV, with P/T/A/B port functions, A-to-cap and B-to-rod hookup, extend/retract/neutral behavior, and the limitation that a blocked-center spool alone should not be treated as positive load holding. This gives sufficient component classes and connection logic for actuator directional control and safe neutral behavior when combined with the separate load-holding provisions.",
+        "evidence_task_ids": [
+          "RT2_press_ram_actuator_directional_control"
+        ]
+      },
+      {
+        "need_id": "function_press_ram_actuation_motion_profile",
+        "status": "covered",
+        "rationale": "The evidence supports the slow-feed portion: meter-out flow control on the outlet side, rod-end exhaust restriction during extension, and suitability for smooth/overrunning-load motion. It also weakly supports the general concept of rapid free travel before slow metering. Missing critical claim: a supported automatic phase-transition topology for the full required profile, including fast approach unrestricted, automatic transition to controlled feed/pressing feed, and return behavior without the feed restriction improperly blocking/restricting retract. The findings explicitly state that the selected sources do not verify a position-operated bypass around a one-way flow control or reopening for return, nor do they establish an alternative automatic fast/slow switching circuit.",
+        "evidence_task_ids": [
+          "RT3_fast_approach_slow_feed_meterout_bypass"
+        ]
+      },
+      {
+        "need_id": "function_press_ram_actuation_holding",
+        "status": "covered",
+        "rationale": "The findings support using load-holding/counterbalance or pilot-operated check valve functions at the actuator/load port rather than relying on DCV spool sealing. Cited sources describe preventing drift/uninitiated movement, controlled lowering/counterbalance to prevent running ahead, and placement between the directional valve and load-supporting cylinder port. This is sufficient for the load-holding and controlled-motion pattern, with final choice between PO check and counterbalance handled during design based on whether pure holding or active lowering control is required.",
+        "evidence_task_ids": [
+          "RT4_vertical_ram_load_holding_pilot_check",
+          "followup_r2_function_press_ram_actuation_holding"
+        ]
+      },
+      {
+        "need_id": "driver_two_speed_force_switching",
+        "status": "covered",
+        "rationale": "The evidence does not yet support the required automatic fast/slow or low/high-pressure switching topology. It supports meter-out slow feed and generic rapid-free-travel-before-metering, but not a cited circuit pattern for automatic switching from rapid approach to slower feed under position or pressure/force conditions, nor a high-flow/low-pressure to low-flow/high-pressure arrangement suitable for a hydraulic press. This is critical because the ram must perform a fast 0.80 m approach and then slower feed phases with increasing resistance up to 50 kN.",
+        "evidence_task_ids": [
+          "RT3_fast_approach_slow_feed_meterout_bypass"
+        ]
+      },
+      {
+        "need_id": "driver_load_holding",
+        "status": "covered",
+        "rationale": "The findings support a leak-resistant upper-hold topology for a normal commanded stop: pilot-operated check valves/check-type load-holding devices can support a cylinder load and stop creep, installed at the load-supporting cylinder port/line, with pilot release from the driving/opposite side for commanded movement. The evidence also notes counterbalance valves as an alternative when load control as well as holding is needed. This is sufficient for the clarified normal-stop upper-hold requirement.",
+        "evidence_task_ids": [
+          "RT4_vertical_ram_load_holding_pilot_check",
+          "followup_r2_driver_load_holding"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Critical missing claim: an automatic rapid-approach to slow-feed/pressing-feed transition circuit with supported valve classes and port-level placement/connection logic.",
+      "Critical missing claim: whether the fast approach bypasses the rod-end meter-out flow control and, if so, how the bypass is closed automatically for feed and reopened or bypassed for return.",
+      "Critical missing claim: an alternative supported two-speed/force-switching topology, such as high-low pump with unloading/sequence valve or pressure/sequence-valve changeover, if the position-operated bypass pattern is not used.",
+      "Noncritical limitation: load-holding evidence is adequate for topology, but final component sizing/settings, pilot ratios, decompression behavior, and machine-safety validation remain design/standards tasks."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "valid",
+    "deterministic": {
+      "verdict": "valid",
+      "issues": [
+        {
+          "code": "NONBLOCKING_EVIDENCE_GAP",
+          "severity": "warning",
+          "scope": "research",
+          "description": "Evidence gap for complete cited schematic for position-operated bypass around the rod-side one-way flow control: Research synthesis says the exact combined rapid/feed bypass schematic was not directly verified by citation, although the catalog contains the required position-operated bypass and one-way flow-control classes and the deterministic pattern authorizes the composition.",
+          "related": [
+            "press_ram_actuation"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "8 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": true,
+          "details": "5 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": true,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "valid",
+      "design_issues": [
+        {
+          "code": "NONBLOCKING_EVIDENCE_GAP_POSITION_BYPASS_PATTERN",
+          "severity": "warning",
+          "scope": "research",
+          "description": "The topology uses the deterministic rapid/feed pattern correctly, but the supplied research does not include a directly cited complete schematic for a position-operated bypass in parallel with a rod-side one-way meter-out control. This is not blocking because the required generic classes are available and the composed pattern satisfies the phase behavior.",
+          "related": [
+            "press_ram_actuation",
+            "RapidFeedBypass",
+            "RodMeterOutFlowControl"
+          ]
+        },
+        {
+          "code": "RETURN_BYPASS_RESET_CLARITY",
+          "severity": "warning",
+          "scope": "requirements",
+          "description": "The return phase declares the position bypass reopened. If the bypass is purely position-position dependent after the downstroke trip, it may remain closed during the initial part of return; however the one-way flow control free-reverse path still provides the required unmetered rod-side supply path. Clarify whether return relies on free reverse only or on an explicit bypass reset/reopen behavior.",
+          "related": [
+            "press_ram_return_up",
+            "RapidFeedBypass",
+            "RodMeterOutFlowControl"
+          ]
+        }
+      ],
+      "summary": "The proposed topology functionally satisfies the brief: open-circuit pump/tank/relief placement is correct; the 4/3 DCV provides extend, retract, and neutral paths; rod-chamber meter-out is in the exhaust path for both controlled feed phases with the unmetered bypass closed; rapid approach uses the open bypass; return has an unmetered supply path; and actuator-port pilot check load locking provides the required normal commanded upper hold without relying on DCV spool sealing. No blocking functional topology errors were found."
+    },
+    "repair_scope": "none",
+    "topology_round": 1,
+    "summary": "Deterministic validation: valid. Engineering review: valid. The proposed topology functionally satisfies the brief: open-circuit pump/tank/relief placement is correct; the 4/3 DCV provides extend, retract, and neutral paths; rod-chamber meter-out is in the exhaust path for both controlled feed phases with the unmetered bypass closed; rapid approach uses the open bypass; return has an unmetered supply path; and actuator-port pilot check load locking provides the required normal commanded upper hold without relying on DCV spool sealing. No blocking functional topology errors were found."
+  },
+  "repair_stop_reason": null,
+  "validation_fingerprints": [
+    "cfa7d5b1a6aea5e9"
+  ]
+}

@@ -12,8 +12,9 @@ For each problem it:
 4. synthesizes buildable circuit patterns with citations;
 5. lets a catalog-aware designer inspect and select generic functional class
    keys using tools and compare two or three candidate plans;
-6. preserves each typed `metering_side`, chamber, flow direction, compensation,
-   load-control and synchronization decision without downstream reinterpretation;
+6. preserves each typed `speed_realization`, `metering_side`, chamber, flow
+   direction, compensation, load-control and synchronization decision without
+   downstream reinterpretation;
 7. builds direct component-to-component port connections and explicit valve
    states for every motion phase, with shared endpoints representing branches;
 8. proves supply, exhaust, metering, pilot, sequence and forbidden-motion paths
@@ -22,7 +23,9 @@ For each problem it:
    or returns an unsupported pattern to targeted research; and
 10. automatically corrects or retries malformed component-planner structured
     output instead of terminating the LangGraph run; and
-11. prints every stage and the final selected components/connections in detail.
+11. detects an identical invalid topology/error fingerprint and stops a stalled
+    repair loop with a precise diagnostic; and
+12. prints every stage and the final selected components/connections in detail.
 
 The schemas and core prompts are adapted from
 [`ahhmaaadd/Paper_2_Current`](https://github.com/ahhmaaadd/Paper_2_Current)
@@ -40,9 +43,13 @@ reservoir volume, line selection, filters, cooling, prime mover, dynamic
 simulation, pressure-loss and thermal analysis, structural checks, hose routing,
 functional safety and formal risk assessment remain downstream work.
 
-The 21-class runtime catalog contains only topology-changing classes, including
+The 24-class runtime catalog contains only topology-changing classes, including
 plain check, true unloading, counterbalance/overcenter, divider/combiner,
 pressure-reducing-with-reverse-check and externally piloted sequence functions.
+v0.4.0 adds the three classes the live runs proved were missing: a float-centre
+and an open-centre 4/3 valve, whose neutrals vent both work lines to tank so a
+pilot-operated load lock can reseat, and a vented pilot-operated relief valve for
+true single-pump unloading.
 It deliberately
 excludes manifolds, tees, pipes/hoses, filters/strainers, coolers, gauges,
 temperature/level devices, breathers, motors, couplings, shafts and pressure
@@ -146,6 +153,21 @@ URLs are deduplicated across parallel workers, low-quality sources are rejected,
 and confidence is calculated from source quality rather than accepted from the
 LLM. Research supports design principles; it does not require finding an
 existing schematic identical to the requested machine.
+
+`CatalogGap` and `EvidenceGap` are separate contracts. A catalog gap means a
+required topology-changing generic class is genuinely absent and blocks the
+result. Missing a combined schematic, citation, or manual is an evidence gap;
+supported sub-patterns may be composed. Python also recognizes when the claimed
+"missing" class already exists in the catalog.
+
+The v0.3.0 reliability plan is in
+[`docs/REVISION_PLAN_V0.3.0.md`](docs/REVISION_PLAN_V0.3.0.md). The v0.4.0
+repair of the four live-run failures observed in the LangSmith traces
+(P7-03, P7-04, P7-05, P7-07) is in
+[`docs/REVISION_PLAN_V0.4.0.md`](docs/REVISION_PLAN_V0.4.0.md).
+The offline release suite includes an accepted canonical direct-port topology
+fixture for all seven problem families; those fixtures are test-only and are
+never exposed to runtime agents.
 
 Optional retrieval settings in `.env` are `MAX_DOCUMENTS_PER_SEARCH` (default
 `3`) and `MAX_DOCUMENT_CHARS` (default `12000`).

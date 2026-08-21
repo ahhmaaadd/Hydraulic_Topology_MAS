@@ -1,0 +1,1694 @@
+{
+  "problem_id": "P7-07",
+  "title": "Hydraulic requirements for two-motion machine station",
+  "status": "unresolved",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Repaired single-station open-circuit hydraulic topology using a fixed-displacement pump, global relief protection, one tandem-center 4/3 StationDCV, two double-acting cylinders, pressure reducing valves on both clamp pressure feeds, a pilot-operated clamp cap holding valve, hydraulic sequence valves for clamp-before-work and work-retract-before-clamp-release ordering, and a mechanically position-operated work-rod supply isolator. Pump pressure branches directly to ReliefValve.P and StationDCV.P. In extend, StationDCV.A feeds ClampExtendReducer and ForwardWorkSequence in parallel; clamp extension occurs first, then ForwardWorkSequence opens for work advance. In retract, StationDCV.B feeds the work-rod supply only through WorkRetractPositionIsolator while also feeding ReverseClampReleaseSequence. At full work retraction the position isolator closes, removing the powered work-retract path; reverse-line pressure can then open ReverseClampReleaseSequence to feed ClampRetractReducer and release/retract the clamp. WorkRodAdvanceReturnCheck provides a one-way rod exhaust path during work advance without allowing reverse supply to bypass the position isolator. All speed behavior remains sizing_only with no metering valves.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "Open-circuit reservoir.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "S to pump suction; R for returns and drains."
+      ],
+      "selection_basis": "Required open-circuit boundary."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "Common hydraulic pressure/flow source.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed displacement; sizing deferred."
+      ],
+      "selection_basis": "No variable-pump or energy-efficiency requirement is stated."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "Global pressure protection.",
+      "function_id": null,
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Set/validate not to exceed 70 bar."
+      ],
+      "selection_basis": "Mandatory overpressure protection for the open-circuit pump line."
+    },
+    {
+      "id": "StationDCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "Single station valve for sequenced extend/retract of both cylinders.",
+      "function_id": null,
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "extend: P-A and B-T for clamp then work advance",
+        "neutral: P-T with A/B blocked for pump unloading and actuator line blocking",
+        "retract: P-B and A-T for work retract then position-isolated clamp release"
+      ],
+      "selection_basis": "One command direction with hydraulic sequence valves creates automatic multi-actuator sequencing."
+    },
+    {
+      "id": "ClampCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Horizontal clamp actuator.",
+      "function_id": "clamp_actuator",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap-end extension clamps; rod-end pressure releases."
+      ],
+      "selection_basis": "Powered clamp and release."
+    },
+    {
+      "id": "WorkCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Horizontal working actuator.",
+      "function_id": "working_actuator",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap-end extension advances; rod-end pressure retracts."
+      ],
+      "selection_basis": "Powered work advance and return."
+    },
+    {
+      "id": "ClampExtendReducer",
+      "catalog_key": "GENERIC_PRESSURE_REDUCING_VALVE_WITH_REVERSE_CHECK",
+      "name": "Pressure-Reducing Valve with Reverse Check",
+      "comp_type": "pressure_reducing_valve",
+      "role": "Reduced-pressure clamp cap feed.",
+      "function_id": "clamp_actuator",
+      "ports": [
+        "P",
+        "A",
+        "T"
+      ],
+      "configuration": [
+        "P from StationDCV.A.",
+        "A to ClampPilotCheck.V.",
+        "T to Tank.R.",
+        "Set/validate at or below 40 bar."
+      ],
+      "selection_basis": "Clamp cap pressure limit and free cap return."
+    },
+    {
+      "id": "ClampRetractReducer",
+      "catalog_key": "GENERIC_PRESSURE_REDUCING_VALVE_WITH_REVERSE_CHECK",
+      "name": "Pressure-Reducing Valve with Reverse Check",
+      "comp_type": "pressure_reducing_valve",
+      "role": "Reduced-pressure clamp rod release feed.",
+      "function_id": "clamp_actuator",
+      "ports": [
+        "P",
+        "A",
+        "T"
+      ],
+      "configuration": [
+        "P from ReverseClampReleaseSequence.A.",
+        "A to ClampCylinder.Rod and ClampPilotCheck.X.",
+        "T to Tank.R.",
+        "Set/validate at or below 40 bar."
+      ],
+      "selection_basis": "Prevents clamp release/retract from bypassing the 40 bar clamp limit."
+    },
+    {
+      "id": "ClampPilotCheck",
+      "catalog_key": "GENERIC_SINGLE_PILOT_OPERATED_CHECK",
+      "name": "Pilot-Operated Check Valve",
+      "comp_type": "single_pilot_check_valve",
+      "role": "Clamp cap hold valve.",
+      "function_id": "clamp_actuator",
+      "ports": [
+        "V",
+        "C",
+        "X"
+      ],
+      "configuration": [
+        "V from ClampExtendReducer.A.",
+        "C to ClampCylinder.Cap.",
+        "X from reduced clamp retract line."
+      ],
+      "selection_basis": "Holds clamp applied during work motion until the reduced clamp retract line intentionally pilots release."
+    },
+    {
+      "id": "ForwardWorkSequence",
+      "catalog_key": "GENERIC_SEQUENCE_VALVE_WITH_REVERSE_CHECK",
+      "name": "Hydraulic Sequence Valve with Reverse Check",
+      "comp_type": "sequence_valve",
+      "role": "Forward pressure sequence from clamp to work advance.",
+      "function_id": null,
+      "ports": [
+        "P",
+        "A",
+        "T"
+      ],
+      "configuration": [
+        "P from StationDCV.A forward line.",
+        "A to WorkCylinder.Cap.",
+        "T to Tank.R.",
+        "Opens only after forward-line pressure rises from established clamping."
+      ],
+      "selection_basis": "Hydraulic clamp-force-established transition without electrical pressure switch."
+    },
+    {
+      "id": "WorkCapReturnCheck",
+      "catalog_key": "GENERIC_CHECK_VALVE",
+      "name": "Check Valve",
+      "comp_type": "check_valve",
+      "role": "Explicit cap return bypass around forward sequencing.",
+      "function_id": "working_actuator",
+      "ports": [
+        "P",
+        "A"
+      ],
+      "configuration": [
+        "P from WorkCylinder.Cap.",
+        "A to StationDCV.A.",
+        "Blocks StationDCV.A supply from bypassing ForwardWorkSequence."
+      ],
+      "selection_basis": "Ensures work cap exhaust during retract."
+    },
+    {
+      "id": "WorkRetractPositionIsolator",
+      "catalog_key": "GENERIC_POSITION_OPERATED_BYPASS",
+      "name": "Position-Operated Bypass/Changeover",
+      "comp_type": "position_valve",
+      "role": "Work-retract end-position supply isolator.",
+      "function_id": "working_actuator",
+      "ports": [
+        "P",
+        "A"
+      ],
+      "configuration": [
+        "P from StationDCV.B reverse line.",
+        "A to WorkCylinder.Rod.",
+        "Open before the full-retract trip so work retract can occur.",
+        "Closed after the full-retract trip so clamp release can proceed without a powered work-rod path."
+      ],
+      "selection_basis": "Directly repairs the active-work-path safety issue by blocking the work-rod supply at the confirmed retracted position."
+    },
+    {
+      "id": "WorkRodAdvanceReturnCheck",
+      "catalog_key": "GENERIC_CHECK_VALVE",
+      "name": "Check Valve",
+      "comp_type": "check_valve",
+      "role": "One-way work rod exhaust during work advance.",
+      "function_id": "working_actuator",
+      "ports": [
+        "P",
+        "A"
+      ],
+      "configuration": [
+        "P from WorkCylinder.Rod.",
+        "A to StationDCV.B.",
+        "Blocks StationDCV.B reverse supply from bypassing WorkRetractPositionIsolator."
+      ],
+      "selection_basis": "Preserves work rod exhaust during advance while maintaining supply isolation during clamp release."
+    },
+    {
+      "id": "ReverseClampReleaseSequence",
+      "catalog_key": "GENERIC_SEQUENCE_VALVE_WITH_REVERSE_CHECK",
+      "name": "Hydraulic Sequence Valve with Reverse Check",
+      "comp_type": "sequence_valve",
+      "role": "Reverse pressure sequence from completed work retract to clamp release.",
+      "function_id": null,
+      "ports": [
+        "P",
+        "A",
+        "T"
+      ],
+      "configuration": [
+        "P from StationDCV.B reverse line upstream of WorkRetractPositionIsolator.",
+        "A to ClampRetractReducer.P.",
+        "T to Tank.R.",
+        "Opens after WorkRetractPositionIsolator closes at full work retraction and reverse-line pressure rises."
+      ],
+      "selection_basis": "Hydraulic return-order interlock without electrical sensing; now paired with position isolation so the work actuator is not active during clamp release."
+    },
+    {
+      "id": "ClampRodReturnCheck",
+      "catalog_key": "GENERIC_CHECK_VALVE",
+      "name": "Check Valve",
+      "comp_type": "check_valve",
+      "role": "Clamp rod exhaust during clamp extension.",
+      "function_id": "clamp_actuator",
+      "ports": [
+        "P",
+        "A"
+      ],
+      "configuration": [
+        "P from ClampCylinder.Rod.",
+        "A to StationDCV.B.",
+        "Blocks reverse supply from bypassing reverse sequence and retract reducer."
+      ],
+      "selection_basis": "Preserves rod return during clamp extension without bypassing gated release."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Open-circuit reservoir supplies pump suction."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branches directly to global relief protection."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "StationDCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branches directly to the single station directional valve."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief discharge returns directly to reservoir."
+    },
+    {
+      "from_component": "StationDCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Station valve return and tandem-center unloading path return directly to reservoir."
+    },
+    {
+      "from_component": "StationDCV",
+      "from_port": "A",
+      "to_component": "ClampExtendReducer",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Forward station line feeds reduced-pressure clamp cap branch."
+    },
+    {
+      "from_component": "StationDCV",
+      "from_port": "A",
+      "to_component": "ForwardWorkSequence",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Forward station line also feeds the work-advance sequence inlet in parallel."
+    },
+    {
+      "from_component": "ClampExtendReducer",
+      "from_port": "A",
+      "to_component": "ClampPilotCheck",
+      "to_port": "V",
+      "line": "work",
+      "notes": "Reduced clamp cap feed enters the pilot-operated check valve."
+    },
+    {
+      "from_component": "ClampPilotCheck",
+      "from_port": "C",
+      "to_component": "ClampCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Pilot-check load port connects directly to clamp cylinder cap end."
+    },
+    {
+      "from_component": "ClampExtendReducer",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "drain",
+      "notes": "Clamp cap pressure reducer drain/downstream relief returns to tank."
+    },
+    {
+      "from_component": "ForwardWorkSequence",
+      "from_port": "A",
+      "to_component": "WorkCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Sequence-enabled work advance supply connects to the work cylinder cap end."
+    },
+    {
+      "from_component": "ForwardWorkSequence",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "drain",
+      "notes": "Forward sequence valve drain returns to tank."
+    },
+    {
+      "from_component": "WorkCylinder",
+      "from_port": "Cap",
+      "to_component": "WorkCapReturnCheck",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Work cap exhaust during retract enters the explicit one-way return bypass."
+    },
+    {
+      "from_component": "WorkCapReturnCheck",
+      "from_port": "A",
+      "to_component": "StationDCV",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Bypass check outlet returns work cap oil to StationDCV.A and then to tank in retract state."
+    },
+    {
+      "from_component": "StationDCV",
+      "from_port": "B",
+      "to_component": "WorkRetractPositionIsolator",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Reverse station line feeds the work-retract position isolator instead of directly feeding the work rod."
+    },
+    {
+      "from_component": "StationDCV",
+      "from_port": "B",
+      "to_component": "ReverseClampReleaseSequence",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Reverse station line also feeds the clamp-release sequence inlet upstream of the work-rod position isolation."
+    },
+    {
+      "from_component": "WorkRetractPositionIsolator",
+      "from_port": "A",
+      "to_component": "WorkCylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "Position isolator output feeds the work rod only before the full-retract trip."
+    },
+    {
+      "from_component": "WorkCylinder",
+      "from_port": "Rod",
+      "to_component": "WorkRodAdvanceReturnCheck",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Work rod exhaust during advance enters the one-way return check."
+    },
+    {
+      "from_component": "WorkRodAdvanceReturnCheck",
+      "from_port": "A",
+      "to_component": "StationDCV",
+      "to_port": "B",
+      "line": "work",
+      "notes": "Check outlet connects to StationDCV.B for return to tank in the extend state while blocking reverse supply bypass."
+    },
+    {
+      "from_component": "ReverseClampReleaseSequence",
+      "from_port": "A",
+      "to_component": "ClampRetractReducer",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Reverse sequence output feeds the clamp retract pressure reducer after the work-retract end-position isolation condition."
+    },
+    {
+      "from_component": "ClampRetractReducer",
+      "from_port": "A",
+      "to_component": "ClampCylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "Reduced clamp retract/release pressure feeds the clamp cylinder rod end."
+    },
+    {
+      "from_component": "ClampRetractReducer",
+      "from_port": "A",
+      "to_component": "ClampPilotCheck",
+      "to_port": "X",
+      "line": "pilot",
+      "notes": "Reduced clamp retract line pilots the clamp cap pilot-operated check open."
+    },
+    {
+      "from_component": "ClampRetractReducer",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "drain",
+      "notes": "Clamp retract pressure reducer drain/downstream relief returns to tank."
+    },
+    {
+      "from_component": "ReverseClampReleaseSequence",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "drain",
+      "notes": "Reverse sequence valve drain returns to tank."
+    },
+    {
+      "from_component": "ClampCylinder",
+      "from_port": "Rod",
+      "to_component": "ClampRodReturnCheck",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Clamp rod exhaust during clamp extension enters the one-way rod-return check."
+    },
+    {
+      "from_component": "ClampRodReturnCheck",
+      "from_port": "A",
+      "to_component": "StationDCV",
+      "to_port": "B",
+      "line": "work",
+      "notes": "Rod-return check outlet connects to StationDCV.B for return to tank in the extend state while blocking reverse supply bypass."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "clamp_actuator",
+      "phase_id": "clamp_extend_clamp",
+      "phase_name": "Clamp extend and establish clamping force",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Only travel, force, and pressure-limit requirements are specified; no deliberate speed control, adjustability, or load-independent speed is requested.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "clamp_actuator",
+      "phase_id": "clamp_hold_during_work",
+      "phase_name": "Hold clamp during working motion",
+      "motion": "hold",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Static clamp retention during the working motion is required, but no no-creep tolerance, power-loss hold, or dynamic load-control behavior is specified.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "clamp_actuator",
+      "phase_id": "clamp_retract_release",
+      "phase_name": "Clamp retract and release part",
+      "motion": "retract",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Release order is specified, but no release speed or controlled metering behavior is specified.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "working_actuator",
+      "phase_id": "working_advance",
+      "phase_name": "Working advance",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "A travel and approximate time target defines sizing/performance only; no adjustable, load-independent, regenerative, or throttled speed behavior is specified.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "working_actuator",
+      "phase_id": "working_retract",
+      "phase_name": "Working retract",
+      "motion": "retract",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Return order is specified, but no return speed, force, or deliberate metering behavior is specified.",
+      "source": "inferred"
+    }
+  ],
+  "synchronization_decisions": [],
+  "phase_configurations": [
+    {
+      "phase_id": "clamp_extend_clamp",
+      "function_id": "clamp_actuator",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "StationDCV",
+          "state": "extend",
+          "reason": "Connects P-A and B-T so the forward line feeds ClampExtendReducer.P while clamp rod oil can return through ClampRodReturnCheck to StationDCV.B/T."
+        },
+        {
+          "component_id": "ForwardWorkSequence",
+          "state": "closed",
+          "reason": "Initial clamp extension occurs before the forward-line pressure threshold is reached; the work cap branch remains blocked from supply."
+        },
+        {
+          "component_id": "ReverseClampReleaseSequence",
+          "state": "closed",
+          "reason": "Clamp release/retract branch is unavailable during clamp extension."
+        },
+        {
+          "component_id": "WorkRetractPositionIsolator",
+          "state": "closed",
+          "reason": "At the retracted start/end-position trip the isolator may be closed; no reverse work-rod supply is commanded in this phase."
+        }
+      ],
+      "expected_active_function_ids": [
+        "clamp_actuator"
+      ],
+      "forbidden_active_function_ids": [
+        "working_actuator"
+      ],
+      "notes": "Clamp cap is supplied through ClampExtendReducer and ClampPilotCheck. Clamp rod exhaust returns through ClampRodReturnCheck to StationDCV.B/T. Work advance is blocked until ForwardWorkSequence opens."
+    },
+    {
+      "phase_id": "clamp_hold_during_work",
+      "function_id": "clamp_actuator",
+      "motion": "hold",
+      "component_states": [
+        {
+          "component_id": "StationDCV",
+          "state": "extend",
+          "reason": "The same extend command remains selected so the forward pressure line continues to feed the sequenced work branch while the clamp cap is held by ClampPilotCheck."
+        },
+        {
+          "component_id": "ForwardWorkSequence",
+          "state": "open",
+          "reason": "Established clamping pressure in the forward line has reached the sequence setting, opening P-A to supply WorkCylinder.Cap."
+        },
+        {
+          "component_id": "ReverseClampReleaseSequence",
+          "state": "closed",
+          "reason": "Reverse clamp-release path remains blocked while work advances and clamp force is retained."
+        },
+        {
+          "component_id": "WorkRetractPositionIsolator",
+          "state": "open",
+          "reason": "After the work axis leaves the full-retract trip, the mechanically operated isolator resets open for the later retract stroke; StationDCV.B is a return in this phase."
+        }
+      ],
+      "expected_active_function_ids": [
+        "clamp_actuator",
+        "working_actuator"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Clamp holding is intentionally simultaneous with work advance. ClampPilotCheck blocks cap-end reverse flow while ForwardWorkSequence feeds the work cap."
+    },
+    {
+      "phase_id": "clamp_retract_release",
+      "function_id": "clamp_actuator",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "StationDCV",
+          "state": "retract",
+          "reason": "Connects P-B and A-T so the reverse line feeds the clamp-release sequence branch and the forward line returns to tank."
+        },
+        {
+          "component_id": "ForwardWorkSequence",
+          "state": "closed",
+          "reason": "Forward work advance is not commanded; work cap return is available only through WorkCapReturnCheck to StationDCV.A/T."
+        },
+        {
+          "component_id": "ReverseClampReleaseSequence",
+          "state": "open",
+          "reason": "After WorkRetractPositionIsolator closes at full work retraction, reverse-line pressure opens P-A to feed ClampRetractReducer.P."
+        },
+        {
+          "component_id": "WorkRetractPositionIsolator",
+          "state": "closed",
+          "reason": "The full-retract position trip blocks StationDCV.B supply from WorkCylinder.Rod, removing the powered work-retract path during clamp release."
+        }
+      ],
+      "expected_active_function_ids": [
+        "clamp_actuator"
+      ],
+      "forbidden_active_function_ids": [
+        "working_actuator"
+      ],
+      "notes": "Reduced clamp retract pressure from ClampRetractReducer.A feeds ClampCylinder.Rod and pilots ClampPilotCheck.X. Clamp cap oil can return through the released pilot check and ClampExtendReducer reverse check to StationDCV.A/T. The work rod supply path is blocked by WorkRetractPositionIsolator, and reverse supply cannot bypass it through WorkRodAdvanceReturnCheck."
+    },
+    {
+      "phase_id": "working_advance",
+      "function_id": "working_actuator",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "StationDCV",
+          "state": "extend",
+          "reason": "Maintains P-A and B-T so StationDCV.A supplies ForwardWorkSequence.P and StationDCV.B provides rod-side return for the work cylinder."
+        },
+        {
+          "component_id": "ForwardWorkSequence",
+          "state": "open",
+          "reason": "Forward-line pressure after clamp force establishment opens the sequence valve from P to A."
+        },
+        {
+          "component_id": "ReverseClampReleaseSequence",
+          "state": "closed",
+          "reason": "Clamp release/retract is not enabled during working advance."
+        },
+        {
+          "component_id": "WorkRetractPositionIsolator",
+          "state": "open",
+          "reason": "The work axis is away from the full-retract trip during the working stroke; with StationDCV.B connected to tank this state does not create a powered path."
+        }
+      ],
+      "expected_active_function_ids": [
+        "working_actuator",
+        "clamp_actuator"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "WorkCylinder.Cap is supplied through ForwardWorkSequence.A. WorkCylinder.Rod exhausts to StationDCV.B/T through WorkRodAdvanceReturnCheck and, when reset open, through the position isolator. Clamp is intentionally held by ClampPilotCheck during the working stroke."
+    },
+    {
+      "phase_id": "working_retract",
+      "function_id": "working_actuator",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "StationDCV",
+          "state": "retract",
+          "reason": "Connects P-B and A-T so StationDCV.B supplies the work rod branch and StationDCV.A returns work cap oil to tank."
+        },
+        {
+          "component_id": "ForwardWorkSequence",
+          "state": "closed",
+          "reason": "Forward sequencing is not active during return; WorkCapReturnCheck provides the cap exhaust path around the forward sequence branch."
+        },
+        {
+          "component_id": "ReverseClampReleaseSequence",
+          "state": "closed",
+          "reason": "Clamp release remains blocked until the work cylinder reaches full retract and the position isolator closes to create the reverse-line pressure condition."
+        },
+        {
+          "component_id": "WorkRetractPositionIsolator",
+          "state": "open",
+          "reason": "Before the full-retract trip, P-A is open so StationDCV.B can power WorkCylinder.Rod for work retraction."
+        }
+      ],
+      "expected_active_function_ids": [
+        "working_actuator",
+        "clamp_actuator"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "WorkCylinder.Rod is supplied through WorkRetractPositionIsolator. WorkCylinder.Cap exhausts through WorkCapReturnCheck to StationDCV.A/T. Clamp remains held by ClampPilotCheck until the subsequent clamp-release phase."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1_preferred_single_station_position_isolated_repair",
+      "eligible": false,
+      "score": 42.5,
+      "component_count": 15,
+      "errors": [
+        "position valve selected without a position-triggered phase requirement"
+      ],
+      "warnings": [],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2_split_axis_externally_piloted_position_repair",
+      "eligible": false,
+      "score": 41.0,
+      "component_count": 16,
+      "errors": [
+        "position valve selected without a position-triggered phase requirement"
+      ],
+      "warnings": [],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE",
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE"
+      ],
+      "rationale": "Replace the common station DCV with a clamp-only closed-center DCV so clamp release can occur with the work valve neutral.",
+      "target_component_id": "StationDCV",
+      "component": {
+        "id": "ClampDCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_CLOSED_CENTER_DCV",
+        "comp_type": "dcv",
+        "role": "Directional control for clamp extension, hold/isolation, and release/retract.",
+        "function_id": "clamp_actuator",
+        "configuration": [
+          "extend state: P-A and B-T",
+          "neutral state: all ports blocked",
+          "retract state: P-B and A-T"
+        ],
+        "selection_basis": "Separate clamp valve prevents the work axis from remaining powered during clamp release."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Add a separate work-axis DCV that can be set to neutral during clamp release.",
+      "target_component_id": null,
+      "component": {
+        "id": "WorkDCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_CLOSED_CENTER_DCV",
+        "comp_type": "dcv",
+        "role": "Directional control for working advance, neutral isolation, and retraction.",
+        "function_id": "working_actuator",
+        "configuration": [
+          "extend state feeds the work sequence valve",
+          "neutral state blocks work ports during clamp release",
+          "retract state powers work rod end"
+        ],
+        "selection_basis": "Work-axis neutral isolation removes the live powered retract path during clamp release."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Use an externally piloted sequence valve so clamp pressure, not work-line pressure, enables working advance after the split DCV repair.",
+      "target_component_id": "ForwardWorkSequence",
+      "component": {
+        "id": "ForwardWorkSequence",
+        "catalog_key": "GENERIC_EXTERNALLY_PILOTED_SEQUENCE_VALVE",
+        "comp_type": "sequence_valve",
+        "role": "Pressure-triggered clamp-before-work interlock.",
+        "function_id": null,
+        "configuration": [
+          "P from WorkDCV.A",
+          "A to WorkCylinder.Cap",
+          "X from clamp cap/reduced pressure",
+          "T to Tank.R"
+        ],
+        "selection_basis": "Hydraulic sequence valve enables work advance only after established clamp pressure without an electrical pressure switch."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Add a work-retracted hydraulic position gate so clamp-release flow is unavailable until the work cylinder is retracted.",
+      "target_component_id": null,
+      "component": {
+        "id": "WorkRetractedPositionGate",
+        "catalog_key": "GENERIC_POSITION_OPERATED_BYPASS",
+        "comp_type": "position_valve",
+        "role": "Clamp-release enable at work-retracted position.",
+        "function_id": "clamp_actuator",
+        "configuration": [
+          "P from ClampDCV.B",
+          "A to ReverseClampReleaseSequence.P",
+          "open only at work retracted position"
+        ],
+        "selection_basis": "Topologically gates clamp release by work-cylinder position without an electrical pressure switch."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Add a one-way rod return so clamp extension return is preserved without bypassing the gated release supply path.",
+      "target_component_id": null,
+      "component": {
+        "id": "ClampRodReturnCheck",
+        "catalog_key": "GENERIC_CHECK_VALVE",
+        "comp_type": "check_valve",
+        "role": "Clamp rod-end return check.",
+        "function_id": "clamp_actuator",
+        "configuration": [
+          "P from ClampCylinder.Rod",
+          "A to ClampDCV.B",
+          "block reverse pressure supply"
+        ],
+        "selection_basis": "Allows rod exhaust during clamp extension but blocks ungated clamp-release supply."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Remove common pump feed to StationDCV and feed the separated clamp and work DCVs instead.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Pump pressure branches to global relief and station directional valve.",
+        "from_hint": "Pump.P",
+        "to_hint": "ReliefValve.P and StationDCV.P",
+        "line": "pressure"
+      },
+      "replacement_connection": {
+        "description": "Pump pressure branches to global relief and separated axis DCVs.",
+        "from_hint": "Pump.P",
+        "to_hint": "ReliefValve.P, ClampDCV.P, and WorkDCV.P",
+        "line": "pressure"
+      }
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Clamp feed must come from ClampDCV.A rather than the removed StationDCV.A.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Forward station line feeds reduced clamp cap branch and work sequence branch in parallel.",
+        "from_hint": "StationDCV.A",
+        "to_hint": "ClampPressureReducer.P and ForwardWorkSequence.P",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "Clamp extend line feeds only the reduced clamp branch.",
+        "from_hint": "ClampDCV.A",
+        "to_hint": "ClampPressureReducer.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Work advance is now supplied from the separate work DCV through the externally piloted sequence valve.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Work advance line feeds the externally piloted sequence valve.",
+        "from_hint": "WorkDCV.A",
+        "to_hint": "ForwardWorkSequence.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Clamp pressure pilots the externally piloted forward sequence valve.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Established clamp pressure pilots the forward work sequence valve.",
+        "from_hint": "ClampPilotCheck.C",
+        "to_hint": "ForwardWorkSequence.X",
+        "line": "pilot"
+      }
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Work rod-end must connect to WorkDCV.B, not to the clamp-release pressure line.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Reverse station line feeds work rod-end directly and the gated clamp-release sequence in parallel.",
+        "from_hint": "StationDCV.B",
+        "to_hint": "WorkCylinder.Rod and ReverseClampReleaseSequence.P",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "Work rod-end connects only to the work DCV B port.",
+        "from_hint": "WorkDCV.B",
+        "to_hint": "WorkCylinder.Rod",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Clamp release supply now passes through the work-retracted gate before the reverse sequence valve.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Clamp release supply passes through the work-retracted position gate.",
+        "from_hint": "ClampDCV.B",
+        "to_hint": "WorkRetractedPositionGate.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "The position gate feeds the reverse clamp-release sequence valve only after the work cylinder is retracted.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Position-gated release supply feeds the reverse clamp-release sequence valve.",
+        "from_hint": "WorkRetractedPositionGate.A",
+        "to_hint": "ReverseClampReleaseSequence.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORBIDDEN_WORK_AXIS_ACTIVE_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Provide a one-way rod return path for clamp extension that cannot supply release pressure backward.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Clamp rod end returns to the clamp DCV through a one-way check during clamp extension.",
+        "from_hint": "ClampCylinder.Rod",
+        "to_hint": "ClampRodReturnCheck.P and then ClampRodReturnCheck.A to ClampDCV.B",
+        "line": "work"
+      }
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "AUTOMATIC_CLAMP_BEFORE_WORK_TRANSITION_NOT_FULLY_IMPLEMENTED"
+      ],
+      "rationale": "Replace split-axis directional controls with one station DCV so one extend command feeds clamp and sequenced work branches automatically.",
+      "target_component_id": "ClampDCV",
+      "component": {
+        "id": "StationDCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+        "comp_type": "dcv",
+        "role": "Single station valve for sequenced extend/retract of both cylinders.",
+        "function_id": null,
+        "configuration": [
+          "extend: P-A and B-T for clamp then work advance",
+          "neutral: P-T with A/B blocked for pump unloading and actuator line blocking",
+          "retract: P-B and A-T for work retract then clamp release"
+        ],
+        "selection_basis": "One command direction with hydraulic sequence valves creates automatic multi-actuator sequencing."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_component",
+      "issue_codes": [
+        "AUTOMATIC_CLAMP_BEFORE_WORK_TRANSITION_NOT_FULLY_IMPLEMENTED"
+      ],
+      "rationale": "Separate WorkDCV is not used in the single-station topology.",
+      "target_component_id": "WorkDCV",
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_component",
+      "issue_codes": [
+        "UNJUSTIFIED_POSITION_VALVE"
+      ],
+      "rationale": "Return ordering is implemented with a hydraulic reverse sequence valve instead of a position valve.",
+      "target_component_id": "WorkRetractedPositionGate",
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "CLAMP_RETRACT_BYPASSES_40BAR_REDUCER"
+      ],
+      "rationale": "Add rod-side clamp pressure reduction.",
+      "target_component_id": null,
+      "component": {
+        "id": "ClampRetractReducer",
+        "catalog_key": "GENERIC_PRESSURE_REDUCING_VALVE_WITH_REVERSE_CHECK",
+        "comp_type": "pressure_reducing_valve",
+        "role": "Reduced-pressure clamp rod release feed.",
+        "function_id": "clamp_actuator",
+        "configuration": [
+          "P from ReverseClampReleaseSequence.A.",
+          "A to ClampCylinder.Rod and ClampPilotCheck.X.",
+          "T to Tank.R.",
+          "Set/validate at or below 40 bar."
+        ],
+        "selection_basis": "Prevents clamp release/retract from bypassing the 40 bar clamp limit."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "WORK_RETRACT_CAP_EXHAUST_RELIES_ON_UNDECLARED_SEQUENCE_REVERSE_CHECK"
+      ],
+      "rationale": "Add explicit work cap return bypass.",
+      "target_component_id": null,
+      "component": {
+        "id": "WorkCapReturnCheck",
+        "catalog_key": "GENERIC_CHECK_VALVE",
+        "comp_type": "check_valve",
+        "role": "Explicit cap return bypass around forward sequencing.",
+        "function_id": "working_actuator",
+        "configuration": [
+          "P from WorkCylinder.Cap.",
+          "A to StationDCV.A.",
+          "Blocks StationDCV.A supply from bypassing ForwardWorkSequence."
+        ],
+        "selection_basis": "Ensures work cap exhaust during retract."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "AUTOMATIC_CLAMP_BEFORE_WORK_TRANSITION_NOT_FULLY_IMPLEMENTED"
+      ],
+      "rationale": "Pump feeds the single station valve instead of split axis DCVs.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Pump pressure branches to global relief and both closed-center axis DCVs.",
+        "from_hint": "Pump.P",
+        "to_hint": "ReliefValve.P, ClampDCV.P, and WorkDCV.P",
+        "line": "pressure"
+      },
+      "replacement_connection": {
+        "description": "Pump pressure branches to global relief and station DCV.",
+        "from_hint": "Pump.P",
+        "to_hint": "ReliefValve.P and StationDCV.P",
+        "line": "pressure"
+      }
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "SEQUENCE_PILOT_NOT_PRESSURIZED",
+        "AUTOMATIC_CLAMP_BEFORE_WORK_TRANSITION_NOT_FULLY_IMPLEMENTED"
+      ],
+      "rationale": "The station forward line feeds both clamp reduction and the forward sequence inlet.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Clamp extend line feeds the clamp pressure reducer.",
+        "from_hint": "ClampDCV.A",
+        "to_hint": "ClampPressureReducer.P",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "Forward station line feeds clamp cap reducer and forward work sequence in parallel.",
+        "from_hint": "StationDCV.A",
+        "to_hint": "ClampExtendReducer.P and ForwardWorkSequence.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "CLAMP_RETRACT_BYPASSES_40BAR_REDUCER"
+      ],
+      "rationale": "Reverse sequence output must feed the clamp retract reducer rather than clamp rod directly.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Reverse sequence output feeds clamp rod-end after the gate and pressure threshold are satisfied.",
+        "from_hint": "ReverseClampReleaseSequence.A",
+        "to_hint": "ClampCylinder.Rod",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "Reverse sequence output feeds clamp retract reducer.",
+        "from_hint": "ReverseClampReleaseSequence.A",
+        "to_hint": "ClampRetractReducer.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "CLAMP_RETRACT_BYPASSES_40BAR_REDUCER"
+      ],
+      "rationale": "Reduced rod-side pressure feeds clamp release and pilot-check release.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Reduced clamp retract pressure feeds clamp rod and pilot-check release.",
+        "from_hint": "ClampRetractReducer.A",
+        "to_hint": "ClampCylinder.Rod and ClampPilotCheck.X",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "WORK_RETRACT_CAP_EXHAUST_RELIES_ON_UNDECLARED_SEQUENCE_REVERSE_CHECK"
+      ],
+      "rationale": "Add explicit cap exhaust path for work retract.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Work cap return check exhausts to forward station line during retract.",
+        "from_hint": "WorkCylinder.Cap",
+        "to_hint": "WorkCapReturnCheck.P and then WorkCapReturnCheck.A to StationDCV.A",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "FORBIDDEN_WORK_PATH_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Add a mechanical end-position valve in the work-rod supply path so the working actuator supply is blocked after the full-retract trip before clamp release proceeds.",
+      "target_component_id": null,
+      "component": {
+        "id": "WorkRetractPositionIsolator",
+        "catalog_key": "GENERIC_POSITION_OPERATED_BYPASS",
+        "comp_type": "position_valve",
+        "role": "Work-retract end-position supply isolator.",
+        "function_id": "working_actuator",
+        "configuration": [
+          "P from StationDCV.B reverse line.",
+          "A to WorkCylinder.Rod.",
+          "Open before the full-retract trip so work retract can occur.",
+          "Closed after the full-retract trip so clamp release can proceed without a powered work-rod path."
+        ],
+        "selection_basis": "Directly repairs the active-work-path safety issue by blocking the work-rod supply at the confirmed retracted position."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "FORBIDDEN_WORK_PATH_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Add an explicit one-way rod exhaust path for work advance so the position isolator can be closed at the retracted start position without trapping the work rod side.",
+      "target_component_id": null,
+      "component": {
+        "id": "WorkRodAdvanceReturnCheck",
+        "catalog_key": "GENERIC_CHECK_VALVE",
+        "comp_type": "check_valve",
+        "role": "One-way work rod exhaust during work advance.",
+        "function_id": "working_actuator",
+        "configuration": [
+          "P from WorkCylinder.Rod.",
+          "A to StationDCV.B.",
+          "Blocks StationDCV.B reverse supply from bypassing WorkRetractPositionIsolator."
+        ],
+        "selection_basis": "Preserves work rod exhaust during advance while maintaining supply isolation during clamp release."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "FORBIDDEN_WORK_PATH_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Remove the direct reverse-line connection to the work rod and route reverse supply through the position isolator while keeping the reverse sequence inlet upstream.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Reverse station line feeds work rod directly and reverse clamp sequence inlet.",
+        "from_hint": "StationDCV.B",
+        "to_hint": "WorkCylinder.Rod and ReverseClampReleaseSequence.P",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "Reverse station line feeds the work-retract position isolator and reverse clamp sequence inlet in parallel.",
+        "from_hint": "StationDCV.B",
+        "to_hint": "WorkRetractPositionIsolator.P and ReverseClampReleaseSequence.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "FORBIDDEN_WORK_PATH_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Complete the controlled work-retract supply path through the new position isolator.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Position isolator output feeds the work rod only before the full-retract trip.",
+        "from_hint": "WorkRetractPositionIsolator.A",
+        "to_hint": "WorkCylinder.Rod",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "FORBIDDEN_WORK_PATH_DURING_CLAMP_RELEASE"
+      ],
+      "rationale": "Provide a declared one-way exhaust path from work rod to the reverse station line during work advance while blocking reverse supply bypass.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Work rod exhaust during advance returns through one-way check to the reverse station line.",
+        "from_hint": "WorkCylinder.Rod",
+        "to_hint": "WorkRodAdvanceReturnCheck.P and then WorkRodAdvanceReturnCheck.A to StationDCV.B",
+        "line": "work"
+      }
+    }
+  ],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "system_power_and_pressure_limit",
+      "component_ids": [
+        "Tank",
+        "Pump",
+        "ReliefValve",
+        "StationDCV"
+      ],
+      "circuit_pattern": "Open-circuit power and 70 bar relief protection",
+      "how_requirements_met": "Tank.S feeds Pump.S. Pump.P branches directly to ReliefValve.P and StationDCV.P without a manifold component. ReliefValve.T and StationDCV.T return directly to Tank.R. ReliefValve setting/validation enforces the overall system pressure limit not to exceed 70 bar."
+    },
+    {
+      "function_id": "clamp_actuator",
+      "component_ids": [
+        "StationDCV",
+        "ClampCylinder",
+        "ClampExtendReducer",
+        "ClampRetractReducer",
+        "ClampPilotCheck",
+        "ClampRodReturnCheck",
+        "ReverseClampReleaseSequence"
+      ],
+      "circuit_pattern": "Clamp branch 40 bar pressure reduction with positive clamp hold",
+      "how_requirements_met": "StationDCV.A feeds ClampExtendReducer.P for reduced-pressure clamp extension; ClampExtendReducer.A feeds ClampPilotCheck.V and ClampPilotCheck.C feeds ClampCylinder.Cap. StationDCV.B can release/retract the clamp only through ReverseClampReleaseSequence and ClampRetractReducer, so the clamp rod feed is also reduced at or below 40 bar. ClampRetractReducer.A also pilots ClampPilotCheck.X to release trapped cap oil. ClampRodReturnCheck provides a one-way rod exhaust path during clamp extension while blocking reverse supply from bypassing the sequence/reducer path."
+    },
+    {
+      "function_id": "working_actuator",
+      "component_ids": [
+        "StationDCV",
+        "WorkCylinder",
+        "ForwardWorkSequence",
+        "WorkCapReturnCheck",
+        "WorkRodAdvanceReturnCheck"
+      ],
+      "circuit_pattern": "Hydraulic clamp-before-work pressure sequence",
+      "how_requirements_met": "The forward station command supplies StationDCV.A to both ClampExtendReducer.P and ForwardWorkSequence.P. ForwardWorkSequence remains closed until forward-line pressure rises after clamp force is established, then opens to feed WorkCylinder.Cap. WorkCylinder.Rod returns to StationDCV.B/T through WorkRodAdvanceReturnCheck and, when the position valve is reset open, through WorkRetractPositionIsolator. Working stroke time and force remain pump/cylinder sizing items; no flow-control valve is added."
+    },
+    {
+      "function_id": "working_actuator",
+      "component_ids": [
+        "StationDCV",
+        "WorkCylinder",
+        "WorkCapReturnCheck",
+        "WorkRetractPositionIsolator"
+      ],
+      "circuit_pattern": "Position-isolated work retraction with explicit cap return",
+      "how_requirements_met": "In StationDCV retract state, StationDCV.B supplies WorkCylinder.Rod only through WorkRetractPositionIsolator while WorkCylinder.Cap exhausts through WorkCapReturnCheck.P-A to StationDCV.A and then through StationDCV.A-T to Tank.R. At full retraction, WorkRetractPositionIsolator closes and blocks further powered rod supply."
+    },
+    {
+      "function_id": "clamp_actuator",
+      "component_ids": [
+        "StationDCV",
+        "WorkRetractPositionIsolator",
+        "ReverseClampReleaseSequence",
+        "ClampRetractReducer",
+        "ClampCylinder",
+        "ClampPilotCheck"
+      ],
+      "circuit_pattern": "Hydraulic work-retract-before-clamp-release sequence with work-path isolation",
+      "how_requirements_met": "StationDCV.B retracts the work cylinder through the open WorkRetractPositionIsolator while ReverseClampReleaseSequence remains closed. At full work retract, WorkRetractPositionIsolator closes so the working actuator no longer has a complete powered motion path. Reverse-line pressure can then open ReverseClampReleaseSequence to feed ClampRetractReducer.P. ClampRetractReducer.A supplies ClampCylinder.Rod and ClampPilotCheck.X, enabling clamp release after work return without an electrical pressure switch."
+    },
+    {
+      "function_id": "working_actuator",
+      "component_ids": [
+        "Pump",
+        "WorkCylinder"
+      ],
+      "circuit_pattern": "Sizing-only speed realization",
+      "how_requirements_met": "The selected motion decisions specify sizing_only speed realization, so working-axis stroke time and force are realized by pump flow and cylinder effective-area sizing rather than added flow-control valves."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use one tandem-center station DCV for both cylinders instead of split-axis DCVs.",
+      "rationale": "A single extend command pressurizes the common forward line so clamp extension and the sequenced work-advance branch are part of one hydraulic command. Tandem center unloads the fixed pump in neutral while blocking work ports.",
+      "driven_by": [
+        "engineering_decision_log",
+        "clamp_actuator",
+        "working_actuator"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Use hydraulic sequence valves for both forward and reverse ordering.",
+      "rationale": "ForwardWorkSequence gates work advance until clamp pressure rises. ReverseClampReleaseSequence gates clamp release until the work-retract end-position isolation has removed the active work path and reverse-line pressure rises. This implements hydraulic ordering without an electrical pressure switch.",
+      "driven_by": [
+        "engineering_decision_log",
+        "pressure_sequence_between_functions",
+        "reverse_order_interlock",
+        "clamp_actuator",
+        "working_actuator"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/19%3A_Sequence_Valves/19.02%3A_Understanding_the_Operation_of_a_Direct-Acting_Sequence_Valve_and_Its_Schematic_Symbol",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884334/book-2-chapter-20-sequence-valves",
+        "https://www.mobilehydraulictips.com/hydraulic-sequence-valves-dead"
+      ]
+    },
+    {
+      "decision": "Add a position-operated isolation valve in the work-rod retract supply path.",
+      "rationale": "WorkRetractPositionIsolator is open during work retract and closed at the fully retracted trip. Its closed state blocks StationDCV.B supply to WorkCylinder.Rod during clamp release, repairing the forbidden active working path.",
+      "driven_by": [
+        "engineering_decision_log",
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "FORBIDDEN_WORK_PATH_DURING_CLAMP_RELEASE",
+        "working_actuator",
+        "clamp_actuator"
+      ],
+      "evidence_urls": []
+    },
+    {
+      "decision": "Add a work-rod exhaust check independent of the position isolator.",
+      "rationale": "WorkRodAdvanceReturnCheck provides declared WorkCylinder.Rod exhaust to StationDCV.B/T during work advance even if the position isolator is closed at the retracted start position, while its reverse blocking prevents StationDCV.B from bypassing the isolator during retract/release.",
+      "driven_by": [
+        "engineering_decision_log",
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "FORBIDDEN_WORK_PATH_DURING_CLAMP_RELEASE",
+        "working_actuator"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/19%3A_Sequence_Valves/19.02%3A_Understanding_the_Operation_of_a_Direct-Acting_Sequence_Valve_and_Its_Schematic_Symbol",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884334/book-2-chapter-20-sequence-valves"
+      ]
+    },
+    {
+      "decision": "Limit both clamp extension and clamp release/retract feeds with pressure reducing valves.",
+      "rationale": "The clamp function must remain at or below 40 bar while the main relief may be set up to 70 bar. ClampExtendReducer limits the clamp cap feed and ClampRetractReducer prevents reverse clamp release/retract pressure from bypassing the clamp pressure limit.",
+      "driven_by": [
+        "engineering_decision_log",
+        "clamp_actuator"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884331/book-2-chapter-16-reducing-valves",
+        "https://www.mobilehydraulictips.com/the-lowdown-on-pressure-reducing-valves",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21887951/understanding-pressure-control-valves"
+      ]
+    },
+    {
+      "decision": "Hold clamp force with a pilot-operated check at the clamp cap end.",
+      "rationale": "ClampPilotCheck allows free flow from the reduced clamp cap feed into the clamp cylinder, blocks cap-end reverse flow during working advance and return, and opens only when the reduced clamp retract line pilots X.",
+      "driven_by": [
+        "engineering_decision_log",
+        "clamp_actuator_load_lock",
+        "clamp_actuator"
+      ],
+      "evidence_urls": [
+        "https://www.sunhydraulics.com/model/CKBM",
+        "https://www.elsimeth.com/wp-content/themes/elsimeth/pdf/Vektek-291621239-hydraulicClampingFundamentalsRevB.pdf",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884334/book-2-chapter-20-sequence-valves"
+      ]
+    },
+    {
+      "decision": "Use a fixed-displacement open-circuit power unit with direct relief protection.",
+      "rationale": "The open circuit uses Tank, Pump, and ReliefValve in the minimum power path. The relief valve protects the pump pressure line and returns excess flow to Tank.R.",
+      "driven_by": [
+        "engineering_decision_log",
+        "system_power_and_pressure_limit"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/13%3A_Relief_Valves/13.03%3A_The_Role_of_a_Relief_Valve_in_System_Protection",
+        "https://mtmcongress.com/proceedngs/2012/2/11.PRESSURE%20RELIEF%20VALVE%20SELECTION%20AND%20APPLICATIONS%20FOR%20HYDRAULIC%20SYSTEMS.pdf",
+        "https://learnmech.com/pressure-relief-valve-diagram-working"
+      ]
+    },
+    {
+      "decision": "Do not add flow-control valves for the working stroke time or clamp speed.",
+      "rationale": "All motion-control decisions specify sizing_only speed realization. Pump flow and cylinder effective areas will be sized to meet the approximate working travel/time target and clamp performance without deliberate throttling.",
+      "driven_by": [
+        "engineering_decision_log",
+        "clamp_actuator_sizing_only_speed",
+        "working_actuator_sizing_only_speed"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/18%3A_Flow_Rate_and_Cylinder_Speed/18.04%3A_Calculate_the_Retract_Speed_of_a_Cylinder_Given_its_Size_and_a_Flow_Rate",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves"
+      ]
+    }
+  ],
+  "catalog_gaps": [],
+  "evidence_gaps": [],
+  "assumptions": [
+    "Sequence valve thresholds, pressure-reducer settings, relief setting, cylinder bore/rod dimensions, pump flow, pressure losses and acceptance tolerances are deferred to sizing and commissioning.",
+    "Repeated component ports represent direct branched hydraulic lines; no tee, manifold, hose, or line component is inserted.",
+    "The working branch up-to-60 bar condition can be satisfied by actuator sizing/process load unless the specifier later requires an explicit working-branch pressure reducer.",
+    "WorkRetractPositionIsolator is mechanically arranged so it is open before the full-retract trip, remains open through the work-retract stroke, and closes at the confirmed fully retracted condition."
+  ],
+  "open_issues": [
+    "Sizing must establish relief setting, reducing-valve settings, sequence thresholds, cylinder areas, pump flow, pressure losses, and acceptance tolerances.",
+    "Confirm whether the working branch 'up to 60 bar' statement is a sizing limit only or requires an explicit working-branch pressure reducer.",
+    "Position trip/reset arrangement for WorkRetractPositionIsolator must be validated so it is open through the work-retract stroke and closed at the fully retracted condition.",
+    "A position-operated valve is selected without a position-triggered phase requirement.",
+    "The topology makes the reverse-order interlock depend on WorkRetractPositionIsolator, a mechanically position-operated bypass/isolator, even though the brief and supported research call for hydraulic pressure/sequence logic and do not specify a position-triggered phase device. Its asserted state changes are essential: open for work retract, closed at full retract to remove the powered work-rod path and force ReverseClampReleaseSequence to open. That is an unsupported added control element rather than a justified hydraulic sequence/check topology, so the clamp-release-after-work-retract function relies on unjustified functional complexity."
+  ],
+  "research_audit": {
+    "searches_used": 5,
+    "rounds_used": 1,
+    "selected_unique_sources": 15,
+    "extracted_documents": 14,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 48,
+    "rejected_by_reason": {
+      "lower_rank": 46,
+      "low_quality_source": 19
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "Most actuator, sequencing, holding, and branch-pressure-reduction needs are supported by cited engineering sources. However, the overall open-circuit power topology is still incomplete because the accumulated evidence explicitly lacks a cited source for the reservoir-to-pump suction/inlet connection. Since the system_power_and_relief need is critical and includes suction, pump, relief, return, and reservoir topology, design should not proceed until that missing suction-flow-path claim is supported.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Relief-valve placement, relief discharge to tank/reservoir, fixed-displacement pump overpressure protection, relief setting as maximum system pressure, and return/drain-to-reservoir paths are well supported by cited textbook/technical sources in T1. But T1 explicitly states that evidence for the tank-to-pump suction line was not found. Because the need requires complete suction, pump, pressure-relief, return, and reservoir topology, this critical need remains partial.",
+        "evidence_task_ids": [
+          "T1_open_circuit_power_relief_return"
+        ]
+      },
+      {
+        "need_id": "function_clamp_actuator_directional_control",
+        "status": "covered",
+        "rationale": "T2 supports the component class and connection pattern for a double-acting clamp cylinder controlled by a 4-way directional control valve, including A-to-cap/B-to-rod hookup, extend/retract actuation, and neutral spool behavior options. Load-holding neutral safety for the clamp is further addressed by the separate pilot-operated check valve evidence in T3.",
+        "evidence_task_ids": [
+          "T2_double_acting_cylinder_dcv_sizing_only_speed"
+        ]
+      },
+      {
+        "need_id": "function_clamp_actuator_motion_profile",
+        "status": "covered",
+        "rationale": "T2 supports sizing-only speed behavior using pump flow and cylinder effective area rather than additional speed-control topology. T3 supports the hold phase using pilot-operated check/load-lock logic, and T5 supports pressure-sequence transition from clamp extension/clamping to the working actuator phase and later clamp release after the work return sequence.",
+        "evidence_task_ids": [
+          "T2_double_acting_cylinder_dcv_sizing_only_speed"
+        ]
+      },
+      {
+        "need_id": "function_clamp_actuator_holding",
+        "status": "covered",
+        "rationale": "T3 provides cited support for pilot-operated check valves placed at or near actuator work ports: free flow into the actuator, reverse-flow blocking from the load, pilot pressure release, and cross-piloting from the opposite work line for a double-acting cylinder. It also provides safety rationale that directional valve neutral/leakage alone should not be relied on as the holding element.",
+        "evidence_task_ids": [
+          "T3_clamp_load_holding_pilot_check"
+        ]
+      },
+      {
+        "need_id": "function_working_actuator_directional_control",
+        "status": "covered",
+        "rationale": "T2 supports a double-acting working cylinder operated by a 4-way directional control valve, including A-to-cap/B-to-rod hookup, extend/retract function, and neutral spool behavior options.",
+        "evidence_task_ids": [
+          "T2_double_acting_cylinder_dcv_sizing_only_speed"
+        ]
+      },
+      {
+        "need_id": "function_working_actuator_motion_profile",
+        "status": "covered",
+        "rationale": "T2 supports sizing-only advance/retract speed based on flow rate and cylinder effective area, including the distinction between cap-end area for extension and annular rod-end area for retraction. T5 supports the ordered working-actuator phase placement within the multi-actuator sequence.",
+        "evidence_task_ids": [
+          "T2_double_acting_cylinder_dcv_sizing_only_speed"
+        ]
+      },
+      {
+        "need_id": "system_sequence_and_interlocks",
+        "status": "covered",
+        "rationale": "T5 provides cited support for a hydraulic pressure-sequence topology: clamp actuator receives flow first, a normally closed sequence valve blocks the working branch until clamp pressure rises, bypass checks preserve reverse flow, and sequence-valve drains are used where both work ports may be pressurized. It also cites a two-cylinder sequence order of clamp/cylinder 1 extend, work/cylinder 2 extend, work/cylinder 2 retract, and clamp/cylinder 1 retract, with clamp pressure maintained during the work stroke/return by a pilot-operated check valve.",
+        "evidence_task_ids": [
+          "T5_hydraulic_sequence_interlock_no_electrical_switch"
+        ]
+      },
+      {
+        "need_id": "driver_branch_pressure_reduction",
+        "status": "covered",
+        "rationale": "T4 provides cited support for using a pressure-reducing valve in only the lower-pressure clamp branch, controlling downstream pressure to the clamp circuit while the main system relief remains at the higher system pressure. It also supports placement in the branch/outlet side feeding the clamp circuit, use of a reducing/relieving style where trapped downstream pressure must be relieved, and the requirement for an open drain/third port to tank.",
+        "evidence_task_ids": [
+          "T4_clamp_branch_pressure_reducing_valve"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Critical missing claim: the reservoir/tank must supply the pump inlet through a suction line in an open hydraulic circuit, completing the path reservoir → pump inlet/suction → pump outlet/pressure circuit → valves/actuators/relief → return/tank.",
+      "Noncritical limitation: some sources for neutral spool examples are commercial product pages rather than primary standards, but the essential DCV connection and center-condition principles are supported by technical sources.",
+      "Noncritical limitation: return-order sequencing evidence includes some examples that mention solenoids/limit switches; however, the cited sequence-valve principles and two-cylinder sequence circuit still support the hydraulic topology pattern."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "invalid",
+    "deterministic": {
+      "verdict": "invalid",
+      "issues": [
+        {
+          "code": "UNJUSTIFIED_POSITION_VALVE",
+          "severity": "error",
+          "scope": "selection",
+          "description": "A position-operated valve is selected without a position-triggered phase requirement.",
+          "related": [
+            "WorkRetractPositionIsolator"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "15 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": true,
+          "details": "5 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": false,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "invalid",
+      "design_issues": [
+        {
+          "code": "UNJUSTIFIED_POSITION_VALVE",
+          "severity": "error",
+          "scope": "selection",
+          "description": "The topology makes the reverse-order interlock depend on WorkRetractPositionIsolator, a mechanically position-operated bypass/isolator, even though the brief and supported research call for hydraulic pressure/sequence logic and do not specify a position-triggered phase device. Its asserted state changes are essential: open for work retract, closed at full retract to remove the powered work-rod path and force ReverseClampReleaseSequence to open. That is an unsupported added control element rather than a justified hydraulic sequence/check topology, so the clamp-release-after-work-retract function relies on unjustified functional complexity.",
+          "related": [
+            "WorkRetractPositionIsolator",
+            "ReverseClampReleaseSequence",
+            "WorkCylinder",
+            "ClampCylinder",
+            "working_actuator",
+            "clamp_actuator"
+          ]
+        }
+      ],
+      "summary": "The open-circuit supply, relief, clamp pressure reduction, pilot-check clamp holding, forward clamp-before-work sequencing, and actuator extend/retract paths are otherwise functionally coherent. The design is invalid because the reverse sequence is repaired by an unjustified position-operated isolator whose position-triggered behavior is not required or supported by the brief/research but is essential to the claimed safe return order."
+    },
+    "repair_scope": "selection",
+    "topology_round": 4,
+    "summary": "Deterministic validation: invalid. Engineering review: invalid. The open-circuit supply, relief, clamp pressure reduction, pilot-check clamp holding, forward clamp-before-work sequencing, and actuator extend/retract paths are otherwise functionally coherent. The design is invalid because the reverse sequence is repaired by an unjustified position-operated isolator whose position-triggered behavior is not required or supported by the brief/research but is essential to the claimed safe return order."
+  },
+  "repair_stop_reason": null,
+  "validation_fingerprints": [
+    "50d3a4629ac14faf",
+    "b77f41a3b0bf056d",
+    "3574691a0f1ab459",
+    "5ed2321ef4cc13ed"
+  ]
+}

@@ -60,11 +60,22 @@ def derive_research_need_hints(requirements: dict[str, Any]) -> list[KnowledgeNe
         )
         phases = function.get("motion_phases") or []
         phase_speed_control = any(
-            phase.get("speed_adjustable") or phase.get("speed_load_independent") for phase in phases
+            str(phase.get("speed_realization") or "sizing_only")
+            not in {"sizing_only"}
+            for phase in phases
         )
-        if len(phases) > 1 or phase_speed_control or function.get("speeds_adjustable") or function.get("speed_load_independent"):
+        same_direction_multiphase = any(
+            sum(phase.get("motion") == direction for phase in phases) > 1
+            for direction in {phase.get("motion") for phase in phases}
+        )
+        hydraulic_phase_change = any(
+            step.get("hydraulically_enforced") and step.get("phase_id") in {phase.get("id") for phase in phases}
+            for step in (requirements.get("operational_logic") or {}).get("sequence", [])
+        )
+        if phase_speed_control or same_direction_multiphase or hydraulic_phase_change:
             typed_decisions = "; ".join(
-                f"{phase.get('id')}: {phase.get('motion')} {phase.get('metering_side')} "
+                f"{phase.get('id')}: {phase.get('motion')} {phase.get('speed_realization')} "
+                f"{phase.get('metering_side')} "
                 f"at {phase.get('metered_chamber')} {phase.get('metered_flow')}"
                 for phase in phases
             )
@@ -120,6 +131,7 @@ def derive_research_need_hints(requirements: dict[str, Any]) -> list[KnowledgeNe
         "regeneration_fast_approach": "Regenerative fast-approach topology",
         "energy_storage_peak_flow": "Accumulator-supported peak-flow topology",
         "pressure_limiting_stall": "Stall pressure-limiting topology",
+        "branch_pressure_reduction": "Lower-pressure actuator branch protection using pressure reduction",
     }
     for driver in requirements.get("derived_design_drivers", []):
         capability = driver.get("capability")

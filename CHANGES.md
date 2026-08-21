@@ -1,3 +1,553 @@
+# Common-Command Interlock and Subject Stall Detection — v0.4.5 — 2026-08-20
+
+## Run set diagnosed
+
+Three traces from v0.4.4.
+
+| Problem | Status | Rounds |
+| --- | --- | --- |
+| P7-04 | **`validated_with_warnings`** | 1 |
+| P7-05 | `unresolved` | 4 |
+
+P7-04 is fixed. Both v0.4.4 normalizations fired on it exactly as designed - the
+approach phase was promoted to share the throttle, and no sequence valve was
+demanded - and the minimal six-component circuit validated in a single round.
+
+P7-05 also improved: **deterministic validation now passes it completely.** The
+only blocking error in the final round came from the LLM design reviewer.
+
+## P7-05 - a pressure interlock needs one command, not two
+
+The run used two directional valves, a float-centre `ClampDCV` and a
+closed-centre `DrillDCV`, and then spent four rounds alternating between the only
+two places it could take the forward sequence pilot from:
+
+| Round | Pilot source | Rejected because |
+| --- | --- | --- |
+| 1 | `ClampDCV.A` | dies when the clamp valve leaves extend |
+| 2 | `Pump.P` | pump pressure proves nothing about clamp force |
+| 3 | `ClampLoadLock.A2` | isolated by the lock once the clamp valve centres |
+| 4 | `Pump.P` | same as round 2 |
+
+Neither option can work, and that is a property of the two-valve arrangement
+rather than of the wiring. With separate valves the clamp branch can be
+de-commanded independently, so no clamp-referenced node stays live through every
+phase where the sequenced branch must be open, and the only always-live node -
+the pump line - carries no information about the clamp. Sharing one directional
+valve removes both horns: the clamp line stays live for the whole forward
+command, so the pilot is clamp-referenced *and* alive. It is also the only
+arrangement in which the ordering is genuinely hydraulic; two independently
+switched valves make the sequence a property of the control wiring, which these
+briefs forbid.
+
+Both earlier successful runs of this circuit family - the v0.4.1 P7-05 and the
+v0.4.1 P7-07 - used one valve.
+
+- Candidate scoring now rejects a plan whose pressure-sequenced functions are
+  commanded by more than one directional valve. Functions with no pressure
+  interlock between them are unaffected.
+- `pressure_sequence_between_functions` states the rule and adds the
+  corresponding prohibitions, including not piloting from the common pump line.
+
+## The stall detector was blind to renamed findings
+
+Four rounds produced four error codes for one fault:
+
+```
+FWD_SEQ_PILOT_LOST_IN_CLAMP_RELEASE
+FWD_SEQ_NOT_CLAMP_PRESSURE_INTERLOCKED
+FWD_SEQ_PILOT_IS_ISOLATED_BY_LOAD_LOCK
+FWD_SEQUENCE_NOT_CLAMP_PRESSURE_REFERENCED
+```
+
+`_topology_error_signature` hashes codes, so every round looked like progress and
+neither escalation nor the no-progress stop ever fired. Deterministic codes are
+stable; free-form reviewer codes are not.
+
+- New `_topology_error_subjects` records which *component ids* an unresolved
+  error set is about. Component ids are stable across renames.
+- Two consecutive rounds whose error subjects overlap by 60 % or more count as no
+  progress and escalate the repair scope, whatever the codes say.
+- Replaying the four P7-05 rounds, the stall is now detected at **round 2**
+  (overlap 0.67), escalating from `wiring` to `selection` - which is where the
+  two-valve fault actually lives, and where the new common-command rule rejects
+  it.
+
+## Tests
+
+157 offline tests pass, up from 152.
+
+# Rule-Contradiction Repair — v0.4.4 — 2026-08-19
+
+## Run set diagnosed
+
+Eight traces from v0.4.3. Five carry a topology:
+
+| Problem | Status | Rounds |
+| --- | --- | --- |
+| P7-01 | `validated_with_warnings` | 1 |
+| P7-02 | `validated_with_warnings` | 1 |
+| P7-03 | **`validated`** | 1 |
+| P7-04 | `unresolved` | 4 |
+| P7-05 | `unresolved` | 4 (twice) |
+
+P7-03 is now clean, confirming the v0.4.0 float-centre work. Neither remaining
+failure is a model mistake. In both, two deterministic rules demanded opposite
+things, so no topology could satisfy both and the repair loop spent its whole
+budget moving a component it was simultaneously required to have and forbidden
+to have.
+
+## P7-04 - a pressure trigger inside one actuator is not sequencing
+
+`pressure_sequence_required` was `any(step.trigger == "pressure")`. P7-04's brief
+says "the speed change must result from the change in load", which the extractor
+correctly typed as a hydraulically enforced pressure trigger. Both phases belong
+to the same actuator, and the mechanism is a plain throttle: a non-compensated
+orifice passes less flow as its pressure drop collapses. But the rule saw a
+pressure trigger and demanded a sequence valve, at which point the minimality
+rules and the design reviewer rejected that same valve
+(`UNAUTHORIZED_SEPARATE_APPROACH_CONTROL`,
+`LOAD_TRIGGERED_SPEED_CHANGE_NOT_ENSURED`). Deadlock.
+
+- New `gap_policy.interfunction_sequence_steps` / `requires_pressure_sequence_valve`.
+  A step counts as sequencing only when the functions it activates differ from
+  those its predecessor activates.
+- `validation.py`, `candidate_selection.py` and `patterns.py` all read the same
+  helper, so the validator, the scorer and the hints can no longer disagree.
+- A *position* trigger inside one actuator still requires a valve state change -
+  a cam-operated bypass cannot be a throttle characteristic - so P7-01 and P7-02
+  are unaffected.
+
+### The other half
+
+P7-04's approach was typed `unrestricted_rapid` and its feed
+`load_sensitive_throttled`, both extending. That pair cannot be built: a throttle
+in the rod line is in circuit for the whole extend stroke, and with no position
+trigger nothing can take it out for one phase. The unmetered phase demanded a
+bypass, the metered phase forbade one.
+
+New `_normalize_load_actuated_group` promotes the unmetered phase to share the
+throttle, unless a position trigger exists - in which case the bypass is real.
+With both fixes the minimal seven-component circuit validates.
+
+## P7-05 - a parked hold and a maintained hold need opposite things
+
+`LOAD_LOCK_PILOT_NOT_VENTED_IN_HOLD`, added in v0.4.0, was written for P7-03's
+carriage: the command is released, the spool centres over the load, and the lock
+must reseat, so its pilot has to reach tank. P7-05's clamp is the other kind of
+hold. It stays commanded and supplied while the drill feeds; live pressure holds
+the load and venting the work line would release the very force the phase exists
+to maintain.
+
+Applying the parked-hold rule to a maintained hold left no way out. Centring the
+clamp valve satisfied the venting rule but killed the pilot feeding the forward
+sequence valve (`SEQUENCE_PILOT_NOT_PRESSURIZED`, and in the second run
+`REVERSE_INTERLOCK_PILOT_DROPS_DURING_CLAMP_RELEASE`). Keeping it commanded fixed
+the pilot and tripped the venting rule.
+
+- The hold branch now decides which kind of hold it is first. If the held
+  actuator has a directed pump path in that phase it is a maintained hold and the
+  venting rule does not apply; if it does not, it is parked and the rule stands.
+- New `CONCURRENT_HOLD_NOT_PRESSURE_MAINTAINED`: a hold that runs concurrently
+  with another active function and has no pump path is rejected. Oil checked in
+  behind a load lock holds only until it leaks, and anything piloted from it dies
+  with it.
+- `reverse_order_interlock` and `pressure_sequence_between_functions` now state
+  the pilot-liveness rule directly: take a sequence pilot from a line that stays
+  commanded and pump-supplied for the whole sequenced phase, never from a chamber
+  isolated by a load lock or a centred spool.
+
+Replaying the returned P7-05 topology with the clamp valve kept commanded gives
+`valid`. As returned it now reports `CONCURRENT_HOLD_NOT_PRESSURE_MAINTAINED`
+alongside the pilot errors, which says what to change rather than only what is
+missing.
+
+## Note on the modified P7-05 run
+
+One trace ran P7-05 with the "no electrical sensing device" sentence removed.
+That did not help - the planner used the freedom to add a second directional
+valve, which broke the pilot chain in a new place. The constraint was not what
+made the problem hard.
+
+## Tests
+
+152 offline tests pass, up from 145.
+
+# Crash Repair and Rare-Branch Hardening — v0.4.3 — 2026-08-19
+
+## Reported crash
+
+A live P7-01 run died in `plan_components`:
+
+```
+File "hydraulic_mas/candidate_selection.py", line 172, in _candidate_evaluation
+  "topology catalog gaps: " + ", ".join(sorted({gap.capability for gap in topology_gaps}))
+AttributeError: 'dict' object has no attribute 'capability'
+```
+
+`blocking_catalog_gaps` takes and returns plain dicts, but the caller read an
+attribute. Fixed by reading `gap.get("capability")`.
+
+The bug shipped in v0.3.0 and is unchanged from that release - it is not a
+regression from any v0.4.x work. It survived every trace reviewed so far for one
+reason: the branch only executes when the component planner emits a genuinely
+*blocking* `CatalogGap`, and until this run none ever had. Every earlier trace
+carried `catalog_gaps: []`.
+
+## The defect class, and what now prevents it
+
+Most of this pipeline's optional fields - `catalog_gaps`, `evidence_gaps`,
+`repair_actions`, `external_interfaces`, `port_terminations`,
+`component_planner_recovery` - are empty in a healthy run. The code that consumes
+them therefore only runs when something has already gone wrong, which is exactly
+when a crash costs the most. Two additions close that hole.
+
+### `tests/test_rare_branch_smoke.py`
+
+Populates the optional fields and runs the real deterministic code over them. It
+pins the reported traceback directly, and covers alongside it: a blocking gap
+through `evaluate_and_select_candidates` as the graph actually calls it; gap
+helpers given empty, null-valued and sizing-scoped payloads; all six repair
+action kinds applying; malformed repair payloads being rejected at parse time
+rather than reaching `apply_repair_actions`; validation with gaps, interfaces and
+terminations all populated; `repair_scope` over every scope and over models,
+dicts and empty input; and terminal rendering of a fully populated final output
+and of a failure payload.
+
+It also pins the `min_length=2` constraint on `ComponentPlanSet.candidates`,
+because `evaluate_and_select_candidates` ends with `ranked[0][0]` and is only
+safe while that holds.
+
+### `tests/test_dict_model_boundary_lint.py`
+
+A static check over every module in the package. Within each function it tracks
+names that provably hold dicts - assigned from a known dict-returning helper,
+from `.model_dump(...)`, or from a comprehension over one of those - and fails if
+any is read with attribute syntax.
+
+Two Python details had to be handled correctly, and both produced false positives
+in the first cut:
+
+* a comprehension has its own scope, so `[g.model_dump() for g in gaps]` must not
+  leak `g` into the enclosing function; and
+* an assignment's right-hand side is evaluated before the name is rebound, so
+  `value = value.model_dump()` is not a dict read with attribute syntax.
+
+The lint is deliberately conservative: it follows only sources it is certain
+about, so it will not catch every possible instance, but it reports no false
+positives on the current tree and it detects the line that shipped. Two
+self-tests guard it - one asserts it still catches the original bug, one asserts
+it does not flag `plan.evidence_gaps`, whose elements really are models.
+
+## Audit result
+
+The package was swept for the same pattern. `candidate_selection.py:172` was the
+only occurrence. `candidate_selection.py:246` reads `gap.capability` off
+`plan.evidence_gaps`, which are Pydantic models, and is correct. `terminal.py`
+consumes `final_output` consistently through `.get()`, which is correct because
+that payload is JSON. `mypy` was run over the package; its remaining findings are
+kwargs-splat and `Literal` narrowing noise, none of them reachable crashes.
+
+## Tests
+
+144 offline tests pass, up from 95.
+
+# Shared-Supply Speed Repair — v0.4.2 — 2026-08-19
+
+## Run diagnosed
+
+P7-05 on v0.4.1 returned `validated_with_warnings` — a structurally valid
+circuit, reached in three topology rounds. But it contains no flow control on
+the drill feed. Both motions were typed `sizing_only`:
+
+```
+workpiece_clamp.clamp_advance       25.0   mm/s   sizing_only
+drill_feed.drill_advance_feed        1.667 mm/s   sizing_only
+```
+
+`sizing_only` means "choose the pump and the bores to reach this speed". On a
+shared supply that is not something sizing can deliver. Both actuators run
+sequentially from one fixed pump in the same command direction, so each in turn
+takes the whole delivery and moves at `Q_pump / A`. Their areas are already
+fixed by their force requirements and the pump is already fixed by the faster
+motion, which leaves the slower actuator's speed over-determined:
+
+```
+Pump sized for the clamp   12 272 mm2 x 25 mm/s        = 18.41 L/min
+Drill fed unthrottled      18.41 L/min / 3117 mm2      = 98.4 mm/s
+Required                                                 1.667 mm/s   -> 59x over
+Bore that would fix it by sizing alone                   484 mm
+```
+
+The drill needs 0.31 L/min, so a throttle has to absorb 18.1 L/min. The
+reference solution has exactly this element ("drill one-way flow control,
+approximately 0.216 L/min meter-out"); the run omitted it and nothing caught it.
+
+This failure mode was identified when the v0.3.0 P7-05 trace was first reviewed
+and a rule was planned for it, but the rule was never written. v0.4.2 writes it.
+
+## Changes made
+
+- New `requirements_quality._normalize_shared_supply_speeds`. Within one motion
+  direction, when two or more distinct functions carry explicit numeric speeds
+  and all are typed as unmetered, only the fastest may stay `sizing_only` — the
+  pump is sized for that one. Every phase at least 3x slower is promoted to
+  `adjustable_throttled` with `meter_out` on its exhaust chamber and a
+  non-compensated throttle.
+- Meter-out is the conservative default: it holds the actuator back rather than
+  letting it run away when a drill breaks through or a load drops off.
+- Speeds are normalized to mm/s before comparison, so `1.5 m/min` against
+  `0.1 m/min` is compared correctly.
+- The 3x guard keeps the rule off cases a bore choice really can reconcile, and
+  a single function is never affected — one actuator owns the whole delivery, so
+  its speed genuinely is a sizing choice, and distinct speeds within one function
+  are already covered by the existing rule.
+- Each promotion is recorded in `requirements_normalizations` with the reason.
+
+Replaying the live P7-05 requirements through the fix produces:
+
+```
+drill_advance_feed promoted to an adjustable meter-out throttle: one supply also
+serves a 25 mm/s extend motion, so a 1.66667 mm/s motion on the same pump cannot
+be realized by pump and bore sizing alone.
+```
+
+The clamp stays `sizing_only`. Adding the implied one-way flow control to the
+run's own topology and revalidating gives `valid` with no errors.
+
+## Tests
+
+95 offline tests pass, up from 91. Added: the exact P7-05 speed pair is promoted
+while the faster motion is left alone; a modest speed difference is not touched;
+a single function is never affected; and mixed speed units compare correctly.
+
+# Requirements-Gate Repair — v0.4.1 — 2026-08-19
+
+## Run set diagnosed
+
+Two LangSmith traces of P7-07 on v0.4.0. Neither reached the topology stage, so
+neither exercised any v0.4.0 change.
+
+* `01a01971...` — extract, critique, repair, critique, then `clarify_requirements`
+  raised the interactive `GraphInterrupt` asking whether any phase is
+  overrunning. Expected interactive behaviour, not a failure.
+* `01a01981...` — the resumed run, with "horizontal / non-overrunning" answered.
+  It reached `finalize_requirements` and stopped at `requirements_failure`.
+
+## Root cause
+
+The gate blocked on exactly one structural issue:
+
+```
+Motion phase 'clamp_hold_during_work' has an unspecified load_control decision.
+```
+
+Everything else was in order. The critic returned `proceed_with_assumptions`
+with zero blocking questions, `clamp_actuator.holding.must_hold_position` was
+true, `load_holding` was already a derived design driver, and the clarification
+about load character had been answered and recorded. The extractor simply
+declined to name a load-control strategy, the repair round did not name one
+either, and `LoadControlStrategy.unspecified` reached a hard structural check
+with no deterministic resolution behind it. The run ended before research.
+
+`unspecified` means "the extractor did not decide". It is derivable from the
+load type and the holding contract, so it should never have been able to end a
+run.
+
+## Changes made
+
+- New `requirements_quality._normalize_load_control` resolves every
+  `load_control=unspecified` phase deterministically, before the structural
+  check runs. An overrunning or gravity load takes `counterbalance`; a hold
+  phase on a function that declares a holding requirement takes `pilot_check`;
+  anything else takes `none`. Every rule can only add load control, never remove
+  it, and an explicit decision is never overwritten. Each resolution is appended
+  to `requirements_normalizations` so the choice stays auditable.
+- `repair_requirements` now normalizes its output and recomputes the structural
+  issues before the second critique. A deterministic correction no longer has to
+  survive another LLM round to take effect, and the critic sees a spec whose
+  typed decisions are already resolved.
+- Extractor prompt: `load_control` must always be decided, `unspecified` will
+  fail the gate, and the choice follows from the load and the holding contract
+  rather than from the valve that will eventually be selected.
+
+## Fix to a v0.4.0 rule
+
+The v0.4.0 candidate-selection rule that requires a venting valve centre
+alongside a pilot-operated load lock keyed off "the function has a hold phase".
+That is too broad. P7-07's clamp is held at reduced pressure while the
+directional valve stays commanded forward, so its lock pilot is fed from a live
+line rather than trapped by a centred spool; the rule would have forced a float
+centre onto every clamp-then-work station.
+
+It now triggers only on an *unpowered* hold — a stated hold duration, a drift
+tolerance, a no-creep clause, or power-loss/hose-burst retention — which is what
+actually centres the spool over the load. P7-03's ten-minute drift-free hold
+still triggers it; P7-07's powered clamp hold no longer does.
+
+The deterministic validator rule `LOAD_LOCK_PILOT_NOT_VENTED_IN_HOLD` is
+unchanged. It works from the phase graph rather than a heuristic, and it already
+passes P7-07 correctly: the clamp lock's pilot reaches tank through the reverse
+sequence valve's integral check and the commanded directional valve.
+
+## Tests
+
+91 offline tests pass, up from 84. Added: the exact blocking issue no longer
+reaches the gate; overrunning phases resolve to counterbalance and unheld phases
+to none; an explicit decision is never overwritten; a powered hold does not
+demand a venting centre while an unpowered timed hold still does; and an
+end-to-end case that normalizes the live requirement shape and then validates
+the corrected clamp-then-work topology against it with zero issues.
+
+# Live-Run Failure Repair — v0.4.0 — 2026-08-19
+
+## Run set diagnosed
+
+Eleven LangSmith traces from the v0.3.0 release. Seven carry a topology: P7-01,
+P7-02 and P7-06 reached `validated_with_warnings` in a single topology round;
+P7-03, P7-04, P7-05 and P7-07 exhausted all four rounds and returned
+`unresolved`. The remaining four traces stopped at the clarification interrupt.
+
+The four failures reduce to five root causes, documented with their controls in
+`docs/REVISION_PLAN_V0.4.0.md`.
+
+## Changes made
+
+### Catalog (21 -> 24 topology-changing classes)
+
+- Added `GENERIC_4_3_SOLENOID_FLOAT_CENTER_DCV`: neutral blocks P and connects
+  A, B and T. This is the class P7-03 needed and could not find. A pilot-operated
+  check only reseats when its pilot can decay to tank, and every previous 4/3
+  class blocked both work ports in neutral.
+- Added `GENERIC_4_3_SOLENOID_OPEN_CENTER_DCV`: neutral connects P, T, A and B,
+  so a fixed pump unloads and both work lines vent at the same time.
+- Added `GENERIC_VENTED_PILOT_OPERATED_RELIEF_VALVE`: a vent port gives true
+  single-pump unloading and staged decompression without adding a second pump.
+
+### Validation
+
+- New `LOAD_LOCK_PILOT_NOT_VENTED_IN_HOLD`. In a hold phase, every load lock's
+  pilot port - or, for a cross-piloted dual lock, its valve-side ports - must
+  have a directed path to tank in that phase's graph.
+- The forbidden-overlap rule now computes which *direction* a residual path
+  could drive an actuator, and subtracts directions covered by a declared and
+  proven end-of-stroke completion. This removes the P7-05 false positive that
+  fired against a drill already sitting on its stop.
+- New `UNPROVEN_COMPLETED_FUNCTION` guards the new field: a completion claim must
+  be backed by an earlier phase in the operational sequence that actually drives
+  that function in that direction.
+- Completion is evaluated in declared sequence order rather than function
+  declaration order.
+- `EvidenceGap.blocking` is no longer trusted verbatim. `classify_evidence_gap`
+  decides deterministically, and the model's flag can only downgrade. The
+  downgrade reason is written into the issue description.
+
+### Requirements normalization
+
+- New `_normalize_flow_compensation` promotes a throttle to pressure-compensated
+  when a phase declares its speed load-independent, or when two throttled phases
+  of one function in the same direction are commanded to the same speed while
+  the force differs by more than 25 %. This catches the latent P7-02 error: a
+  plain throttle cannot hold 2 m/min through both a 12 kN and a 50 kN stage.
+  Every promotion is recorded in `requirements_normalizations`.
+
+### Candidate selection
+
+- Two or more pumps are rejected without an energy-saving/hi-lo driver. A hi-lo
+  supply is an energy pattern, not a speed-control mechanism.
+- Plain check valves are rejected unless they serve pump combining or
+  regeneration; the sequence, reducing-with-reverse-check and one-way flow
+  control classes already carry integral reverse checks.
+- A load lock assigned to a function with a neutral hold phase is rejected when
+  it is paired with a directional valve whose neutral blocks the work ports.
+
+### Pattern library
+
+- New `<function>_load_actuated_speed_change_minimal`: exactly one
+  non-compensated one-way flow control, with explicit prohibitions on a parallel
+  bypass, a feed-enable sequence valve and a second pump.
+- `reverse_order_interlock` now carries the concrete wiring recipe - DCV.B to the
+  working retract chamber and to a second sequence valve whose A port feeds both
+  the clamp release chamber and the clamp lock's pilot - plus prohibitions on
+  position valves, redundant checks and relying on solenoid energisation order.
+- `load_lock` states the required pump/valve-centre pairing.
+
+### Repair routing
+
+- New `_topology_error_signature` hashes only unresolved error codes and their
+  subjects. The previous fingerprint included components and connections, so any
+  cosmetic change looked like progress and the loop never noticed it was stuck.
+- When a signature survives a repair round, the scope escalates one level
+  outward: `wiring -> selection -> requirements`, and `research -> selection`.
+  The escalation and its reason are appended to the validation summary.
+
+### Prompts and schema
+
+- `PhaseConfiguration.completed_function_ids` added and documented.
+- Component-planner prompt: hi-lo is an energy pattern; a load-actuated speed
+  change is one throttle; plain checks need a combining or regenerative reason;
+  position valves need a position trigger; valve-centre selection is deliberate.
+- Netlist-builder prompt: declare a finished actuator instead of isolating it,
+  and pair load locks with a venting neutral.
+
+## Tests
+
+84 offline tests pass, up from 58. `tests/test_v040_failure_modes.py` pins both
+halves of every fix: the defect is still rejected and the correct circuit is now
+accepted. The P7-03 acceptance fixture was corrected to a float centre - its
+previous tandem centre was the defect this revision found.
+
+# Complete-Circuit Reliability Revision — v0.3.0 — 2026-08-17
+
+## Run set diagnosed
+
+Reviewed the P7-01 through P7-07 traces and compared their behavior with the
+functional benchmark circuits. The revision targets correctness rather than
+literal benchmark similarity. The detailed failure/control/acceptance matrix is
+in `docs/REVISION_PLAN_V0.3.0.md`.
+
+## Changes made
+
+- Added mandatory typed `speed_realization` and propagated it from requirements
+  through the final netlist. Numeric speed targets alone are now sizing-only;
+  distinct speeds in the same direction require an explicit topology mechanism.
+- Added an auditable generic pattern library for rapid/feed bypass, typed
+  metering, passive load-dependent throttling, load locks, counterbalance,
+  regeneration, pressure sequencing, lower-pressure branches and synchronization.
+- Made clarification answers authoritative to the extractor, critic and repair
+  stages. Added semantic clarification topics/keys so a model cannot re-ask an
+  answered question under a new id.
+- Added `max_working_pressure` and deterministic pressure-reducing-valve checks
+  for a function whose ceiling is below the global system ceiling.
+- Split `EvidenceGap` from true `CatalogGap`. Missing an exact cited schematic
+  no longer masquerades as a missing component class; a genuinely absent class
+  still blocks.
+- Added deterministic candidate rejection for unjustified flow controls,
+  sequence valves and position valves, plus a stronger component-count penalty.
+- Added regenerative chamber-recirculation validation in place of mandatory
+  tank exhaust, and explicit matched-series actuator displacement reachability.
+- Restricted hydraulic trigger validation to genuinely hydraulically enforced
+  steps and deterministically normalizes operator/external command mistakes.
+- Added requirements-scoped topology repair, error/topology fingerprints,
+  one-targeted-search-per-fingerprint behavior and no-progress termination.
+- Reduced catalog-tool churn by encouraging grouped inspection and accepting a
+  single final `get_port_reference` audit call.
+- Extended terminal/final JSON output with speed realization, separate gap
+  classes, repair stop reason and validation fingerprints.
+- Packaged the seven default problem statements inside `hydraulic_mas.data` so
+  the installed console command works from a wheel as well as an editable source
+  checkout.
+- Added regression coverage for every observed root-cause family, including the
+  exact repeated-clarification, phantom-sequence, regeneration, series-coupling,
+  branch-pressure, gap-classification and stalled-repair failures.
+
+## Verification
+
+- Full offline suite: **58 passed**, including accepted canonical P7-01 through
+  P7-07 topology fixtures.
+
+---
+
 # Component-Planner Structured-Output Recovery — v0.2.2 — 2026-08-14
 
 ## Failure diagnosed

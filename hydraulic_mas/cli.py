@@ -16,7 +16,7 @@ from .terminal import TerminalReporter
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROBLEMS = PROJECT_ROOT / "problems" / "Problems_7.txt"
+DEFAULT_PROBLEMS = Path(__file__).resolve().parent / "data" / "Problems_7.txt"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -56,6 +56,8 @@ def _initial_state(problem_id: str, problem: str, settings: Settings, *, interac
         "user_query": problem,
         "interactive": interactive,
         "clarification_answers": [],
+        "clarification_records": [],
+        "resolved_clarification_keys": [],
         "requirements_round": 0,
         "requirements_repair_attempted": False,
         "requirements_structural_issues": [],
@@ -73,6 +75,12 @@ def _initial_state(problem_id: str, problem: str, settings: Settings, *, interac
         "max_searches": settings.max_searches,
         "topology_round": 0,
         "max_topology_rounds": settings.max_topology_rounds,
+        "topology_validation_fingerprints": [],
+        "topology_no_progress": False,
+        "repair_stop_reason": "",
+        "targeted_research_fingerprints": [],
+        "topology_requirements_repair_count": 0,
+        "topology_requirements_repair_failed": False,
         "repair_history": [],
     }
 
@@ -126,6 +134,8 @@ def run_problem(
                 "topology",
                 "deterministic_validation",
                 "topology_validation",
+                "topology_validation_fingerprints",
+                "repair_stop_reason",
                 "repair_history",
             ):
                 if state.get(key) is not None:

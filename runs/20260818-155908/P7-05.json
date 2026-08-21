@@ -1,0 +1,1398 @@
+{
+  "problem_id": "P7-05",
+  "title": "CNC drilling machine hydraulic requirements",
+  "status": "unresolved",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Port-level repaired topology implementing the selected single-command pressure-sequenced clamp/drill circuit. Tank supplies a fixed-displacement pump; Pump.P branches directly to the relief valve and one tandem-center 4/3 MainDCV. MainDCV.A is the common forward work branch: it supplies the clamp cap end through the clamp cap-end pilot-operated check and simultaneously supplies the inlet-pressure ForwardSequenceValve, which remains closed until clamp/main forward pressure reaches the sequence threshold and then feeds the drill cap end. MainDCV.B is the common reverse work branch: it supplies the drill rod end directly and the inlet-pressure ReverseSequenceValve, which remains closed until reverse pressure rises and then feeds the clamp rod end and pilots the clamp cap-end check open. Sequence-valve drains and all valve returns terminate directly at Tank.R. No separate axis DCVs, externally piloted sequence valves, position-operated gates, manifolds, or flow-control valves are used.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "open-circuit reservoir for pump suction and all returns/drains",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "Common hydraulic return boundary; reservoir sizing is deferred."
+      ],
+      "selection_basis": "Required open-circuit source/sink component."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "system pressure limiting protection",
+      "function_id": null,
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Pressure limit target comes from the brief; exact setting is deferred."
+      ],
+      "selection_basis": "Required safety element to prevent system overpressure."
+    },
+    {
+      "id": "MainDCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "single bidirectional command valve for the pressure-sequenced clamp and drill branches",
+      "function_id": null,
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Extend supplies MainDCV.A; retract supplies MainDCV.B; neutral unloads P to T with A and B blocked."
+      ],
+      "selection_basis": "Single-command automatic pressure sequencing."
+    },
+    {
+      "id": "ClampCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "horizontal clamp actuator",
+      "function_id": "clamp_workpiece",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Double-acting linear actuator; bore, rod, and stroke are deferred."
+      ],
+      "selection_basis": "Required powered extension and retraction for the clamp axis."
+    },
+    {
+      "id": "DrillCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "horizontal drill-feed actuator",
+      "function_id": "feed_drill",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Double-acting linear actuator; bore, rod, and stroke are deferred."
+      ],
+      "selection_basis": "Required powered feed extension and powered retraction for the drill axis."
+    },
+    {
+      "id": "ClampHoldCheck",
+      "catalog_key": "GENERIC_SINGLE_PILOT_OPERATED_CHECK",
+      "name": "Pilot-Operated Check Valve",
+      "comp_type": "single_pilot_check_valve",
+      "role": "seated static clamp load lock at clamp cap-end work port",
+      "function_id": "clamp_workpiece",
+      "ports": [
+        "V",
+        "C",
+        "X"
+      ],
+      "configuration": [
+        "Free flow from valve side to clamp cap end during clamp advance.",
+        "Reverse flow from clamp cap end is blocked until piloted from the authorized clamp rod/release line."
+      ],
+      "selection_basis": "Provides leakage-resistant clamp holding during drilling; DCV spool leakage alone is not used as the holding device."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "open-circuit positive-displacement pressure supply",
+      "function_id": null,
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Fixed-displacement supply; drive and displacement are deferred."
+      ],
+      "selection_basis": "Compatible with single tandem-center neutral unloading and no stated efficiency requirement."
+    },
+    {
+      "id": "ForwardSequenceValve",
+      "catalog_key": "GENERIC_SEQUENCE_VALVE_WITH_REVERSE_CHECK",
+      "name": "Hydraulic Sequence Valve with Reverse Check",
+      "comp_type": "sequence_valve",
+      "role": "hydraulic pressure interlock preventing drill feed until clamp pressure condition is reached",
+      "function_id": "feed_drill",
+      "ports": [
+        "P",
+        "A",
+        "T"
+      ],
+      "configuration": [
+        "P-A opens at inlet pressure threshold; reverse check permits drill cap return; T drains to tank."
+      ],
+      "selection_basis": "Supported pressure-triggered clamp-before-drill sequencing."
+    },
+    {
+      "id": "ReverseSequenceValve",
+      "catalog_key": "GENERIC_SEQUENCE_VALVE_WITH_REVERSE_CHECK",
+      "name": "Hydraulic Sequence Valve with Reverse Check",
+      "comp_type": "sequence_valve",
+      "role": "hydraulic reverse interlock preventing clamp release until drill retract pressure rises",
+      "function_id": "clamp_workpiece",
+      "ports": [
+        "P",
+        "A",
+        "T"
+      ],
+      "configuration": [
+        "P-A opens at reverse inlet pressure threshold; reverse check permits clamp rod return; T drains to tank."
+      ],
+      "selection_basis": "Hydraulic pressure-sequence drill-before-clamp-release logic."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Reservoir supplies pump suction."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Direct relief branch from pump pressure."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "MainDCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Direct pump pressure branch to the single main tandem-center directional valve supply."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief discharge returns directly to reservoir."
+    },
+    {
+      "from_component": "MainDCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Main directional valve tank port returns directly to reservoir; in neutral the tandem center unloads P to T internally."
+    },
+    {
+      "from_component": "ForwardSequenceValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "drain",
+      "notes": "Forward sequence valve drain returns directly to reservoir."
+    },
+    {
+      "from_component": "ReverseSequenceValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "drain",
+      "notes": "Reverse sequence valve drain returns directly to reservoir."
+    },
+    {
+      "from_component": "MainDCV",
+      "from_port": "A",
+      "to_component": "ClampHoldCheck",
+      "to_port": "V",
+      "line": "work",
+      "notes": "Main forward work branch supplies the valve side of the clamp cap-end pilot check."
+    },
+    {
+      "from_component": "MainDCV",
+      "from_port": "A",
+      "to_component": "ForwardSequenceValve",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Main forward work branch also supplies the inlet-pressure forward sequence valve."
+    },
+    {
+      "from_component": "ClampHoldCheck",
+      "from_port": "C",
+      "to_component": "ClampCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Pilot-check actuator side connects directly to the clamp cylinder cap end."
+    },
+    {
+      "from_component": "ForwardSequenceValve",
+      "from_port": "A",
+      "to_component": "DrillCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Forward sequence valve outlet supplies the drill cap end after the forward sequence threshold is reached; the valve's internal reverse check supports cap-end return during retract."
+    },
+    {
+      "from_component": "MainDCV",
+      "from_port": "B",
+      "to_component": "DrillCylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "Main reverse work branch supplies the drill rod end directly so drill retract flow is available before clamp release."
+    },
+    {
+      "from_component": "MainDCV",
+      "from_port": "B",
+      "to_component": "ReverseSequenceValve",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Main reverse work branch also supplies the inlet-pressure reverse sequence valve."
+    },
+    {
+      "from_component": "ReverseSequenceValve",
+      "from_port": "A",
+      "to_component": "ClampCylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "Reverse sequence valve outlet supplies the clamp rod end only after reverse pressure sequencing opens the valve; its internal reverse check supports clamp rod exhaust during clamp advance."
+    },
+    {
+      "from_component": "ReverseSequenceValve",
+      "from_port": "A",
+      "to_component": "ClampHoldCheck",
+      "to_port": "X",
+      "line": "pilot",
+      "notes": "Authorized clamp rod/release pressure pilots the clamp cap-end pilot check open during clamp retract."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "clamp_workpiece",
+      "phase_id": "clamp_extend_clamp",
+      "phase_name": "Clamp advance and force build",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Numeric speed, travel, and force targets are specified, but no adjustable, load-independent, regenerative, or deliberate throttling behavior is requested for the clamp advance.",
+      "source": "explicit"
+    },
+    {
+      "function_id": "clamp_workpiece",
+      "phase_id": "clamp_hold_during_drilling",
+      "phase_name": "Clamp hold during drilling",
+      "motion": "hold",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "pilot_check",
+      "justification": "The clamp must remain clamped during drilling; static load holding is required. No dynamic overrunning-load control is required because the clarified clamp axis is horizontal with no overrunning load.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "clamp_workpiece",
+      "phase_id": "clamp_retract_release",
+      "phase_name": "Clamp release return",
+      "motion": "retract",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Clamp release is sequenced after drill retract by a pressure-sequence condition; no specific release speed, adjustable throttling, or load-independent speed behavior is specified.",
+      "source": "explicit"
+    },
+    {
+      "function_id": "feed_drill",
+      "phase_id": "drill_feed_cut",
+      "phase_name": "Drilling feed stroke",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Numeric feed speed, travel, and force targets are specified, but no adjustable, load-independent, regenerative, or deliberate throttling behavior is requested for the drill feed.",
+      "source": "explicit"
+    },
+    {
+      "function_id": "feed_drill",
+      "phase_id": "drill_retract_return",
+      "phase_name": "Drill retract return",
+      "motion": "retract",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Drill retract-before-clamp-release sequencing is specified; no retract speed, adjustable throttling, or load-independent speed behavior is specified.",
+      "source": "explicit"
+    }
+  ],
+  "synchronization_decisions": [],
+  "phase_configurations": [
+    {
+      "phase_id": "clamp_extend_clamp",
+      "function_id": "clamp_workpiece",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "MainDCV",
+          "state": "extend",
+          "reason": "P-A supplies the common forward branch to ClampHoldCheck.V and ForwardSequenceValve.P; B-T receives reverse-side exhaust."
+        },
+        {
+          "component_id": "ForwardSequenceValve",
+          "state": "closed",
+          "reason": "Before the clamp pressure threshold is reached, P-A is blocked so drill cap supply is unavailable; the reverse check remains available for opposite-direction return."
+        },
+        {
+          "component_id": "ReverseSequenceValve",
+          "state": "closed",
+          "reason": "Clamp release is not commanded; its reverse check permits clamp rod-end exhaust toward MainDCV.B during clamp advance."
+        }
+      ],
+      "expected_active_function_ids": [
+        "clamp_workpiece"
+      ],
+      "forbidden_active_function_ids": [
+        "feed_drill"
+      ],
+      "notes": "Single forward command advances the clamp first. ForwardSequenceValve.P is live from MainDCV.A but remains below threshold until clamp pressure builds."
+    },
+    {
+      "phase_id": "clamp_hold_during_drilling",
+      "function_id": "clamp_workpiece",
+      "motion": "hold",
+      "component_states": [
+        {
+          "component_id": "MainDCV",
+          "state": "extend",
+          "reason": "The same forward command remains active so Pump.P is connected to MainDCV.A for drill feed while MainDCV.B returns to tank."
+        },
+        {
+          "component_id": "ForwardSequenceValve",
+          "state": "open",
+          "reason": "Clamp/main forward pressure at ForwardSequenceValve.P has reached the sequence threshold, opening P-A to supply DrillCylinder.Cap."
+        },
+        {
+          "component_id": "ReverseSequenceValve",
+          "state": "closed",
+          "reason": "Reverse clamp-release supply remains blocked while the forward/drilling command is active."
+        }
+      ],
+      "expected_active_function_ids": [
+        "clamp_workpiece",
+        "feed_drill"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Clamp cap-end reverse flow is held by ClampHoldCheck while the forward sequence valve feeds the drill; simultaneous feed_drill activity is intentional."
+    },
+    {
+      "phase_id": "clamp_retract_release",
+      "function_id": "clamp_workpiece",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "MainDCV",
+          "state": "retract",
+          "reason": "P-B supplies the common reverse branch; A-T provides return for cap-side exhaust paths."
+        },
+        {
+          "component_id": "ForwardSequenceValve",
+          "state": "closed",
+          "reason": "Forward feed supply is inactive; its internal reverse check permits drill cap-end return toward MainDCV.A during the preceding/reverse motion."
+        },
+        {
+          "component_id": "ReverseSequenceValve",
+          "state": "open",
+          "reason": "After drill retract pressure rises at the reverse sequence inlet, P-A opens to supply ClampCylinder.Rod and pilot ClampHoldCheck.X."
+        }
+      ],
+      "expected_active_function_ids": [
+        "clamp_workpiece"
+      ],
+      "forbidden_active_function_ids": [
+        "feed_drill"
+      ],
+      "notes": "Clamp rod pressure from ReverseSequenceValve.A opens the clamp cap-end pilot check so clamp cap flow can return through ClampHoldCheck to MainDCV.A and Tank.R."
+    },
+    {
+      "phase_id": "drill_feed_cut",
+      "function_id": "feed_drill",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "MainDCV",
+          "state": "extend",
+          "reason": "P-A supplies the forward pressure branch to ForwardSequenceValve.P; B-T receives DrillCylinder.Rod exhaust."
+        },
+        {
+          "component_id": "ForwardSequenceValve",
+          "state": "open",
+          "reason": "The inlet-pressure sequence condition has been met at ForwardSequenceValve.P, allowing P-A flow to DrillCylinder.Cap."
+        },
+        {
+          "component_id": "ReverseSequenceValve",
+          "state": "closed",
+          "reason": "Reverse clamp-release supply is not active during drill feed."
+        }
+      ],
+      "expected_active_function_ids": [
+        "feed_drill",
+        "clamp_workpiece"
+      ],
+      "forbidden_active_function_ids": [],
+      "notes": "Drill extends only after clamp pressure proof while the clamp remains applied and held by the cap-end pilot check."
+    },
+    {
+      "phase_id": "drill_retract_return",
+      "function_id": "feed_drill",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "MainDCV",
+          "state": "retract",
+          "reason": "P-B supplies DrillCylinder.Rod directly for drill retract; A-T receives drill cap exhaust through ForwardSequenceValve's reverse check path."
+        },
+        {
+          "component_id": "ForwardSequenceValve",
+          "state": "closed",
+          "reason": "Forward feed supply is inactive; the selected valve still provides A-to-P free reverse flow internally for drill cap return."
+        },
+        {
+          "component_id": "ReverseSequenceValve",
+          "state": "closed",
+          "reason": "Until drill retract pressure rises sufficiently at ReverseSequenceValve.P, P-A remains blocked so clamp rod supply and clamp release are unavailable."
+        }
+      ],
+      "expected_active_function_ids": [
+        "feed_drill"
+      ],
+      "forbidden_active_function_ids": [
+        "clamp_workpiece"
+      ],
+      "notes": "The drill retracts first on the common reverse command. Clamp release occurs only in the following reverse-sequenced condition after ReverseSequenceValve opens."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1",
+      "eligible": true,
+      "score": 80.5,
+      "component_count": 9,
+      "errors": [],
+      "warnings": [
+        "evidence gap (Pressure-only proof of physical workpiece contact): The requested hydraulic pressure sequence proves pressure rise, but pressure can rise from a jam or obstruction and does not independently prove correct workpiece contact."
+      ],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2",
+      "eligible": true,
+      "score": 80.5,
+      "component_count": 9,
+      "errors": [],
+      "warnings": [
+        "evidence gap (Pressure-only proof of physical workpiece contact): The requested hydraulic pressure sequence proves pressure rise, but pressure can rise from a jam or obstruction and does not independently prove correct workpiece contact."
+      ],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "REV_RELEASE_DRILL_RETRACT_PATH_ACTIVE"
+      ],
+      "rationale": "Replace the shared main directional valve role with a clamp-specific DCV so clamp release can occur while the drill DCV is neutral.",
+      "target_component_id": "MainDCV",
+      "component": {
+        "id": "ClampDCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+        "comp_type": "dcv",
+        "role": "bidirectional command valve for clamp actuator",
+        "function_id": "clamp_workpiece",
+        "configuration": [
+          "Extend supplies clamp cap path; neutral blocks work ports; retract supplies clamp rod path through ReverseSequenceValve."
+        ],
+        "selection_basis": "Separates clamp release actuation from drill retract actuation."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "REV_RELEASE_DRILL_RETRACT_PATH_ACTIVE"
+      ],
+      "rationale": "Add a drill-specific DCV so the drill can be returned to neutral and hydraulically inactive during clamp release.",
+      "target_component_id": null,
+      "component": {
+        "id": "DrillDCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+        "comp_type": "dcv",
+        "role": "bidirectional command valve for drill-feed actuator",
+        "function_id": "feed_drill",
+        "configuration": [
+          "Extend supplies ForwardSequenceValve; retract supplies DrillCylinder.Rod; neutral blocks drill work ports during clamp release."
+        ],
+        "selection_basis": "Removes shared retract supply path that kept the drill active during clamp release."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "REV_RELEASE_DRILL_RETRACT_PATH_ACTIVE"
+      ],
+      "rationale": "Branch pump pressure to both new axis DCVs.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Pump pressure branches directly to system relief and the main DCV supply.",
+        "from_hint": "Pump.P",
+        "to_hint": "ReliefValve.P and MainDCV.P",
+        "line": "pressure"
+      },
+      "replacement_connection": {
+        "description": "Pump pressure branches directly to system relief and both axis DCV supply ports.",
+        "from_hint": "Pump.P",
+        "to_hint": "ReliefValve.P, ClampDCV.P, and DrillDCV.P",
+        "line": "pressure"
+      }
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "REV_RELEASE_DRILL_RETRACT_PATH_ACTIVE"
+      ],
+      "rationale": "Return both new DCV tank ports to the reservoir.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Main DCV tank port returns to reservoir.",
+        "from_hint": "MainDCV.T",
+        "to_hint": "Tank.R",
+        "line": "return"
+      },
+      "replacement_connection": {
+        "description": "Both axis DCV tank ports return to reservoir.",
+        "from_hint": "ClampDCV.T and DrillDCV.T",
+        "to_hint": "Tank.R",
+        "line": "return"
+      }
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "REV_RELEASE_DRILL_RETRACT_PATH_ACTIVE"
+      ],
+      "rationale": "Move clamp cap supply to the clamp-specific DCV only.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Forward work line supplies clamp cap-end load-lock valve and the forward sequence valve inlet.",
+        "from_hint": "MainDCV.A",
+        "to_hint": "ClampHoldCheck.V and ForwardSequenceValve.P",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "Clamp extend work line supplies clamp cap-end load-lock valve.",
+        "from_hint": "ClampDCV.A",
+        "to_hint": "ClampHoldCheck.V",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "REV_RELEASE_DRILL_RETRACT_PATH_ACTIVE"
+      ],
+      "rationale": "Supply the forward sequence valve from the drill-specific DCV extend port.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Drill extend work line supplies the forward sequence valve inlet.",
+        "from_hint": "DrillDCV.A",
+        "to_hint": "ForwardSequenceValve.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "REV_RELEASE_DRILL_RETRACT_PATH_ACTIVE"
+      ],
+      "rationale": "Move drill rod supply off the clamp release path and onto the drill-specific DCV.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Reverse work line supplies drill rod end directly and reverse sequence valve inlet for gated clamp release.",
+        "from_hint": "MainDCV.B",
+        "to_hint": "DrillCylinder.Rod and ReverseSequenceValve.P",
+        "line": "work"
+      },
+      "replacement_connection": {
+        "description": "Drill retract work line supplies drill rod end directly.",
+        "from_hint": "DrillDCV.B",
+        "to_hint": "DrillCylinder.Rod",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+        "REV_RELEASE_DRILL_RETRACT_PATH_ACTIVE"
+      ],
+      "rationale": "Supply clamp release through the reverse sequence valve from the clamp-specific DCV.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Clamp retract work line supplies the reverse sequence valve inlet.",
+        "from_hint": "ClampDCV.B",
+        "to_hint": "ReverseSequenceValve.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "PARALLEL_TANDEM_CENTER_BYPASS"
+      ],
+      "rationale": "Replace the fixed pump with a pressure-compensated variable pump for the preferred closed-center parallel-axis topology.",
+      "target_component_id": "Pump",
+      "component": {
+        "id": "Pump",
+        "catalog_key": "GENERIC_PRESSURE_COMPENSATED_VARIABLE_PUMP",
+        "comp_type": "pump",
+        "role": "pressure-compensated open-circuit supply for the two closed-center axis valves",
+        "function_id": null,
+        "configuration": [
+          "Variable delivery with pressure compensation; pressure and displacement values are deferred."
+        ],
+        "selection_basis": "Compatible with closed-center valve branches and avoids normal relief-flow standby."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "PARALLEL_TANDEM_CENTER_BYPASS"
+      ],
+      "rationale": "Closed-center neutral blocks the idle clamp branch rather than unloading the common pump supply.",
+      "target_component_id": "ClampDCV",
+      "component": {
+        "id": "ClampDCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_CLOSED_CENTER_DCV",
+        "comp_type": "dcv",
+        "role": "bidirectional command valve for clamp actuator",
+        "function_id": "clamp_workpiece",
+        "configuration": [
+          "Extend supplies clamp cap path; neutral blocks all ports; retract supplies clamp rod path through ReverseSequenceValve."
+        ],
+        "selection_basis": "Repairs parallel tandem-center bypass while preserving independent clamp command."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "PARALLEL_TANDEM_CENTER_BYPASS"
+      ],
+      "rationale": "Closed-center neutral blocks the idle drill branch rather than unloading the common pump supply.",
+      "target_component_id": "DrillDCV",
+      "component": {
+        "id": "DrillDCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_CLOSED_CENTER_DCV",
+        "comp_type": "dcv",
+        "role": "bidirectional command valve for drill-feed actuator",
+        "function_id": "feed_drill",
+        "configuration": [
+          "Extend supplies ForwardSequenceValve; retract supplies DrillCylinder.Rod; neutral blocks all ports during clamp release."
+        ],
+        "selection_basis": "Repairs parallel tandem-center bypass and permits drill isolation during clamp release."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "SEQUENCE_PILOT_NOT_PRESSURIZED",
+        "REVERSE_RELEASE_COMMAND_STAGING_UNSUPPORTED"
+      ],
+      "rationale": "Add a non-electrical drill-retracted mechanical gate that creates a live directed pilot path for reverse sequence authorization during clamp release.",
+      "target_component_id": null,
+      "component": {
+        "id": "DrillRetractedPositionValve",
+        "catalog_key": "GENERIC_POSITION_OPERATED_BYPASS",
+        "comp_type": "position_valve",
+        "role": "non-electrical drill-retracted pilot gate for reverse sequence authorization",
+        "function_id": "feed_drill",
+        "configuration": [
+          "Mechanically open only at drill retracted condition.",
+          "Passes ClampDCV.B pressure to ReverseSequenceValve.X during clamp release."
+        ],
+        "selection_basis": "Provides directed live pilot pressure to the reverse sequence valve without keeping the drill DCV active."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_connection",
+      "issue_codes": [
+        "SEQUENCE_PILOT_NOT_PRESSURIZED"
+      ],
+      "rationale": "Remove reliance on trapped drill rod pressure and use live clamp-retract pressure as the reverse-sequence pilot source through a mechanical drill-retracted gate.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": {
+        "description": "Drill rod/retract pressure pilots the reverse sequence valve.",
+        "from_hint": "DrillCylinder.Rod",
+        "to_hint": "ReverseSequenceValve.X",
+        "line": "pilot"
+      },
+      "replacement_connection": {
+        "description": "Clamp retract pressure feeds the drill-retracted mechanical pilot gate.",
+        "from_hint": "ClampDCV.B",
+        "to_hint": "DrillRetractedPositionValve.P",
+        "line": "pilot"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "SEQUENCE_PILOT_NOT_PRESSURIZED",
+        "REVERSE_RELEASE_COMMAND_STAGING_UNSUPPORTED"
+      ],
+      "rationale": "Complete the directed pilot path to ReverseSequenceValve.X when the drill-retracted gate is mechanically open.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "The drill-retracted mechanical pilot gate pressurizes the reverse sequence valve pilot.",
+        "from_hint": "DrillRetractedPositionValve.A",
+        "to_hint": "ReverseSequenceValve.X",
+        "line": "pilot"
+      }
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "FORWARD_TRANSITION_DEPENDS_ON_EXTERNAL_DCV_STAGING",
+        "PARALLEL_TANDEM_CENTER_BYPASS"
+      ],
+      "rationale": "Use one main tandem-center DCV so the forward command supplies the sequenced clamp and drill branches automatically and neutral unloads a fixed pump without parallel idle bypass.",
+      "target_component_id": "Pump",
+      "component": {
+        "id": "Pump",
+        "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+        "comp_type": "pump",
+        "role": "open-circuit positive-displacement pressure supply",
+        "function_id": null,
+        "configuration": [
+          "Fixed-displacement supply; drive and displacement are deferred."
+        ],
+        "selection_basis": "Compatible with single tandem-center neutral unloading and no stated efficiency requirement."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_component",
+      "issue_codes": [
+        "FORWARD_TRANSITION_DEPENDS_ON_EXTERNAL_DCV_STAGING"
+      ],
+      "rationale": "Add a single main DCV that commands both sequenced branches rather than externally staging separate axis DCVs.",
+      "target_component_id": null,
+      "component": {
+        "id": "MainDCV",
+        "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+        "comp_type": "dcv",
+        "role": "single bidirectional command valve for the pressure-sequenced clamp and drill branches",
+        "function_id": null,
+        "configuration": [
+          "Extend supplies MainDCV.A; retract supplies MainDCV.B; neutral unloads P to T with A and B blocked."
+        ],
+        "selection_basis": "Single-command automatic pressure sequencing."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_component",
+      "issue_codes": [
+        "FORWARD_TRANSITION_DEPENDS_ON_EXTERNAL_DCV_STAGING"
+      ],
+      "rationale": "Remove the separate clamp DCV whose state staging prevented an automatic clamp-to-drill hydraulic transition.",
+      "target_component_id": "ClampDCV",
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_component",
+      "issue_codes": [
+        "FORWARD_TRANSITION_DEPENDS_ON_EXTERNAL_DCV_STAGING"
+      ],
+      "rationale": "Remove the separate drill DCV whose external state change was required before drill feed could begin.",
+      "target_component_id": "DrillDCV",
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "SEQUENCE_PILOT_NOT_PRESSURIZED",
+        "FORWARD_SEQUENCE_PILOT_UNSUPPORTED_IN_DRILL_PHASE"
+      ],
+      "rationale": "Use an inlet-pressure sequence valve so the forward sequence opens from live MainDCV.A/clamp branch pressure instead of an unsupported X pilot.",
+      "target_component_id": "ForwardSequenceValve",
+      "component": {
+        "id": "ForwardSequenceValve",
+        "catalog_key": "GENERIC_SEQUENCE_VALVE_WITH_REVERSE_CHECK",
+        "comp_type": "sequence_valve",
+        "role": "hydraulic pressure interlock preventing drill feed until clamp pressure condition is reached",
+        "function_id": "feed_drill",
+        "configuration": [
+          "P-A opens at inlet pressure threshold; reverse check permits drill cap return; T drains to tank."
+        ],
+        "selection_basis": "Supported pressure-triggered clamp-before-drill sequencing."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "replace_component",
+      "issue_codes": [
+        "REVERSE_RELEASE_NOT_PRESSURE_SEQUENCE"
+      ],
+      "rationale": "Use an inlet-pressure sequence valve so clamp release is authorized by reverse pressure rise rather than a position gate pilot.",
+      "target_component_id": "ReverseSequenceValve",
+      "component": {
+        "id": "ReverseSequenceValve",
+        "catalog_key": "GENERIC_SEQUENCE_VALVE_WITH_REVERSE_CHECK",
+        "comp_type": "sequence_valve",
+        "role": "hydraulic reverse interlock preventing clamp release until drill retract pressure rises",
+        "function_id": "clamp_workpiece",
+        "configuration": [
+          "P-A opens at reverse inlet pressure threshold; reverse check permits clamp rod return; T drains to tank."
+        ],
+        "selection_basis": "Hydraulic pressure-sequence drill-before-clamp-release logic."
+      },
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "delete_component",
+      "issue_codes": [
+        "UNJUSTIFIED_POSITION_VALVE",
+        "UNJUSTIFIED_POSITION_GATE_FOR_REVERSE_SEQUENCE",
+        "REVERSE_RELEASE_NOT_PRESSURE_SEQUENCE"
+      ],
+      "rationale": "Remove the position-operated pilot gate because the specified reverse authorization is pressure-sequence hydraulic logic.",
+      "target_component_id": "DrillRetractedPositionValve",
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": null
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "FORWARD_TRANSITION_DEPENDS_ON_EXTERNAL_DCV_STAGING"
+      ],
+      "rationale": "Supply the new single main DCV from the pump pressure branch.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Pump pressure branches directly to the system relief and the single main DCV supply port.",
+        "from_hint": "Pump.P",
+        "to_hint": "ReliefValve.P and MainDCV.P",
+        "line": "pressure"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "SEQUENCE_PILOT_NOT_PRESSURIZED",
+        "FORWARD_SEQUENCE_PILOT_UNSUPPORTED_IN_DRILL_PHASE"
+      ],
+      "rationale": "Connect the main forward line directly to both clamp cap load-lock inlet and forward sequence inlet so forward sequence pressure is live and supported.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Main forward work line supplies clamp cap load-lock valve and the forward sequence valve inlet as a shared pressure branch.",
+        "from_hint": "MainDCV.A",
+        "to_hint": "ClampHoldCheck.V and ForwardSequenceValve.P",
+        "line": "work"
+      }
+    },
+    {
+      "action": "add_connection",
+      "issue_codes": [
+        "REVERSE_RELEASE_NOT_PRESSURE_SEQUENCE"
+      ],
+      "rationale": "Connect the main reverse line to drill rod directly and reverse sequence inlet so drill retracts first and clamp release waits for pressure rise.",
+      "target_component_id": null,
+      "component": null,
+      "target_connection": null,
+      "replacement_connection": {
+        "description": "Main reverse work line supplies drill rod end directly and the reverse sequence valve inlet as a shared pressure branch.",
+        "from_hint": "MainDCV.B",
+        "to_hint": "DrillCylinder.Rod and ReverseSequenceValve.P",
+        "line": "work"
+      }
+    }
+  ],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "system_power_and_protection",
+      "component_ids": [
+        "Tank",
+        "Pump",
+        "ReliefValve",
+        "MainDCV"
+      ],
+      "circuit_pattern": "Open-circuit power unit with relief-protected pressure supply and tandem-center neutral unloading",
+      "how_requirements_met": "Tank.S supplies Pump.S. Pump.P branches directly to ReliefValve.P and MainDCV.P. ReliefValve.T and MainDCV.T return directly to Tank.R. MainDCV neutral connects P to T while A and B are blocked, so the fixed-displacement pump has a normal unloaded neutral path and the relief remains pressure protection."
+    },
+    {
+      "function_id": "clamp_workpiece",
+      "component_ids": [
+        "MainDCV",
+        "ClampCylinder",
+        "ClampHoldCheck",
+        "ReverseSequenceValve"
+      ],
+      "circuit_pattern": "Pressure-sequenced clamp actuator with cap-end pilot check load lock",
+      "how_requirements_met": "MainDCV extend supplies the clamp cap through ClampHoldCheck for clamp advance. ClampHoldCheck blocks reverse cap-end flow for leakage-resistant holding during drilling. MainDCV retract supplies ReverseSequenceValve.P; after reverse pressure sequencing opens the valve, flow reaches ClampCylinder.Rod and also pilots ClampHoldCheck.X for clamp release."
+    },
+    {
+      "function_id": "feed_drill",
+      "component_ids": [
+        "MainDCV",
+        "DrillCylinder",
+        "ForwardSequenceValve"
+      ],
+      "circuit_pattern": "Clamp-pressure-sequenced drill feed branch",
+      "how_requirements_met": "MainDCV.A supplies ForwardSequenceValve.P from the same forward branch that advances the clamp. The valve remains closed until clamp/main forward pressure reaches the threshold, then supplies DrillCylinder.Cap. MainDCV.B supplies DrillCylinder.Rod directly for drill retract."
+    },
+    {
+      "function_id": "forward_pressure_interlock",
+      "component_ids": [
+        "ForwardSequenceValve",
+        "MainDCV",
+        "ClampCylinder",
+        "ClampHoldCheck",
+        "DrillCylinder"
+      ],
+      "circuit_pattern": "Inlet-pressure sequence valve for clamp-before-drill sequencing",
+      "how_requirements_met": "ForwardSequenceValve senses live pressure at its own P port from MainDCV.A, shared with the clamp cap branch. It opens the drill-feed supply only after the clamp pressure condition is reached, preventing drilling before hydraulic clamp pressure proof."
+    },
+    {
+      "function_id": "reverse_order_interlock",
+      "component_ids": [
+        "ReverseSequenceValve",
+        "MainDCV",
+        "DrillCylinder",
+        "ClampCylinder",
+        "ClampHoldCheck"
+      ],
+      "circuit_pattern": "Inlet-pressure reverse sequence valve for drill-before-clamp-release sequencing",
+      "how_requirements_met": "MainDCV.B supplies DrillCylinder.Rod directly while ReverseSequenceValve initially blocks ClampCylinder.Rod supply. When drill retract pressure rises at the reverse sequence inlet, ReverseSequenceValve opens to supply the clamp rod end and pilot the clamp cap-end check open."
+    },
+    {
+      "function_id": "clamp_hold_during_drilling",
+      "component_ids": [
+        "ClampHoldCheck",
+        "ClampCylinder"
+      ],
+      "circuit_pattern": "Single pilot-operated check at held clamp chamber",
+      "how_requirements_met": "ClampHoldCheck allows free flow from MainDCV.A to ClampCylinder.Cap during clamp advance and blocks reverse flow from the cap end unless ClampHoldCheck.X is pressurized from the authorized clamp rod/release line."
+    },
+    {
+      "function_id": "sizing_only_speed_realization",
+      "component_ids": [
+        "Pump",
+        "ClampCylinder",
+        "DrillCylinder"
+      ],
+      "circuit_pattern": "Sizing-only speed realization for horizontal resistive clamp and drill feed",
+      "how_requirements_met": "No flow-control valves are added. Clamp and drill speeds are to be achieved by pump-flow and cylinder-area sizing because the motion decisions specify sizing_only with no adjustable, load-independent, regenerative, or throttled speed behavior."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use one main tandem-center 4/3 DCV instead of separate clamp and drill DCVs.",
+      "rationale": "A single forward command supplies both the clamp branch and the forward sequence inlet, allowing the clamp-to-drill transition to occur hydraulically from pressure sequencing rather than external DCV staging. Neutral unloads Pump.P to Tank.R while A and B are blocked.",
+      "driven_by": [
+        "FORWARD_TRANSITION_DEPENDS_ON_EXTERNAL_DCV_STAGING",
+        "PARALLEL_TANDEM_CENTER_BYPASS",
+        "system_power_and_protection",
+        "clamp_workpiece",
+        "feed_drill"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/04%3A_Basic_Cylinder_Circuits/4.03%3A_Function_and_Appliction_of_a_4_3_DCV",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/04%3A_Basic_Cylinder_Circuits/4.04%3A_Operation_and_Schematic_Symbol_of_a_4_3_DCV",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Use a fixed-displacement pump with tandem-center unloading and relief protection.",
+      "rationale": "The selected pump is compatible with the single tandem-center MainDCV: in neutral, MainDCV.P unloads to MainDCV.T and Tank.R, while the relief valve remains the overpressure protection branch rather than the normal continuous flow path.",
+      "driven_by": [
+        "system_power_and_protection"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-pumps-motors/article/21884136/engineering-essentials-fundamentals-of-hydraulic-pumps",
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/13%3A_Relief_Valves/13.03%3A_The_Role_of_a_Relief_Valve_in_System_Protection",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884333/book-2-chapter-18-pressure-relief-valves"
+      ]
+    },
+    {
+      "decision": "Use inlet-pressure sequence valves with integral reverse checks for both forward and reverse sequencing.",
+      "rationale": "The forward and reverse sequence valves open from live pressure at their own P ports, eliminating unsupported external pilot paths. Integral reverse checks preserve the necessary return paths during opposite motion without adding separate check-valve components.",
+      "driven_by": [
+        "SEQUENCE_PILOT_NOT_PRESSURIZED",
+        "FORWARD_SEQUENCE_PILOT_UNSUPPORTED_IN_DRILL_PHASE",
+        "REVERSE_RELEASE_NOT_PRESSURE_SEQUENCE",
+        "forward_pressure_interlock",
+        "reverse_order_interlock"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/19%3A_Sequence_Valves/19.02%3A_Understanding_the_Operation_of_a_Direct-Acting_Sequence_Valve_and_Its_Schematic_Symbol",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884334/book-2-chapter-20-sequence-valves",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21884998/engineering-essentials-sequencing-circuits"
+      ]
+    },
+    {
+      "decision": "Remove the drill-retracted position-operated gate and implement reverse authorization by pressure sequencing.",
+      "rationale": "The brief calls for pressure-sequence clamp-release authorization after drill retract, not a position-triggered proof gate. ReverseSequenceValve.P is therefore supplied from the common reverse branch and opens only after reverse pressure rises.",
+      "driven_by": [
+        "UNJUSTIFIED_POSITION_VALVE",
+        "UNJUSTIFIED_POSITION_GATE_FOR_REVERSE_SEQUENCE",
+        "REVERSE_RELEASE_NOT_PRESSURE_SEQUENCE"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2:_Basic_Hydraulics_(NWTC)/19:_Sequence_Valves/19.06:_Describe_the_Function_of_a_Two-Sequence_Valve_Control_Circuit",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21884998/engineering-essentials-sequencing-circuits"
+      ]
+    },
+    {
+      "decision": "Install a single pilot-operated check at the clamp cap-end work port.",
+      "rationale": "The clamp must remain applied during drilling and should not rely on directional-valve spool sealing alone. A seated pilot check allows free flow into the clamp cap end and blocks reverse flow until piloted by the authorized clamp rod/release line.",
+      "driven_by": [
+        "clamp_workpiece",
+        "clamp_hold_during_drilling"
+      ],
+      "evidence_urls": [
+        "https://www.fluidpowerworld.com/how-can-you-prevent-hydraulic-cylinder-drift",
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21887940/basics-of-directional-control-valves",
+        "https://www.sunhydraulics.com/model/CKBM",
+        "https://www.sunhydraulics.com/model/CKCF"
+      ]
+    },
+    {
+      "decision": "Do not add flow-control valves for the specified nominal speeds.",
+      "rationale": "All motion-control decisions specify sizing_only speed realization for horizontal resistive loads. Pump flow and cylinder effective areas are the topology-level mechanism; no adjustable, pressure-compensated, regenerative, or deliberate throttling requirement is present.",
+      "driven_by": [
+        "clamp_workpiece",
+        "feed_drill",
+        "sizing_only_speed_realization"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21885172/gain-control-of-the-flow",
+        "https://irp.cdn-website.com/361bb333/files/uploaded/koguvipawali.pdf"
+      ]
+    }
+  ],
+  "catalog_gaps": [],
+  "evidence_gaps": [
+    {
+      "capability": "Pressure-only proof of physical workpiece contact",
+      "reason": "The requested hydraulic pressure sequence proves pressure rise, but pressure can rise from a jam or obstruction and does not independently prove correct workpiece contact.",
+      "related_function_ids": [
+        "clamp_workpiece",
+        "feed_drill"
+      ],
+      "evidence_needed": "If this becomes safety-critical beyond the provided brief, add a permitted non-electrical contact/position proof method or acceptance rationale.",
+      "blocking": false
+    }
+  ],
+  "assumptions": [
+    "The selected sequence-valve class uses inlet pressure at port P as the sequencing signal and includes the cataloged A-to-P reverse-check path, so no external pilot ports or separate bypass check components are instantiated.",
+    "MainDCV solenoid commands are outside the hydraulic port topology; no electrical interfaces are represented.",
+    "All numeric speeds, actuator dimensions, pressure drops, relief setting, and sequence setpoints are deferred to sizing and commissioning.",
+    "The external condition that commands reversal after the drill feed stroke is outside this hydraulic topology; once MainDCV retract is commanded, the hydraulic reverse sequence enforces drill-before-clamp release."
+  ],
+  "open_issues": [
+    "Exact pressure thresholds and component sizes are deferred to sizing/commissioning.",
+    "Return initiation after the drill feed stroke is unspecified by the brief and remains an external command condition; once MainDCV retract is commanded, the hydraulic sequence enforces drill-before-clamp return.",
+    "Pressure-only clamp proof does not independently prove correct workpiece contact if a jam or obstruction can also build pressure.",
+    "Function 'feed_drill' can move during phase 'clamp_retract_release', where overlap is forbidden.",
+    "In the declared clamp_retract_release phase, feed_drill is listed as forbidden, but MainDCV remains in retract with Pump.P connected to MainDCV.B, which directly supplies DrillCylinder.Rod while DrillCylinder.Cap has an exhaust path through the forward sequence valve reverse-check path to MainDCV.A and Tank.R. Therefore the drill retract function remains hydraulically active during the clamp-release phase instead of being isolated after the drill-retract phase. This violates the phase invariant and the required reverse-order behavior as represented in the phase configuration."
+  ],
+  "research_audit": {
+    "searches_used": 8,
+    "rounds_used": 2,
+    "selected_unique_sources": 21,
+    "extracted_documents": 20,
+    "duplicate_urls_skipped": 2,
+    "verified_evidence_claims": 84,
+    "rejected_by_reason": {
+      "lower_rank": 59,
+      "low_quality_source": 30,
+      "duplicate_url": 2
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "Most actuator, sequencing, pressure-sequence, clamp-holding, and relief-protection needs are supported by cited engineering sources. The remaining critical gap is the normal idle/neutral pump-flow path for an open circuit using a fixed-displacement pump while actuator ports are blocked/held. The accumulated evidence correctly says the relief valve must protect against overpressure and should not be used as the normal continuous return path, but it does not yet provide a supported neutral/unloading topology such as a tandem-center directional valve, unloading valve, or other normal P-to-T return arrangement. Without that, the complete power/return topology is not safe or unambiguous.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Covered for reservoir-to-pump suction, pump outlet pressure supply, relief valve connected to the pressure side, relief outlet/drain to tank/return, and warning that blocked fixed-displacement pump flow without relief is dangerous. However, the findings also state that the relief valve should not be used as the normal continuous path for unused pump flow, while the directional-control evidence recommends blocked actuator ports for holding. The evidence does not yet clearly support the normal neutral/idle unloading or return path for pump flow when actuators are held/stopped, so the complete open-circuit power/return topology remains ambiguous.",
+        "evidence_task_ids": [
+          "task_open_circuit_power_relief_return"
+        ]
+      },
+      {
+        "need_id": "function_clamp_workpiece_directional_control",
+        "status": "covered",
+        "rationale": "Supported by cited sources for a double-acting cylinder controlled by a 3-position, 4-way DCV with P to pressure, T to tank, A/B to cylinder ports, A-to-cap/B-to-rod convention, extend/retract port logic, and blocked actuator ports in neutral for stopping/holding rather than all-ports-open float behavior.",
+        "evidence_task_ids": [
+          "task_double_acting_cylinder_directional_control"
+        ]
+      },
+      {
+        "need_id": "function_clamp_workpiece_motion_profile",
+        "status": "covered",
+        "rationale": "The clamp extend/hold/retract behavior is supported by the combination of cylinder speed principles, sequence-valve clamp-before-feed transition, load-holding evidence for the hold phase, and return sequencing that keeps the clamp applied until drill return before unclamping. The typed speed decision is sizing-only, and cited sources support speed as governed by cylinder area and oil flow where no adjustable flow-control requirement is specified.",
+        "evidence_task_ids": [
+          "task_numeric_speed_sizing_no_flow_control"
+        ]
+      },
+      {
+        "need_id": "function_clamp_workpiece_holding",
+        "status": "covered",
+        "rationale": "Supported by cited technical/manufacturer evidence that directional spool valves leak and should not be the sole load-holding element, and that seated/poppet/pilot-operated check style valves provide low-leakage positive sealing. The findings give connection logic for pilot-operated check valves at/near the clamp cylinder work ports with opposite-line pilot release and optional double/cross-piloted locking for bidirectional holding.",
+        "evidence_task_ids": [
+          "followup_pilot_check_load_holding_strong_source",
+          "task_clamp_pilot_check_load_holding"
+        ]
+      },
+      {
+        "need_id": "function_feed_drill_directional_control",
+        "status": "covered",
+        "rationale": "Supported by cited sources for a double-acting drill-feed cylinder controlled by its own 3-position, 4-way DCV with P/T/A/B port functions, A-to-cap/B-to-rod connection convention, extend/feed and retract/return actuation logic, and neutral center behavior selected to stop/hold rather than float where required.",
+        "evidence_task_ids": [
+          "task_double_acting_cylinder_directional_control"
+        ]
+      },
+      {
+        "need_id": "function_feed_drill_motion_profile",
+        "status": "covered",
+        "rationale": "Supported for sizing-only feed/retract speed by cited cylinder speed principles, and for ordered phase transition by cited sequence-circuit examples: drill/feed is inhibited until clamp pressure is reached, and retraction order keeps the clamp applied while the drill returns. Exact flow-control valve omission is not directly stated, but the sources sufficiently support pump flow/cylinder sizing as the speed basis for fixed nominal speed with no adjustment requirement.",
+        "evidence_task_ids": [
+          "task_numeric_speed_sizing_no_flow_control"
+        ]
+      },
+      {
+        "need_id": "system_sequence_and_interlocks",
+        "status": "covered",
+        "rationale": "Supported by cited sequence-valve sources for clamp-before-drill/feed operation, pressure-triggered opening of the secondary branch after clamp pressure builds, external pilot options, required external drains, reverse-flow bypass checks where needed, and reverse sequencing so the drill retracts before clamp release. The findings also identify the known limitation that a pressure-only sequence valve can false-sequence if pressure rises from a jam rather than true part contact; this is a design limitation to note, but it does not contradict the requested pressure-condition topology.",
+        "evidence_task_ids": [
+          "task_pressure_sequence_forward_drill_after_clamp"
+        ]
+      },
+      {
+        "need_id": "driver_load_holding",
+        "status": "covered",
+        "rationale": "Supported by cited evidence that the clamp must remain extended/pressurized until the drill has fully retracted, that spool-type directional valves are leaky and not recommended as sole holding devices, and that pilot-operated/seated check valves provide leak-resistant locking with commanded release. The return-sequence sources also support the interlock that drill retraction precedes clamp release.",
+        "evidence_task_ids": [
+          "followup_complete_return_and_unclamp_sequence",
+          "followup_extract_power_motion_sequence_retraction_examples",
+          "followup_pilot_check_load_holding_strong_source",
+          "task_clamp_pilot_check_load_holding"
+        ]
+      },
+      {
+        "need_id": "driver_pressure_limiting_stall",
+        "status": "covered",
+        "rationale": "Supported by cited sequence-valve evidence: a normally closed sequence valve in the drill/feed branch or externally piloted from clamp pressure opens only after clamp pressure reaches the set threshold, so drilling/feed starts after clamp force pressure develops. The findings also cover setting the sequence pressure above free clamp travel pressure, providing the sequence valve drain, and using bypass checks for reverse flow where needed. Exact 3.3 bar component selection is a sizing/catalog task, not a missing topology principle.",
+        "evidence_task_ids": [
+          "task_pressure_sequence_forward_drill_after_clamp"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Critical missing claim: how the fixed-displacement pump’s flow returns to tank or is unloaded during neutral/idle while actuator ports remain blocked/held, without relying on the relief valve as the normal continuous flow path.",
+      "Nonblocking limitation: the sequence-valve pressure interlock verifies pressure rise, not physical contact; cited evidence warns that a jammed clamp can create pressure and falsely permit the next operation.",
+      "Nonblocking limitation: direct pilot-operated-check placement/release evidence includes lower-quality sources, though it is reinforced by credible sources on spool leakage and seated-valve low leakage."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "invalid",
+    "deterministic": {
+      "verdict": "invalid",
+      "issues": [
+        {
+          "code": "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+          "severity": "error",
+          "scope": "safety",
+          "description": "Function 'feed_drill' can move during phase 'clamp_retract_release', where overlap is forbidden.",
+          "related": [
+            "DrillCylinder",
+            "clamp_retract_release",
+            "feed_drill"
+          ]
+        },
+        {
+          "code": "NONBLOCKING_EVIDENCE_GAP",
+          "severity": "warning",
+          "scope": "research",
+          "description": "Evidence gap for Pressure-only proof of physical workpiece contact: The requested hydraulic pressure sequence proves pressure rise, but pressure can rise from a jam or obstruction and does not independently prove correct workpiece contact.",
+          "related": [
+            "clamp_workpiece",
+            "feed_drill"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "9 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": false,
+          "details": "5 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": true,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "invalid",
+      "design_issues": [
+        {
+          "code": "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+          "severity": "error",
+          "scope": "safety",
+          "description": "In the declared clamp_retract_release phase, feed_drill is listed as forbidden, but MainDCV remains in retract with Pump.P connected to MainDCV.B, which directly supplies DrillCylinder.Rod while DrillCylinder.Cap has an exhaust path through the forward sequence valve reverse-check path to MainDCV.A and Tank.R. Therefore the drill retract function remains hydraulically active during the clamp-release phase instead of being isolated after the drill-retract phase. This violates the phase invariant and the required reverse-order behavior as represented in the phase configuration.",
+          "related": [
+            "MainDCV",
+            "DrillCylinder",
+            "ForwardSequenceValve",
+            "clamp_retract_release",
+            "drill_retract_return",
+            "feed_drill",
+            "clamp_workpiece"
+          ]
+        },
+        {
+          "code": "PRESSURE_ONLY_CONTACT_PROOF_LIMITATION",
+          "severity": "warning",
+          "scope": "research",
+          "description": "The topology honestly records that pressure-only clamp proof does not independently verify correct physical workpiece contact; a jam or obstruction could also create the pressure that opens the forward sequence valve. This does not block the requested hydraulic/mechanical pressure-triggered sequencing, but it remains a documented acceptance limitation if contact proof becomes safety-critical beyond the brief.",
+          "related": [
+            "ForwardSequenceValve",
+            "ClampCylinder",
+            "clamp_workpiece",
+            "feed_drill"
+          ]
+        }
+      ],
+      "summary": "The open-circuit supply, relief branch, sequence-valve drains, clamp pilot-check holding, forward clamp-before-drill sequence, and sizing-only speed realization are functionally aligned with the brief. However, the proposed phase behavior leaves the drill retract hydraulic path active during the clamp-release phase even though feed_drill is explicitly forbidden in that phase, so the topology is invalid until the reverse phase definition or hydraulic gating isolates/completes the drill function before clamp release."
+    },
+    "repair_scope": "selection",
+    "topology_round": 4,
+    "summary": "Deterministic validation: invalid. Engineering review: invalid. The open-circuit supply, relief branch, sequence-valve drains, clamp pilot-check holding, forward clamp-before-drill sequence, and sizing-only speed realization are functionally aligned with the brief. However, the proposed phase behavior leaves the drill retract hydraulic path active during the clamp-release phase even though feed_drill is explicitly forbidden in that phase, so the topology is invalid until the reverse phase definition or hydraulic gating isolates/completes the drill function before clamp release."
+  },
+  "repair_stop_reason": null,
+  "validation_fingerprints": [
+    "e6045452960f41d6",
+    "b9655f561b9e35ee",
+    "a4626855bb509eb9",
+    "2c3d1d2f8d63ab5c"
+  ]
+}

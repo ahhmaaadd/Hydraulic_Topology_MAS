@@ -19,9 +19,16 @@ from .decision_flow import (
     motion_decisions_from_requirements,
     synchronization_decisions_from_requirements,
 )
+from .gap_policy import (
+    classify_catalog_gap,
+    classify_evidence_gap,
+    interfunction_sequence_steps,
+    requires_pressure_sequence_valve,
+)
 from .schemas import (
     DeterministicValidation,
     MotionControlDecision,
+    RequirementsSpec,
     TopologyDesign,
     TopologyIssue,
     ValidationCheck,
@@ -350,6 +357,7 @@ def _decision_signature(value: MotionControlDecision) -> tuple[Any, ...]:
         value.phase_name,
         value.motion.value,
         value.load_type.value,
+        value.speed_realization.value,
         value.metering_side.value,
         value.metered_chamber.value,
         value.metered_flow.value,
@@ -370,6 +378,19 @@ def _path_owner_types(path: list[FlowEdge] | None, entry_by_id: dict[str, dict[s
 
 def _path_kinds(path: list[FlowEdge] | None) -> set[str]:
     return {edge.kind for edge in (path or []) if edge.internal}
+
+
+LOAD_LOCK_TYPES = {"pilot_check_valve", "single_pilot_check_valve"}
+
+
+def _load_lock_ids_for_function(components: list[dict[str, Any]], function_id: str) -> list[str]:
+    """Load locks assigned to this function, or shared locks with no function id."""
+    return [
+        str(component.get("id"))
+        for component in components
+        if component.get("comp_type") in LOAD_LOCK_TYPES
+        and component.get("function_id") in {None, "", function_id}
+    ]
 
 
 def _branch_graph(
@@ -534,7 +555,7 @@ def validate_topology(
 ) -> DeterministicValidation:
     """Validate generic classes and prove each directed operating phase."""
     design = _as_dict(topology)
-    requirements = _as_dict(requirements)
+    requirements = RequirementsSpec.model_validate(_as_dict(requirements)).model_dump(mode="json")
     components = design.get("components") or []
     connections = design.get("connections") or []
     external = design.get("external_interfaces") or []
@@ -693,6 +714,28 @@ def validate_topology(
     sequence_steps = (requirements.get("operational_logic") or {}).get("sequence") or []
     sequence_by_phase = {step.get("phase_id"): step for step in sequence_steps if step.get("phase_id")}
     states_by_phase: dict[str, dict[str, str]] = {}
+    # Which (function_id, motion) pairs an earlier *operational* phase has
+    # already driven to an end position.  This has to follow the declared
+    # sequence order rather than the order functions happen to be listed in, or
+    # a later clamp-release phase would not see the drill retract that precedes
+    # it in the real cycle.
+    sequence_position = {
+        str(step.get("phase_id")): int(step.get("order") or index)
+        for index, step in enumerate(sequence_steps)
+        if step.get("phase_id")
+    }
+    motion_by_phase = {item.phase_id: (item.function_id, item.motion.value) for item in expected_motion}
+
+    def _completed_before(phase_id: str) -> set[tuple[str, str]]:
+        cutoff = sequence_position.get(phase_id)
+        if cutoff is None:
+            return set()
+        return {
+            motion_by_phase[earlier]
+            for earlier, position in sequence_position.items()
+            if position < cutoff and earlier in motion_by_phase
+        }
+
     for decision in expected_motion:
         phase_id = decision.phase_id
         configuration = config_by_phase.get(phase_id)
@@ -709,21 +752,143 @@ def validate_topology(
         states_by_phase[phase_id] = selected_states
         issues.extend(phase_issues)
         if decision.motion.value == "hold":
+            # There are two physically different holds and they need opposite
+            # things, so decide which one this is before checking anything.
+            #
+            #   Parked hold - the command is released and the spool centres over
+            #   the load (P7-03's carriage). The lock must reseat, so its pilot
+            #   has to decay to tank.
+            #
+            #   Maintained hold - the actuator stays commanded and supplied while
+            #   something else happens (P7-05 and P7-07's clamp during the work
+            #   stroke). Live supply pressure holds the load, the lock is
+            #   deliberately held open by it, and venting the work line would
+            #   release the very force the phase exists to maintain.
+            #
+            # Applying the parked-hold rule to a maintained hold made P7-05
+            # unsatisfiable: centring the clamp valve killed the sequence pilot,
+            # and keeping it commanded tripped the venting rule.
+            held_cylinders = cylinders_by_function.get(decision.function_id, [])
+            hold_is_supplied = any(
+                _find_path(graph, pump_nodes, [(cylinder_id, port)]) is not None
+                for cylinder_id in held_cylinders
+                for port in ("Cap", "Rod")
+            )
+            for lock_id in [] if hold_is_supplied else _load_lock_ids_for_function(components, decision.function_id):
+                entry = entry_by_id.get(lock_id) or {}
+                port_types = entry.get("port_types") or {}
+                pilot_ports = [port for port, kind in port_types.items() if kind == "pilot_in"]
+                vent_ports = pilot_ports or [
+                    port for port, kind in port_types.items() if kind == "valve_side"
+                ]
+                unvented = [
+                    port
+                    for port in vent_ports
+                    if _find_path(graph, [(lock_id, port)], tank_return_nodes) is None
+                ]
+                if unvented:
+                    issues.append(
+                        _issue(
+                            "LOAD_LOCK_PILOT_NOT_VENTED_IN_HOLD",
+                            f"Hold phase {phase_id!r} leaves {lock_id} port(s) {sorted(unvented)} with no "
+                            "path to tank, so the pilot-operated load lock cannot be proven to reseat. "
+                            "Use a directional-valve neutral that vents both work lines to tank "
+                            "(float or open centre) or route an explicit pilot drain.",
+                            scope="selection",
+                            related=[phase_id, lock_id, decision.function_id],
+                        )
+                    )
+            # A hold that runs *concurrently with another function* is a
+            # maintained force, not a parked load. P7-05's clamp must stay
+            # applied while the drill feeds, and the run that failed centred the
+            # clamp's directional valve and relied on oil checked in behind the
+            # load lock. A checked-in volume holds only until it leaks, it is
+            # not a proven supply, and anything piloted from it - here the
+            # forward sequence valve gating the drill - dies with it.
+            concurrent = sorted(
+                {
+                    str(value)
+                    for value in (configuration.get("expected_active_function_ids") or [])
+                    if str(value) != decision.function_id
+                }
+            )
+            if concurrent and not hold_is_supplied:
+                for cylinder_id in held_cylinders:
+                    issues.append(
+                        _issue(
+                            "CONCURRENT_HOLD_NOT_PRESSURE_MAINTAINED",
+                            f"Phase {phase_id!r} holds {decision.function_id!r} while {concurrent} "
+                            f"are active, but {cylinder_id} has no directed pump path in that phase. "
+                            "A force that must be maintained while another actuator cycles has to "
+                            "stay commanded and supplied; keep the directional valve commanded "
+                            "instead of centring it.",
+                            scope="wiring",
+                            related=[phase_id, decision.function_id, cylinder_id],
+                        )
+                    )
             continue
         supply_port = "Cap" if decision.motion.value == "extend" else "Rod"
         exhaust_port = "Rod" if decision.motion.value == "extend" else "Cap"
         cylinders = cylinders_by_function.get(decision.function_id, [])
+        synchronization = next(
+            (
+                function.get("synchronization") or {}
+                for function in requirements.get("functions", [])
+                if function.get("id") == decision.function_id
+            ),
+            {},
+        )
+        if synchronization.get("strategy") == "hydraulic_series":
+            # In a series circuit, motion of an upstream piston displaces oil
+            # from its opposite chamber into the next actuator. Represent that
+            # physical displacement only for the explicitly selected/matched
+            # series strategy; it is never added to ordinary parallel circuits.
+            series_graph: FlowGraph = defaultdict(list)
+            for node, edges in graph.items():
+                series_graph[node].extend(edges)
+            for cylinder_id in cylinders:
+                _add_flow_edge(
+                    series_graph,
+                    (cylinder_id, supply_port),
+                    (cylinder_id, exhaust_port),
+                    owner=cylinder_id,
+                    kind="actuator_displacement",
+                    internal=True,
+                )
+            graph = series_graph
         supply_paths: dict[str, list[FlowEdge] | None] = {}
         exhaust_paths: dict[str, list[FlowEdge] | None] = {}
+        regenerative_paths: dict[str, list[FlowEdge] | None] = {}
         for cylinder_id in cylinders:
             supply_path = _find_path(graph, pump_nodes, [(cylinder_id, supply_port)])
             exhaust_path = _find_path(graph, [(cylinder_id, exhaust_port)], tank_return_nodes)
+            regenerative_path = _find_path(
+                graph,
+                [(cylinder_id, exhaust_port)],
+                [(cylinder_id, supply_port)],
+            )
             supply_paths[cylinder_id] = supply_path
             exhaust_paths[cylinder_id] = exhaust_path
+            regenerative_paths[cylinder_id] = regenerative_path
             if supply_path is None:
                 issues.append(_issue("PHASE_SUPPLY_PATH_MISSING", f"Phase {phase_id!r} has no directed pump-to-{cylinder_id}.{supply_port} supply path.", related=[phase_id, cylinder_id, supply_port]))
-            if exhaust_path is None:
+            if (
+                exhaust_path is None
+                and decision.speed_realization.value != "regenerative"
+            ):
                 issues.append(_issue("PHASE_EXHAUST_PATH_MISSING", f"Phase {phase_id!r} has no directed {cylinder_id}.{exhaust_port}-to-tank exhaust path.", related=[phase_id, cylinder_id, exhaust_port]))
+            if (
+                decision.speed_realization.value == "regenerative"
+                and regenerative_path is None
+            ):
+                issues.append(
+                    _issue(
+                        "REGENERATIVE_RECIRCULATION_PATH_MISSING",
+                        f"Phase {phase_id!r} is regenerative but has no directed "
+                        f"{cylinder_id}.{exhaust_port}-to-{cylinder_id}.{supply_port} recirculation path.",
+                        related=[phase_id, cylinder_id, exhaust_port, supply_port],
+                    )
+                )
 
         expected_chamber = expected_metered_chamber(decision.motion, decision.metering_side)
         if decision.metered_chamber.value != expected_chamber.value:
@@ -746,7 +911,12 @@ def validate_topology(
             elif decision.metering_side.value == "none":
                 supply_unmetered = _find_path(graph, pump_nodes, [(cylinder_id, supply_port)], edge_allowed=lambda edge: edge.kind not in METER_KINDS)
                 exhaust_unmetered = _find_path(graph, [(cylinder_id, exhaust_port)], tank_return_nodes, edge_allowed=lambda edge: edge.kind not in METER_KINDS)
-                if supply_path is not None and exhaust_path is not None and (supply_unmetered is None or exhaust_unmetered is None):
+                if (
+                    decision.speed_realization.value != "regenerative"
+                    and supply_path is not None
+                    and exhaust_path is not None
+                    and (supply_unmetered is None or exhaust_unmetered is None)
+                ):
                     issues.append(_issue("UNDECLARED_METERING_IN_PHASE", f"Phase {phase_id!r} declares no metering but motion is forced through a metered direction.", related=[phase_id, cylinder_id]))
 
             if decision.load_type.value in {"overrunning", "both"} and decision.metering_side.value == "meter_in" and decision.load_control.value != "counterbalance":
@@ -757,19 +927,63 @@ def validate_topology(
         forbidden = set(configuration.get("forbidden_active_function_ids") or [])
         sequence_step = sequence_by_phase.get(phase_id) or {}
         forbidden.update(sequence_step.get("forbidden_overlap_function_ids") or [])
+        # A function that has already been driven to its mechanical end position
+        # in an earlier phase of the same command cannot move again in that same
+        # direction, however much pressure remains on its port.  Requiring the
+        # design to isolate an already-completed actuator forced spurious extra
+        # valves.  The exemption is deliberately narrow: the design must declare
+        # the completion, and an earlier validated phase must actually have
+        # driven that function in that direction.
+        declared_completed = {
+            str(value) for value in (configuration.get("completed_function_ids") or [])
+        }
+        completed_motion = _completed_before(phase_id)
+        unproven_completed = sorted(
+            declared_completed - {function_id for function_id, _ in completed_motion}
+        )
+        if unproven_completed:
+            issues.append(
+                _issue(
+                    "UNPROVEN_COMPLETED_FUNCTION",
+                    f"Phase {phase_id!r} declares {unproven_completed} as already completed, but no "
+                    "earlier phase in this topology drives those functions to an end position.",
+                    scope="requirements",
+                    related=[phase_id, *unproven_completed],
+                )
+            )
         for forbidden_function in forbidden:
-            for cylinder_id in cylinders_by_function.get(str(forbidden_function), []):
+            forbidden_function = str(forbidden_function)
+            for cylinder_id in cylinders_by_function.get(forbidden_function, []):
                 cap_supplied = _find_path(graph, pump_nodes, [(cylinder_id, "Cap")]) is not None
                 rod_supplied = _find_path(graph, pump_nodes, [(cylinder_id, "Rod")]) is not None
                 cap_exhaust = _find_path(graph, [(cylinder_id, "Cap")], tank_return_nodes) is not None
                 rod_exhaust = _find_path(graph, [(cylinder_id, "Rod")], tank_return_nodes) is not None
-                if (cap_supplied and rod_exhaust) or (rod_supplied and cap_exhaust):
-                    issues.append(_issue("FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE", f"Function {forbidden_function!r} can move during phase {phase_id!r}, where overlap is forbidden.", scope="safety", related=[phase_id, forbidden_function, cylinder_id]))
+                movable: set[str] = set()
+                if cap_supplied and rod_exhaust:
+                    movable.add("extend")
+                if rod_supplied and cap_exhaust:
+                    movable.add("retract")
+                if forbidden_function in declared_completed:
+                    movable -= {
+                        motion
+                        for function_id, motion in completed_motion
+                        if function_id == forbidden_function
+                    }
+                if movable:
+                    issues.append(
+                        _issue(
+                            "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE",
+                            f"Function {forbidden_function!r} can still {'/'.join(sorted(movable))} "
+                            f"during phase {phase_id!r}, where overlap is forbidden.",
+                            scope="safety",
+                            related=[phase_id, forbidden_function, cylinder_id],
+                        )
+                    )
 
     unknown_configs = sorted(set(config_by_phase) - {item.phase_id for item in expected_motion})
     if unknown_configs:
         issues.append(_issue("UNKNOWN_PHASE_CONFIGURATION", f"Topology declares PhaseConfigurations not present in requirements: {unknown_configs}.", scope="requirements", related=unknown_configs))
-    phase_codes = {"MISSING_PHASE_CONFIGURATION", "PHASE_CONFIGURATION_MISMATCH", "PHASE_ACTIVE_FUNCTION_MISSING", "MISSING_PHASE_COMPONENT_STATE", "INVALID_PHASE_COMPONENT_STATE", "DUPLICATE_PHASE_COMPONENT_STATE", "PHASE_SUPPLY_PATH_MISSING", "PHASE_EXHAUST_PATH_MISSING", "METERING_CHAMBER_INCONSISTENT", "METERING_PATH_NOT_REALIZED", "METERING_BYPASSED_IN_PHASE", "UNDECLARED_METERING_IN_PHASE", "OVERRUNNING_LOAD_METER_IN_ONLY", "COUNTERBALANCE_NOT_IN_EXHAUST_PATH", "COUNTERBALANCE_PILOT_NOT_PRESSURIZED", "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE", "UNKNOWN_PHASE_CONFIGURATION"}
+    phase_codes = {"MISSING_PHASE_CONFIGURATION", "PHASE_CONFIGURATION_MISMATCH", "PHASE_ACTIVE_FUNCTION_MISSING", "MISSING_PHASE_COMPONENT_STATE", "INVALID_PHASE_COMPONENT_STATE", "DUPLICATE_PHASE_COMPONENT_STATE", "PHASE_SUPPLY_PATH_MISSING", "PHASE_EXHAUST_PATH_MISSING", "REGENERATIVE_RECIRCULATION_PATH_MISSING", "METERING_CHAMBER_INCONSISTENT", "METERING_PATH_NOT_REALIZED", "METERING_BYPASSED_IN_PHASE", "UNDECLARED_METERING_IN_PHASE", "OVERRUNNING_LOAD_METER_IN_ONLY", "COUNTERBALANCE_NOT_IN_EXHAUST_PATH", "COUNTERBALANCE_PILOT_NOT_PRESSURIZED", "FORBIDDEN_FUNCTION_ACTIVE_IN_PHASE", "UNPROVEN_COMPLETED_FUNCTION", "LOAD_LOCK_PILOT_NOT_VENTED_IN_HOLD", "CONCURRENT_HOLD_NOT_PRESSURE_MAINTAINED", "UNKNOWN_PHASE_CONFIGURATION"}
     checks.append(ValidationCheck(name="directed_phase_state_behavior", passed=not any(item.code in phase_codes for item in issues), details=f"{len(expected_motion)} canonical motion phase(s) checked with separate directed component states."))
 
     _validate_synchronization(requirements=requirements, components=components, entry_by_id=entry_by_id, valid_lines=valid_lines, issues=issues)
@@ -777,20 +991,67 @@ def validate_topology(
     drivers = {item.get("capability") for item in requirements.get("derived_design_drivers", [])}
     required_capability_types = {
         "pressure_compensation_load_independence": {"pressure_comp_flow_control"},
+        "regeneration_fast_approach": {"check_valve"},
         "load_holding": {"pilot_check_valve", "single_pilot_check_valve", "counterbalance_valve"},
         "counterbalance_overrunning": {"counterbalance_valve"},
         "two_speed_force_switching": {"position_valve", "sequence_valve", "one_way_flow_control", "pressure_comp_flow_control"},
         "pressure_limiting_stall": {"relief_valve"},
+        "branch_pressure_reduction": {"pressure_reducing_valve"},
     }
     for capability, acceptable_types in required_capability_types.items():
         if capability in drivers and not types_present.intersection(acceptable_types):
             issues.append(_issue("MISSING_DRIVER_CAPABILITY", f"Derived driver {capability!r} has none of {sorted(acceptable_types)}.", scope="selection", related=[capability]))
 
-    pressure_sequence_required = any(step.get("trigger") == "pressure" for step in sequence_steps)
+    for function in requirements.get("functions", []):
+        function_id = str(function.get("id"))
+        holding = function.get("holding") or {}
+        phases = function.get("motion_phases") or []
+        needs_lock = any(
+            holding.get(field)
+            for field in ("must_hold_position", "no_creep", "hold_on_power_loss", "retain_on_hose_burst")
+        ) or any(phase.get("load_control") == "pilot_check" for phase in phases)
+        needs_counterbalance = any(phase.get("load_control") == "counterbalance" for phase in phases)
+        assigned_types = {
+            component.get("comp_type")
+            for component in components
+            if component.get("function_id") in {None, function_id}
+        }
+        if needs_counterbalance and "counterbalance_valve" not in assigned_types:
+            issues.append(
+                _issue(
+                    "COUNTERBALANCE_COMPONENT_MISSING",
+                    f"Function {function_id!r} has a typed counterbalance decision but no assigned counterbalance valve.",
+                    scope="selection",
+                    related=[function_id],
+                )
+            )
+        elif needs_lock and not assigned_types.intersection(
+            {"pilot_check_valve", "single_pilot_check_valve", "counterbalance_valve"}
+        ):
+            issues.append(
+                _issue(
+                    "LOAD_LOCK_COMPONENT_MISSING",
+                    f"Function {function_id!r} requires holding/no-drift behavior but has no assigned load-lock valve.",
+                    scope="selection",
+                    related=[function_id],
+                )
+            )
+
+    # Only a pressure trigger that crosses a function boundary implies a
+    # sequence valve. A load-actuated speed change inside one actuator is
+    # realized by the throttle itself. See gap_policy.interfunction_sequence_steps.
+    pressure_sequence_required = requires_pressure_sequence_valve(requirements)
+    interfunction_phase_ids = {
+        str(step.get("phase_id")) for step in interfunction_sequence_steps(requirements)
+    }
     position_sequence_required = any(step.get("trigger") == "position" for step in sequence_steps)
     sequenced_functions = {fid for item in sequence_steps for fid in item.get("function_ids", [])}
     for step in sequence_steps:
-        if len(sequenced_functions) > 1 and (not step.get("phase_id") or step.get("trigger", "unspecified") == "unspecified"):
+        if (
+            step.get("hydraulically_enforced")
+            and len(sequenced_functions) > 1
+            and (not step.get("phase_id") or step.get("trigger", "unspecified") == "unspecified")
+        ):
             issues.append(_issue("SEQUENCE_STEP_UNTYPED", f"Sequence step {step.get('order')} lacks a phase_id or typed trigger.", scope="requirements", related=step.get("function_ids", [])))
         if step.get("hydraulically_enforced") and step.get("trigger") in {"unspecified", "external_command"}:
             issues.append(_issue("HYDRAULIC_SEQUENCE_TRIGGER_UNDEFINED", f"Sequence step {step.get('order')} is hydraulically enforced but has no hydraulic trigger.", scope="requirements", related=step.get("function_ids", [])))
@@ -808,7 +1069,20 @@ def validate_topology(
                         related=[phase_id, *missing_active],
                     )
                 )
-        if step.get("hydraulically_enforced") and step.get("trigger") in {"pressure", "position"}:
+        # A position trigger always needs something to change state at that
+        # position - a cam-operated bypass cannot be a throttle characteristic -
+        # so intra-function position steps still require proof. A *pressure*
+        # trigger inside one actuator is realized by the throttle itself and
+        # must not demand a valve transition.
+        intra_function_pressure_step = (
+            step.get("trigger") == "pressure"
+            and str(step.get("phase_id")) not in interfunction_phase_ids
+        )
+        if (
+            step.get("hydraulically_enforced")
+            and step.get("trigger") in {"pressure", "position"}
+            and not intra_function_pressure_step
+        ):
             if not predecessor or predecessor not in states_by_phase or phase_id not in states_by_phase:
                 issues.append(
                     _issue(
@@ -844,6 +1118,77 @@ def validate_topology(
         issues.append(_issue("POSITION_SEQUENCE_VALVE_MISSING", "A position-triggered phase is required but no position-operated valve is selected.", scope="selection"))
     if "sequence_valve" in types_present and not pressure_sequence_required:
         issues.append(_issue("UNJUSTIFIED_SEQUENCE_VALVE", "A sequence valve is selected without any pressure-triggered sequence requirement.", scope="selection", related=[component.get("id") for component in components if component.get("comp_type") == "sequence_valve"]))
+    if "position_valve" in types_present and not position_sequence_required and "two_speed_force_switching" not in drivers:
+        issues.append(
+            _issue(
+                "UNJUSTIFIED_POSITION_VALVE",
+                "A position-operated valve is selected without a position-triggered phase requirement.",
+                scope="selection",
+                related=[component.get("id") for component in components if component.get("comp_type") == "position_valve"],
+            )
+        )
+
+    throttled_realizations = {
+        "load_sensitive_throttled",
+        "adjustable_throttled",
+        "load_independent_throttled",
+    }
+    regulated_paths = {
+        (
+            str(function.get("id")),
+            str(phase.get("metered_chamber")),
+            "pressure_comp_flow_control"
+            if phase.get("speed_realization") == "load_independent_throttled"
+            else "one_way_flow_control",
+        )
+        for function in requirements.get("functions", [])
+        for phase in function.get("motion_phases", [])
+        if phase.get("speed_realization") in throttled_realizations
+    }
+    flow_controls = [
+        component
+        for component in components
+        if component.get("comp_type") in {"one_way_flow_control", "pressure_comp_flow_control"}
+    ]
+    if flow_controls and not regulated_paths:
+        issues.append(
+            _issue(
+                "UNJUSTIFIED_FLOW_CONTROL",
+                "Flow-control components are selected even though every phase is sizing-only, unrestricted, or regenerative.",
+                scope="selection",
+                related=[component.get("id") for component in flow_controls],
+            )
+        )
+    elif len(flow_controls) > len(regulated_paths):
+        issues.append(
+            _issue(
+                "EXCESS_FLOW_CONTROL_COMPLEXITY",
+                f"{len(flow_controls)} flow-control components serve only {len(regulated_paths)} distinct typed metering paths.",
+                severity="warning",
+                scope="selection",
+                related=[component.get("id") for component in flow_controls],
+            )
+        )
+
+    global_pressure = ((requirements.get("global_constraints") or {}).get("max_system_pressure") or {}).get("value")
+    reduced_functions = []
+    if isinstance(global_pressure, (int, float)):
+        reduced_functions = [
+            str(function.get("id"))
+            for function in requirements.get("functions", [])
+            if function.get("branch_pressure_limit_required")
+            and isinstance((function.get("max_working_pressure") or {}).get("value"), (int, float))
+            and float(function["max_working_pressure"]["value"]) < float(global_pressure)
+        ]
+    if reduced_functions and "pressure_reducing_valve" not in types_present:
+        issues.append(
+            _issue(
+                "MISSING_BRANCH_PRESSURE_REDUCTION",
+                "A function has a lower pressure ceiling than the overall system but no pressure-reducing valve is selected.",
+                scope="selection",
+                related=reduced_functions,
+            )
+        )
 
     pump_count = sum(component.get("comp_type") == "pump" for component in components)
     design_text = f"{design.get('design_narrative', '')} {design.get('design_decisions', [])}".casefold()
@@ -857,11 +1202,42 @@ def validate_topology(
     missing_implementations = sorted(_function_ids(requirements) - implemented_ids)
     if missing_implementations:
         issues.append(_issue("MISSING_FUNCTION_TRACEABILITY", f"No function_implementation is provided for: {missing_implementations}.", scope="requirements", related=missing_implementations))
-    topology_gaps = [gap for gap in design.get("catalog_gaps", []) if gap.get("scope", "topology") == "topology"]
+    topology_gaps: list[dict[str, Any]] = []
+    for gap in design.get("catalog_gaps", []):
+        blocking, explanation = classify_catalog_gap(gap)
+        if blocking:
+            topology_gaps.append(gap)
+        elif gap.get("scope", "topology") == "topology":
+            issues.append(
+                _issue(
+                    "MISCLASSIFIED_CATALOG_GAP",
+                    f"{gap.get('capability')}: {explanation} Use EvidenceGap when corroboration is missing.",
+                    severity="warning",
+                    scope="research",
+                    related=[gap.get("capability")],
+                )
+            )
     if topology_gaps:
-        issues.append(_issue("BLOCKING_TOPOLOGY_CATALOG_GAP", "Every generic topology-class gap is blocking; non-equivalent workarounds cannot validate.", scope="selection", related=[gap.get("capability") for gap in topology_gaps]))
+        issues.append(_issue("BLOCKING_TOPOLOGY_CATALOG_GAP", "A required generic topology class is absent; non-equivalent workarounds cannot validate.", scope="selection", related=[gap.get("capability") for gap in topology_gaps]))
+    for gap in design.get("evidence_gaps", []):
+        # v0.4.0: the model no longer decides on its own whether an evidence gap
+        # blocks.  See gap_policy.classify_evidence_gap for the reasoning.
+        blocking, explanation = classify_evidence_gap(gap)
+        blocking = blocking and bool(gap.get("blocking"))
+        description = f"Evidence gap for {gap.get('capability')}: {gap.get('reason')}"
+        if gap.get("blocking") and not blocking:
+            description += f" Downgraded to advisory: {explanation}"
+        issues.append(
+            _issue(
+                "BLOCKING_EVIDENCE_GAP" if blocking else "NONBLOCKING_EVIDENCE_GAP",
+                description,
+                severity="error" if blocking else "warning",
+                scope="research",
+                related=gap.get("related_function_ids", []),
+            )
+        )
 
-    coverage_codes = {"FUNCTION_HAS_NO_ACTUATOR", "MISSING_DRIVER_CAPABILITY", "PRESSURE_SEQUENCE_VALVE_MISSING", "POSITION_SEQUENCE_VALVE_MISSING", "UNJUSTIFIED_SEQUENCE_VALVE", "SEQUENCE_STEP_UNTYPED", "HYDRAULIC_SEQUENCE_TRIGGER_UNDEFINED", "SEQUENCE_ACTIVE_FUNCTION_MISMATCH", "SEQUENCE_PREDECESSOR_STATE_MISSING", "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN", "HI_LO_UNLOADING_VALVE_MISSING", "HI_LO_CHECK_VALVE_MISSING", "MISSING_FUNCTION_TRACEABILITY", "BLOCKING_TOPOLOGY_CATALOG_GAP", "UNAUTHORIZED_SERIES_ACTUATORS", "RIGID_PLATEN_REQUIRES_PARALLEL_CYLINDERS", "RIGID_PLATEN_PARALLEL_BRANCHES_NOT_PROVEN", "SYNCHRONIZED_ACTUATOR_COUNT_MISMATCH", "FLOW_DIVIDER_COMBINER_MISSING", "FLOW_DIVIDER_REQUIRES_PARALLEL_ACTUATORS", "SERIES_ACTUATOR_CHAIN_MISSING", "SERIES_CYLINDER_RATIO_NOT_PROVEN"}
+    coverage_codes = {"FUNCTION_HAS_NO_ACTUATOR", "MISSING_DRIVER_CAPABILITY", "LOAD_LOCK_COMPONENT_MISSING", "COUNTERBALANCE_COMPONENT_MISSING", "PRESSURE_SEQUENCE_VALVE_MISSING", "POSITION_SEQUENCE_VALVE_MISSING", "UNJUSTIFIED_SEQUENCE_VALVE", "UNJUSTIFIED_POSITION_VALVE", "UNJUSTIFIED_FLOW_CONTROL", "SEQUENCE_STEP_UNTYPED", "HYDRAULIC_SEQUENCE_TRIGGER_UNDEFINED", "SEQUENCE_ACTIVE_FUNCTION_MISMATCH", "SEQUENCE_PREDECESSOR_STATE_MISSING", "SEQUENCE_TRIGGER_STATE_CHANGE_NOT_PROVEN", "HI_LO_UNLOADING_VALVE_MISSING", "HI_LO_CHECK_VALVE_MISSING", "MISSING_BRANCH_PRESSURE_REDUCTION", "MISSING_FUNCTION_TRACEABILITY", "BLOCKING_TOPOLOGY_CATALOG_GAP", "BLOCKING_EVIDENCE_GAP", "UNAUTHORIZED_SERIES_ACTUATORS", "RIGID_PLATEN_REQUIRES_PARALLEL_CYLINDERS", "RIGID_PLATEN_PARALLEL_BRANCHES_NOT_PROVEN", "SYNCHRONIZED_ACTUATOR_COUNT_MISMATCH", "FLOW_DIVIDER_COMBINER_MISSING", "FLOW_DIVIDER_REQUIRES_PARALLEL_ACTUATORS", "SERIES_ACTUATOR_CHAIN_MISSING", "SERIES_CYLINDER_RATIO_NOT_PROVEN"}
     checks.append(ValidationCheck(name="topology_requirement_and_pattern_coverage", passed=not any(item.code in coverage_codes for item in issues), details="Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."))
 
     unique: list[TopologyIssue] = []
@@ -881,9 +1257,13 @@ def repair_scope(issues: list[dict[str, Any]] | list[TopologyIssue]) -> str:
     if not errors:
         return "none"
     scopes = {item.get("scope") for item in errors}
+    # Upstream contradictions must be repaired before asking a component or
+    # netlist agent to work around them.
+    if "requirements" in scopes:
+        return "requirements"
     if scopes == {"wiring"}:
         return "wiring"
-    if scopes.intersection({"selection", "safety", "requirements"}):
+    if scopes.intersection({"selection", "safety"}):
         return "selection"
     if "research" in scopes:
         return "research"

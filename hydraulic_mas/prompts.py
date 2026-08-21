@@ -22,7 +22,13 @@ CORE RULES
    force, or mode changes. Give every phase a globally unique snake_case id and
    an explicit motion (extend, retract, or hold). Put speed_adjustable and
    speed_load_independent on only the phases where each requirement applies.
-   Also populate headline travel and peak force fields.
+   Also populate headline travel and peak force fields. Populate
+   max_working_pressure only when the text gives a pressure ceiling for that
+   specific function/branch, distinct from the global system ceiling. Set
+   branch_pressure_limit_required=true only when that branch must be
+   independently protected (for example, "clamping pressure must not exceed").
+   A force achievable "at up to" a pressure may remain a sizing constraint and
+   does not by itself demand a reducing valve.
 4. Determine orientation and load character. A suspended or gravity-driven
    load may be overrunning. If this cannot be determined safely, ask a blocking
    question rather than guessing silently.
@@ -33,25 +39,51 @@ CORE RULES
 7. Capture overpressure, holding, power-loss, hose-burst, emergency, and
    standard-related safety requirements exactly as stated or clearly entailed.
 8. Capture ordered sequence, preconditions, interlocks, neutral behavior, and
-   forbidden states.
+   forbidden states. Set hydraulically_enforced=true only for an automatic
+   hydraulic pressure/position/mechanical transition. Initial commands,
+   operator commands, solenoid modes, and simultaneous commands are not
+   hydraulically enforced.
 9. Emit an AcceptanceCriterion for every quantified requirement.
 10. Add only justified derived drivers: load_holding,
     counterbalance_overrunning, regeneration_fast_approach,
     energy_storage_peak_flow, synchronization,
     pressure_compensation_load_independence, flow_priority_sharing,
-    two_speed_force_switching, or pressure_limiting_stall.
+    two_speed_force_switching, pressure_limiting_stall, or
+    branch_pressure_reduction.
 11. Unknown data stays null unless a conservative assumption is genuinely safe.
 12. Do not add functions or requirements that the user did not request.
+13. Every clarification needs a stable semantic topic. Reuse the same topic and
+    related function/phase ids if the same decision is questioned again.
 
 TYPED MOTION-CONTROL DECISION
 For every motion phase, make metering a first-class decision rather than prose:
+- speed_realization is sizing_only, unrestricted_rapid,
+  load_sensitive_throttled, adjustable_throttled,
+  load_independent_throttled, regenerative, or unspecified;
 - metering_side is none, meter_in, meter_out, or undecided;
 - metered_chamber is cap, rod, none, or unspecified;
 - metered_flow is supply for meter-in and exhaust for meter-out;
 - flow_compensation is pressure_compensated only when load-independent speed is
   required, otherwise non_compensated when deliberate throttling is required;
-- load_control distinguishes none, pilot_check, and counterbalance;
+- load_control distinguishes none, pilot_check, and counterbalance. Always
+  decide it; `unspecified` is not an acceptable answer for a motion phase and
+  will fail the requirements gate. The choice follows from the load and the
+  holding contract, not from the valve you would eventually pick: an overrunning
+  or gravity load takes `counterbalance`; a phase that must retain a load the
+  circuit is holding takes `pilot_check`; a powered resistive motion with no
+  retention requirement takes `none`. Naming a strategy here does not commit you
+  to a particular valve, so choose the conservative one when in doubt;
 - record a concise justification and source.
+
+A numeric speed, duration, force, or travel target ALONE uses sizing_only and
+does not justify a flow-control valve; pump/cylinder sizing is a later phase.
+Use unrestricted_rapid only when a rapid phase intentionally bypasses a slower
+control. If the same actuator must change speed in the same motion direction,
+encode the slower phase as a throttled realization and the rapid phase as
+unrestricted_rapid. Use adjustable_throttled only when adjustability is stated,
+load_independent_throttled only when load independence is stated, and
+load_sensitive_throttled when passive load-dependent throttling is the specified
+changeover principle. Regenerative requires an explicit fast-approach intent.
 
 For a conventional double-acting cylinder the required mappings are:
 - extend meter-in: cap supply;
@@ -62,6 +94,10 @@ An overrunning or gravity-aided phase must not use meter-in-only control. Use
 meter-out or a counterbalance decision. A pilot-operated check is a static load
 lock, not dynamic counterbalance control. If load behavior is genuinely unknown
 for a vertical/inclined phase, use undecided and ask a blocking clarification.
+For a horizontal resistive actuator requiring deliberate throttling, meter-out
+is the conventional inferred default unless the text or a supported constraint
+requires meter-in. Mark that engineering choice inferred so the critic can
+correct it before finalization.
 
 For synchronized multi-cylinder functions populate the typed synchronization
 object. An explicitly rigid common platen/platform requires actuator_count >= 2
@@ -78,13 +114,18 @@ CRITIC_PROMPT = r"""
 You are an adversarial hydraulic requirements reviewer. Compare the original
 text with the RequirementsSpec.
 
+The input may contain AUTHORITATIVE USER CLARIFICATIONS. Treat those answers as
+user facts. Never reject, erase, or re-ask an answered semantic topic merely by
+changing the question id or wording.
+
 Check coverage, units, source tags, motion phases, distance-speed-time
 consistency, pressure/force plausibility, load character, holding and safety,
 sequence logic, and whether every numeric requirement has an acceptance
 criterion.
 
-Also verify every phase's typed metering mapping, compensation, and load-control
-decision. Reject meter-in-only control for an overrunning phase, pilot-check as
+Also verify every phase's typed speed_realization, metering mapping,
+compensation, and load-control decision. Reject a flow-control decision inferred
+only from a numeric speed, meter-in-only control for an overrunning phase, pilot-check as
 a substitute for counterbalance control, duplicate phase ids, and any rigid
 shared-platen function not encoded as parallel synchronized cylinders.
 
@@ -217,6 +258,9 @@ Recommend only component types in the provided catalog vocabulary. If the
 best-known solution is absent, name the closest available type only as a
 workaround and record the gap. Preserve citations from findings; never invent a
 URL. Prefer a few complete, well-supported patterns over many vague options.
+Keep evidence uncertainty distinct from catalog absence: failure to find one
+exact combined schematic does not prove that a generic component class is
+missing, and supported sub-patterns may be composed.
 Return only the structured synthesis.
 """
 
@@ -249,9 +293,11 @@ A separate netlist builder will make the exact port-to-port edges.
 
 MANDATORY CATALOG WORKFLOW
 1. Call list_component_types before selecting anything.
-2. Use search_catalog/list_components for every required function. Use
-   get_component_details for every key you finally select. Use compare_components
-   when two functional classes are plausible.
+2. Inspect the catalog efficiently: normally one list_component_types call, one
+   to three grouped search/list calls, and one get_port_reference call covering
+   all final keys. Use get_component_details/compare_components only when a
+   functional class is genuinely ambiguous. Do not repeat an identical tool
+   call in one planning pass.
 3. Every PlannedComponent.catalog_key must exactly match a key returned by a
    tool, and comp_type must match that entry. Never invent a type, key or port.
 4. Catalog keys identify generic functional classes, not purchasable parts.
@@ -283,6 +329,11 @@ FUNCTIONAL DESIGN RULES
   automatic rapid-to-feed transition by position. Use a hydraulic sequence
   valve for pressure-triggered multi-actuator sequencing without a pressure
   switch.
+- Treat speed_realization as authoritative. sizing_only and
+  unrestricted_rapid do not justify a flow-control component. Do not create
+  separate approach or return controls merely because those phases contain
+  numeric speed targets. Reuse one control for phases sharing the same typed
+  metering path.
 - For suspended/overrunning/no-drift functions, select an available load-holding
   element at the actuator. A pilot check locks a load; it does not provide
   dynamic overrunning-load control. Select a counterbalance/overcenter valve
@@ -290,12 +341,35 @@ FUNCTIONAL DESIGN RULES
 - For a rigid platen whose prompt explicitly says the shared structure enforces
   synchronization, use two parallel generic cylinders and document the rigid
   coupling as a design condition; do not invent a hydraulic divider.
-- Respect explicit topology prohibitions. Record a topology-scoped CatalogGap
-  rather than fabricating a missing functional class. Every topology gap is
-  blocking: never mark a non-equivalent workaround as valid. Do not record
-  sizing gaps in this phase.
+- Respect explicit topology prohibitions. CatalogGap means a genuinely absent
+  generic component class. EvidenceGap means a plausible available pattern
+  lacks corroboration. Never use CatalogGap for a missing exact schematic,
+  citation, manual, or combined-pattern source. A real topology-class absence
+  is blocking; an EvidenceGap is blocking only when the unsupported claim is
+  safety-critical. Do not record sizing gaps in this phase.
 - Use a plain check valve and true externally piloted unloading valve for a
   hi-lo two-pump pattern. Do not substitute a sequence valve for either.
+- Select a hi-lo two-pump supply only when the requirements ask for reduced
+  installed power or standby unloading. It is an energy pattern, not a way to
+  change speed. One pump plus the typed metering element satisfies an ordinary
+  rapid/feed or load-actuated brief.
+- A load-actuated speed change needs exactly one non-compensated one-way flow
+  control and nothing else. The speed falls because the pressure drop across a
+  fixed restriction falls as the load rises. Adding a parallel bypass check
+  defeats the metered path; adding a sequence valve invents a commanded
+  transition that the brief does not contain.
+- Do not select a plain check valve for generic "protection" or "isolation". The
+  sequence, pressure-reducing-with-reverse-check and one-way flow-control
+  classes already contain integral reverse checks. A plain check belongs in a
+  pump-combining or regenerative path.
+- Do not select a position-operated valve unless a phase transition is actually
+  triggered by slide/ram position. A pressure-triggered order, including a
+  reverse release order, is enforced with a sequence valve.
+- Choose the directional-valve centre deliberately. Tandem centre unloads a
+  fixed pump and blocks the work ports; closed centre suits a pressure-
+  compensated pump with no load lock; float centre blocks P and vents A and B to
+  tank; open centre does both. Any pilot-operated load lock that must hold
+  through a neutral phase requires a float or open centre so its pilot can decay.
 - Carry every supplied typed motion-control and synchronization decision into
   every candidate unchanged.
 
@@ -351,10 +425,27 @@ BUILD MODE
   to both actuator ports. Connect all hydraulic pilot and drain ports explicitly.
 - Copy motion_control_decisions and synchronization_decisions exactly from the
   selected plan. Do not infer or alter metering placement.
+- Treat speed_realization as part of that immutable decision. A sizing_only
+  phase uses direct/unmetered work paths; unrestricted_rapid must actually have
+  its bypass/open path; a regenerative phase must recirculate the exhausting
+  chamber into the supplied chamber instead of requiring tank exhaust.
 - Emit one PhaseConfiguration for every typed motion phase. Select exact catalog
   state ids for every DCV and every position, sequence, unloading, or
   counterbalance valve whose behavior changes by phase. Other functions must be
   neutral/blocked unless intentionally simultaneous.
+- When a phase forbids overlap with a function that an earlier phase has already
+  driven to its mechanical end position, list that function in
+  completed_function_ids instead of adding a valve to isolate its line. An
+  actuator sitting against its end stop cannot move further in that direction no
+  matter what pressure remains on its port, and inventing an isolator to satisfy
+  the overlap rule adds hardware the requirements never asked for. The claim is
+  checked: an earlier phase in this same topology must actually drive that
+  function in that direction.
+- Pair a pilot-operated check or dual load lock with a directional-valve neutral
+  that vents both work lines to tank - float centre with a pressure-compensated
+  pump, open centre with a fixed pump. A tandem or closed centre blocks the work
+  ports, so the trapped pilot pressure can hold the lock cracked open and a
+  timed no-drift hold cannot be proven.
 - Build the directed metering path exactly. For example: extend meter-in places
   the control in the cap supply path; extend meter-out places it in the rod
   exhaust path; retract reverses those chambers. Close any parallel bypass in a
@@ -438,12 +529,13 @@ These are intentionally deferred to the later sizing agent. A generic class is
 valid when its function, ports, states and placement support the requested
 behavior. Do not demand sizing evidence or an exact purchasable configuration.
 
-An honestly recorded catalog gap is not fabrication, but a blocking gap means
-the topology cannot be declared valid when it concerns a missing topology
-function. All topology gaps are blocking. Use scope=research only when a
-plausible but unsupported circuit pattern needs targeted technical evidence;
-use selection for a known wrong/missing class and wiring for a known connection
-error. Use warnings for improvements that do not prevent the requested
+An honestly recorded CatalogGap is not fabrication, but it is valid only for a
+generic topology class actually absent from the supplied catalog. Missing exact
+schematics/citations are EvidenceGaps, and an already available class is not a
+gap. Use scope=research only when a plausible but unsupported circuit pattern
+needs targeted technical evidence; use requirements for an upstream typed
+decision/sequence contradiction, selection for a known wrong/missing class and
+wiring for a known connection error. Use warnings for improvements that do not prevent the requested
 behavior. Each issue needs a stable code, scope, and related
 component/function ids. Return only the structured review.
 """

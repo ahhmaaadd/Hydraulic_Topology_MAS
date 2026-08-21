@@ -18,6 +18,9 @@ web research, and topology repair. A new `thread_id` isolates each problem.
    `repair_requirements`.
 4. If a truly blocking question remains, `clarify_requirements` interrupts the
    graph. The terminal asks the user and resumes the same node/thread.
+   The answer is stored with a semantic topic and related ids and is supplied as
+   authoritative context to every later extractor/critic/repair pass. Rewording
+   the same topic under a new question id cannot trigger another interrupt.
 5. `finalize_requirements` merges noncritical assumptions and classifies the
    critic output. Advisory consistency notes are retained for audit but do not
    block topology. Only `needs_clarification` or a remaining deterministic
@@ -71,8 +74,9 @@ stateDiagram-v2
 ## 4. Topology design
 
 1. `curate_design_brief` compresses the full spec into circuit-changing facts.
-   Python then overwrites its phase decisions with canonical values from
-   requirements.
+   Python then overwrites its phase decisions—including `speed_realization`—with
+   canonical values from requirements. Numeric speed targets are sizing-only
+   unless a typed phase explicitly requires throttling, bypass or regeneration.
 2. `plan_components` runs a LangChain tool-using agent. It must list catalog
    types, search/shortlist generic classes, inspect chosen states/ports, and
    return two or three candidate component/connection plans with exact keys.
@@ -83,7 +87,9 @@ stateDiagram-v2
    Recovered failures are retained in terminal and final JSON audits.
 3. Python applies executable repair actions, rejects ineligible candidates, and
    selects the highest-scoring valid plan. A bad model preference cannot override
-   missing check/unloading/counterbalance or a blocking catalog gap.
+   missing check/unloading/counterbalance or a genuine blocking catalog gap.
+   Missing evidence is represented separately and cannot masquerade as catalog
+   absence.
 4. `build_netlist` receives only the selected class metadata and exact ports. It
    creates direct component edges, function implementations and evidence-linked
    decisions. It also emits one `PhaseConfiguration` per motion phase with exact
@@ -102,7 +108,8 @@ separate directed graph from bidirectional physical lines plus only the selected
 component-state paths. It proves:
 
 - pump supply to the commanded chamber;
-- opposite-chamber exhaust to tank;
+- opposite-chamber exhaust to tank, or a proven chamber-recirculation path for
+  an explicitly regenerative phase;
 - the exact metered direction and compensation class;
 - absence of an active bypass around metering;
 - pilot release and counterbalance placement;
@@ -114,7 +121,7 @@ The topology and deterministic report then go to the engineering reviewer. The
 combined report sets:
 
 - `verdict`: valid or invalid;
-- `repair_scope`: none, wiring, selection, or research; and
+- `repair_scope`: none, wiring, selection, requirements, or research; and
 - `topology_round`: the current build attempt.
 
 Routing is deterministic:
@@ -124,8 +131,9 @@ Routing is deterministic:
 | Valid | `finalize_topology` |
 | Wiring-only error and rounds remain | `build_netlist` |
 | Selection/safety/behavior error and rounds remain | `plan_components` |
+| Upstream requirements contradiction and no prior upstream repair | `repair_topology_requirements` → `curate_design_brief` |
 | Unsupported plausible pattern and research budget remains | `targeted_research` → research loop |
-| Repair limit reached | `finalize_topology` with `unresolved` status |
+| Repeated topology/error fingerprint or repair limit reached | `finalize_topology` with `unresolved` status |
 
 `ComponentPlan.repair_actions` supports add/delete/replace component and
 add/delete/replace connection operations. Deletion is deterministic: a target
@@ -173,4 +181,7 @@ Unless `--no-save` is used, the same JSON is written below `runs/`.
 | `repair_history` | component selector/repair pass | final output/terminal |
 | `topology` | netlist builder | validators and finalizer |
 | `topology_validation` | combined validator | repair router/finalizer |
+| `topology_validation_fingerprints` | combined validator, append reducer | no-progress and targeted-research guards |
+| `clarification_records` / `resolved_clarification_keys` | clarification node, append reducers | extractor, critic, repair and question filter |
+| `repair_stop_reason` | combined validator | terminal/final JSON |
 | `final_output` | finalizer | terminal and JSON file |

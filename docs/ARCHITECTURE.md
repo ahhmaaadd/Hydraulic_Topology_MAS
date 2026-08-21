@@ -35,15 +35,16 @@ flowchart TD
     G --> E[Directed validator + reviewer]
     E -->|selection repair| C
     E -->|wiring repair| G
+    E -->|requirements repair once| A
     E -->|unsupported pattern| B
-    E -->|valid or limit| F[Final topology]
+    E -->|valid, limit, or no progress| F[Final topology]
 ```
 
 ## Agent roles
 
 | Role | Model work | Deterministic guard |
 | --- | --- | --- |
-| Requirements extractor | Normalizes physical actuators, phases, constraints, criteria | Typed metering/load-control/synchronization schema plus structural repair |
+| Requirements extractor | Normalizes physical actuators, phases, constraints, criteria | Typed speed/metering/load-control/synchronization schema plus structural repair |
 | Requirements critic | Finds blocking ambiguity and safe assumptions | Phase mapping, overrunning-load, and rigid-platen checks |
 | Research planner | Converts deterministic decisions into 3-6 queries | Model-added blockers are discarded |
 | Parallel research worker | Ranks candidates, extracts documents, and distills claims | Global URL reservation and source-quality scoring |
@@ -114,8 +115,10 @@ The expanded behavioral classes include a plain check valve, true externally
 piloted unloading valve, counterbalance/overcenter valve, flow
 divider/combiner, pressure-reducing valve with reverse check, and externally
 piloted sequence valve. This prevents substitutions such as sequence-as-check,
-sequence-as-unloader, or pilot-check-as-counterbalance. Every topology-scoped
-`CatalogGap` is blocking, regardless of a model-proposed workaround.
+sequence-as-unloader, or pilot-check-as-counterbalance. A genuine topology
+`CatalogGap` is blocking. Evidence uncertainty uses `EvidenceGap`; Python
+downgrades a claimed gap when the class/capability is already available or the
+reason is merely a missing source/schematic.
 
 ## Topology contract
 
@@ -132,6 +135,7 @@ actually plumbed.
 `MotionPhase` owns a typed circuit decision:
 
 - `motion`;
+- `speed_realization`;
 - `metering_side`;
 - `metered_chamber`;
 - `metered_flow`;
@@ -142,6 +146,12 @@ actually plumbed.
 Python converts these to canonical `MotionControlDecision` records and copies
 them requirements → brief → candidate plan → selected plan → netlist → final
 output. LLM stages may add explanation but cannot change the fields.
+
+`speed_realization` distinguishes `sizing_only`, `unrestricted_rapid`,
+load-sensitive/adjustable/load-independent throttling, and `regenerative`.
+This prevents every numeric speed from producing a flow-control component and
+gives the validator an explicit regeneration exception to the tank-exhaust
+rule.
 
 Every netlist also contains one `PhaseConfiguration` per motion phase with exact
 catalog state ids and expected/forbidden active functions. Synchronization is a
@@ -167,7 +177,8 @@ The deterministic validator checks:
 11. pressure/position sequence state transitions and forbidden overlap;
 12. rigid-parallel, explicit-series, or divider/combiner synchronization rules;
 13. real check/unloading/counterbalance capability distinctions; and
-14. traceability for every function and all topology-scoped catalog gaps.
+14. lower-pressure branch protection, component usefulness, gap
+    classification, and traceability for every function.
 
 It never checks pump flow/displacement, valve ratings, cylinder dimensions or
 force, reservoir size, lines, filters, cooling or power. The engineering review
@@ -181,11 +192,14 @@ detected independently of an LLM opinion. The engineering reviewer handles
 remaining semantic judgments and unjustified complexity.
 
 Errors are tagged by repair scope. Pure wiring errors return directly to the
-netlist builder. Selection, safety, or requirement errors return to the
-catalog-aware component designer. Its typed repair actions can add, delete,
-replace or reconnect; deletion addresses unjustified components directly.
-Research-scoped errors re-enter targeted research when budget remains. Valid
-portions are supplied on repair passes to reduce regression.
+netlist builder. Selection/safety errors return to the catalog-aware component
+designer. Requirements errors receive one upstream requirements repair instead
+of asking the designer to work around a contradictory contract. Research-scoped
+errors re-enter targeted research at most once per validation fingerprint when
+budget remains. If the same component/connection/phase-state topology returns
+with the same error set, repair stops as no progress. Typed repair actions can
+add, delete, replace or reconnect; deletion addresses unjustified components
+directly.
 
 The designer returns two or three candidate component/connection plans. Python
 scores catalog identity, mandatory capabilities, topology gaps, synchronization,
@@ -222,3 +236,8 @@ This prevents a sizing-level note such as a missing speed tolerance from
 stopping generic topology design. Failed-run JSON also retains the available
 requirements, gate audit, research coverage, component plan, topology and
 validation snapshots instead of saving only the terminal failure message.
+
+Clarification records retain a semantic topic, related function/phase ids and
+the user's answer. They are included as authoritative context for extraction,
+critique and repair. The gate filters both the original id and the semantic key,
+so changing a generated question id cannot create a clarification loop.

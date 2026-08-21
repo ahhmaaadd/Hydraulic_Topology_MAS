@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -16,6 +17,8 @@ from .catalog import CATALOG, catalog_type_reference, selected_catalog_reference
 from .config import Settings
 from .decision_flow import inject_design_brief_decisions, inject_topology_decisions
 from .models import build_chat_model
+from .gap_policy import blocking_catalog_gaps
+from .patterns import format_pattern_hints
 from .requirements_quality import normalize_requirements, requirements_quality_issues
 from .research_guards import calibrate_finding, derive_research_need_hints, enforce_coverage_gate, enforce_minimum_plan
 from .schemas import (
@@ -55,6 +58,149 @@ def _json(value: Any) -> str:
     if hasattr(value, "model_dump"):
         value = value.model_dump(mode="json")
     return json.dumps(value, indent=2, ensure_ascii=False, default=str)
+
+
+def _clarification_key(question: dict[str, Any]) -> str:
+    """Stable semantic key that survives model-generated question-id churn."""
+    topic = str(question.get("topic") or "other")
+    if topic == "other":
+        text = f"{question.get('question', '')} {question.get('why_it_matters', '')}".casefold()
+        semantic_words = {
+            "load_character": ("overrun", "gravity", "resistive load", "load direction"),
+            "orientation": ("horizontal", "vertical", "inclined", "orientation"),
+            "motion_direction": ("extend", "retract", "cap end", "rod end", "direction"),
+            "holding_safety": ("hold", "drift", "hose burst", "power loss"),
+            "sequence_trigger": ("trigger", "sequence", "automatically", "after pressure"),
+            "synchronization": ("synchron", "platen", "multiple cylinder"),
+        }
+        topic = next(
+            (name for name, words in semantic_words.items() if any(word in text for word in words)),
+            "other",
+        )
+    related = sorted(str(value) for value in question.get("related", []) if value)
+    if topic != "other":
+        return f"{topic}|{'|'.join(related)}"
+    return f"id|{question.get('id')}"
+
+
+def _clarification_context(state: dict[str, Any]) -> str:
+    records = state.get("clarification_records") or []
+    if records:
+        return _json(records)
+    return _json(state.get("clarification_answers") or [])
+
+
+# One step outward for each repair scope. Wiring problems that survive a
+# rewiring round are really component-choice problems; component-choice problems
+# that survive a reselection round are really requirement problems. "research"
+# escalates to "selection" because an evidence complaint that outlives one
+# targeted search is a design decision, not a missing document.
+_ESCALATED_SCOPE = {
+    "wiring": "selection",
+    "research": "selection",
+    "selection": "requirements",
+}
+
+
+def _topology_error_subjects(issues: list[dict[str, Any]], topology: dict[str, Any]) -> frozenset[str]:
+    """The component ids an unresolved error set is actually about.
+
+    The code-based signature assumes the reviewer names the same fault the same
+    way twice. It does not. Across four P7-05 rounds the identical finding
+    arrived as FWD_SEQ_PILOT_LOST_IN_CLAMP_RELEASE,
+    FWD_SEQ_NOT_CLAMP_PRESSURE_INTERLOCKED, FWD_SEQ_PILOT_IS_ISOLATED_BY_LOAD_LOCK
+    and FWD_SEQUENCE_NOT_CLAMP_PRESSURE_REFERENCED - four names, one problem,
+    four fresh signatures, so no-progress never triggered and the run spent its
+    whole budget re-describing the same three components.
+
+    Component ids are stable where free-form codes are not, so track those too.
+    """
+    component_ids = {str(item.get("id")) for item in topology.get("components", [])}
+    return frozenset(
+        str(value)
+        for issue in issues
+        if issue.get("severity") == "error"
+        for value in issue.get("related", [])
+        if str(value) in component_ids
+    )
+
+
+def _subjects_overlap(current: frozenset[str], previous: frozenset[str]) -> float:
+    """Jaccard overlap between two rounds' error subjects."""
+    if not current or not previous:
+        return 0.0
+    return len(current & previous) / len(current | previous)
+
+
+# Two consecutive rounds blaming substantially the same components have not made
+# progress, whatever the error text says.
+_SUBJECT_STALL_OVERLAP = 0.6
+
+
+def _topology_error_signature(issues: list[dict[str, Any]]) -> str:
+    """Hash only the unresolved error codes and their subjects.
+
+    Deliberately excludes components, connections and prose so that cosmetic
+    churn between repair rounds does not look like progress.
+    """
+    codes = sorted(
+        {
+            (
+                str(issue.get("code")),
+                tuple(sorted(str(value) for value in issue.get("related", []) if value)),
+            )
+            for issue in issues
+            if issue.get("severity") == "error"
+        }
+    )
+    if not codes:
+        return ""
+    return hashlib.sha256(json.dumps(codes, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+
+
+def _topology_validation_fingerprint(
+    topology: dict[str, Any],
+    issues: list[dict[str, Any]],
+) -> str:
+    """Hash the repairable error set and structural topology, ignoring prose."""
+    payload = {
+        "errors": sorted(
+            (
+                str(issue.get("code")),
+                str(issue.get("scope")),
+                tuple(sorted(str(value) for value in issue.get("related", []) if value)),
+            )
+            for issue in issues
+            if issue.get("severity") == "error"
+        ),
+        "components": sorted(
+            (str(item.get("id")), str(item.get("catalog_key")))
+            for item in topology.get("components", [])
+        ),
+        "connections": sorted(
+            (
+                str(item.get("from_component")),
+                str(item.get("from_port")),
+                str(item.get("to_component")),
+                str(item.get("to_port")),
+            )
+            for item in topology.get("connections", [])
+        ),
+        "phase_states": sorted(
+            (
+                str(config.get("phase_id")),
+                tuple(
+                    sorted(
+                        (str(item.get("component_id")), str(item.get("state")))
+                        for item in config.get("component_states", [])
+                    )
+                ),
+            )
+            for config in topology.get("phase_configurations", [])
+        ),
+    }
+    digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+    return digest[:16]
 
 
 def summarize_research_audit(state: dict[str, Any]) -> dict[str, Any]:
@@ -99,19 +245,28 @@ class Workflow:
         prompt = state["user_query"]
         answers = state.get("clarification_answers") or []
         if answers:
-            prompt += "\n\nAUTHORITATIVE CLARIFICATIONS:\n" + "\n".join(f"- {answer}" for answer in answers)
+            prompt += (
+                "\n\nAUTHORITATIVE CLARIFICATIONS (these are user-supplied facts; preserve them):\n"
+                + _clarification_context(state)
+            )
         result: RequirementsSpec = self.agents.extractor.invoke(
             [SystemMessage(PROMPT_BY_AGENT["extractor"]), HumanMessage(prompt)]
         )
         return {"requirements": result.model_dump(mode="json")}
 
     def critique_requirements(self, state: OverallState) -> dict[str, Any]:
-        requirements, normalization_notes = normalize_requirements(state["requirements"])
+        requirements, normalization_notes = normalize_requirements(
+            state["requirements"], state["user_query"]
+        )
         payload = (
             "ORIGINAL PROBLEM:\n"
             + state["user_query"]
+            + "\n\nAUTHORITATIVE USER CLARIFICATIONS:\n"
+            + _clarification_context(state)
             + "\n\nEXTRACTED REQUIREMENTS:\n"
             + _json(requirements)
+            + "\n\nDo not question or contradict an authoritative clarification. A differently "
+            "worded question about an already answered semantic topic is resolved."
         )
         result: CritiqueResult = self.agents.critic.invoke(
             [SystemMessage(PROMPT_BY_AGENT["critic"]), HumanMessage(payload)]
@@ -145,10 +300,18 @@ class Workflow:
 
     @staticmethod
     def _blocking_questions(state: OverallState) -> list[dict[str, Any]]:
+        resolved = set(state.get("resolved_clarification_keys") or [])
+
+        def unresolved(question: dict[str, Any]) -> bool:
+            return (
+                _clarification_key(question) not in resolved
+                and f"id|{question.get('id')}" not in resolved
+            )
+
         questions = [
             question
             for question in state.get("critique", {}).get("blocking_questions", [])
-            if question.get("blocking", True)
+            if question.get("blocking", True) and unresolved(question)
         ]
         if questions:
             return questions
@@ -157,13 +320,15 @@ class Workflow:
         return [
             question
             for question in state.get("requirements", {}).get("open_questions", [])
-            if question.get("blocking", False)
+            if question.get("blocking", False) and unresolved(question)
         ]
 
     def repair_requirements(self, state: OverallState) -> dict[str, Any]:
         payload = (
             "ORIGINAL PROBLEM:\n"
             + state["user_query"]
+            + "\n\nAUTHORITATIVE USER CLARIFICATIONS:\n"
+            + _clarification_context(state)
             + "\n\nCURRENT EXTRACTION:\n"
             + _json(state["requirements"])
             + "\n\nSTRUCTURAL ISSUES TO REPAIR:\n"
@@ -175,8 +340,20 @@ class Workflow:
         result: RequirementsSpec = self.agents.extractor.invoke(
             [SystemMessage(PROMPT_BY_AGENT["extractor"]), HumanMessage(payload)]
         )
+        # Normalize the repaired spec before it reaches the second critique.
+        # Deterministic corrections should not have to survive another LLM round
+        # to take effect, and the critic reasons better about a spec whose typed
+        # decisions are already resolved.
+        normalized, notes = normalize_requirements(result, state["user_query"])
         return {
-            "requirements": result.model_dump(mode="json"),
+            "requirements": normalized.model_dump(mode="json"),
+            "requirements_structural_issues": requirements_quality_issues(
+                normalized, state["user_query"]
+            ),
+            "requirements_normalizations": [
+                *state.get("requirements_normalizations", []),
+                *notes,
+            ],
             "requirements_repair_attempted": True,
         }
 
@@ -184,8 +361,10 @@ class Workflow:
         questions = [
             {
                 "id": question.get("id"),
+                "topic": question.get("topic", "other"),
                 "question": question.get("question"),
                 "why_it_matters": question.get("why_it_matters"),
+                "related": list(question.get("related") or []),
             }
             for question in self._blocking_questions(state)
         ]
@@ -193,20 +372,54 @@ class Workflow:
         if isinstance(response, dict):
             raw_answers = response.get("answers") or []
             if response.get("use_assumptions"):
-                raw_answers = ["Proceed with conservative, explicitly labeled assumptions for the listed questions."]
+                raw_answers = [
+                    {
+                        "id": question.get("id"),
+                        "answer": "Proceed with a conservative, explicitly labeled assumption for this question.",
+                    }
+                    for question in questions
+                ]
         elif isinstance(response, list):
             raw_answers = response
         else:
             raw_answers = [str(response)]
-        answers = [str(value).strip() for value in raw_answers if str(value).strip()]
+        answers: list[str] = []
+        records: list[dict[str, Any]] = []
+        resolved_keys: list[str] = []
+        for index, value in enumerate(raw_answers):
+            question = questions[min(index, len(questions) - 1)] if questions else {}
+            if isinstance(value, dict):
+                answer = str(value.get("answer") or value.get("value") or "").strip()
+                question_id = str(value.get("id") or question.get("id") or "question")
+            else:
+                rendered = str(value).strip()
+                question_id = str(question.get("id") or "question")
+                prefix = f"{question_id}:"
+                answer = rendered[len(prefix):].strip() if rendered.startswith(prefix) else rendered
+            if not answer:
+                continue
+            record = {
+                "id": question_id,
+                "topic": question.get("topic", "other"),
+                "related": list(question.get("related") or []),
+                "question": question.get("question"),
+                "answer": answer,
+            }
+            answers.append(f"{question_id}: {answer}")
+            records.append(record)
+            resolved_keys.extend([_clarification_key(record), f"id|{question_id}"])
         return {
             "clarification_answers": answers,
+            "clarification_records": records,
+            "resolved_clarification_keys": resolved_keys,
             "requirements_round": state.get("requirements_round", 0) + 1,
             "requirements_repair_attempted": False,
         }
 
     def finalize_requirements(self, state: OverallState) -> dict[str, Any]:
-        requirements, normalization_notes = normalize_requirements(state["requirements"])
+        requirements, normalization_notes = normalize_requirements(
+            state["requirements"], state["user_query"]
+        )
         critique = CritiqueResult.model_validate(state["critique"])
         existing = {assumption.id for assumption in requirements.assumptions}
         merged_assumption_ids: list[str] = []
@@ -216,15 +429,22 @@ class Workflow:
                 existing.add(assumption.id)
                 merged_assumption_ids.append(assumption.id)
 
+        unresolved_questions = self._blocking_questions(state)
+        unresolved_keys = {_clarification_key(question) for question in unresolved_questions}
         downgraded_question_ids: list[str] = []
-        if critique.completeness_status != "needs_clarification":
-            for question in requirements.open_questions:
-                if question.blocking:
-                    question.blocking = False
-                    downgraded_question_ids.append(question.id)
+        for question in requirements.open_questions:
+            if question.blocking and (
+                critique.completeness_status != "needs_clarification"
+                or _clarification_key(question.model_dump(mode="json")) not in unresolved_keys
+            ):
+                question.blocking = False
+                downgraded_question_ids.append(question.id)
 
         structural_issues = requirements_quality_issues(requirements, state["user_query"])
-        needs_clarification = critique.completeness_status == "needs_clarification"
+        needs_clarification = (
+            critique.completeness_status == "needs_clarification"
+            and bool(unresolved_questions)
+        )
         unresolved = needs_clarification or bool(structural_issues)
         advisory_issues = [
             issue
@@ -233,8 +453,14 @@ class Workflow:
         ]
         gate = {
             "decision": "blocked" if unresolved else "proceed",
-            "completeness_status": critique.completeness_status,
-            "blocking_question_ids": [question.get("id") for question in self._blocking_questions(state)],
+            "completeness_status": (
+                critique.completeness_status if needs_clarification else
+                "proceed_with_assumptions" if critique.completeness_status == "needs_clarification" else
+                critique.completeness_status
+            ),
+            "critic_completeness_status": critique.completeness_status,
+            "blocking_question_ids": [question.get("id") for question in unresolved_questions],
+            "resolved_clarification_keys": sorted(set(state.get("resolved_clarification_keys") or [])),
             "structural_issues": structural_issues,
             "advisory_issues": advisory_issues,
             "merged_assumption_ids": merged_assumption_ids,
@@ -274,6 +500,8 @@ class Workflow:
         payload = (
             "REQUIREMENTS:\n"
             + _json(state["requirements"])
+            + "\n\nDETERMINISTIC GENERIC PATTERN HINTS:\n"
+            + format_pattern_hints(state["requirements"])
             + "\n\nDETERMINISTIC MINIMUM KNOWLEDGE-NEED HINTS (preserve these ids):\n"
             + _json([hint.model_dump(mode="json") for hint in hints])
         )
@@ -432,6 +660,8 @@ class Workflow:
             + _json(state["requirements"])
             + "\n\nCATALOG TYPES (recommend only these):\n"
             + catalog_type_reference()
+            + "\n\nDETERMINISTIC GENERIC PATTERN HINTS (compose these; they are not solved examples):\n"
+            + format_pattern_hints(state["requirements"])
             + "\n\nKNOWLEDGE NEEDS:\n"
             + _json(state.get("knowledge_needs", []))
             + "\n\nFINDINGS:\n"
@@ -451,7 +681,12 @@ class Workflow:
         result: DesignBrief = self.agents.design_brief.invoke(
             [
                 SystemMessage(PROMPT_BY_AGENT["design_brief"]),
-                HumanMessage("REQUIREMENTS:\n" + _json(state["requirements"])),
+                HumanMessage(
+                    "REQUIREMENTS:\n"
+                    + _json(state["requirements"])
+                    + "\n\nDETERMINISTIC GENERIC PATTERN HINTS:\n"
+                    + format_pattern_hints(state["requirements"])
+                ),
             ]
         )
         brief = inject_design_brief_decisions(result.model_dump(mode="json"), state["requirements"])
@@ -487,6 +722,8 @@ class Workflow:
         payload = (
             "DESIGN BRIEF:\n"
             + _json(state["design_brief"])
+            + "\n\nDETERMINISTIC GENERIC PATTERN HINTS:\n"
+            + format_pattern_hints(state["requirements"])
             + "\n\nRESEARCH SYNTHESIS:\n"
             + _json(state["research_synthesis"])
             + "\n\nSelect generic functional class keys with tools, compare two or three viable "
@@ -542,7 +779,13 @@ class Workflow:
             trace = self._catalog_tool_trace(result.get("messages", []))
             tool_names = {item.get("tool") for item in trace if item.get("tool")}
             if "list_component_types" in tool_names and tool_names.intersection(
-                {"list_components", "search_catalog", "get_component_details", "compare_components"}
+                {
+                    "list_components",
+                    "search_catalog",
+                    "get_component_details",
+                    "compare_components",
+                    "get_port_reference",
+                }
             ):
                 break
             catalog_retry_needed = True
@@ -594,6 +837,8 @@ class Workflow:
             + plan.model_dump_json(indent=2)
             + "\n\nSELECTED GENERIC CLASS METADATA, STATES AND PORTS:\n"
             + selected_catalog_reference(keys)
+            + "\n\nDETERMINISTIC GENERIC PATTERN HINTS:\n"
+            + format_pattern_hints(state["requirements"])
             + "\n\nRESEARCH SYNTHESIS:\n"
             + _json(state["research_synthesis"])
         )
@@ -619,6 +864,8 @@ class Workflow:
         payload = (
             "DESIGN BRIEF:\n"
             + _json(state["design_brief"])
+            + "\n\nDETERMINISTIC GENERIC PATTERN HINTS:\n"
+            + format_pattern_hints(state["requirements"])
             + "\n\nRESEARCH SYNTHESIS:\n"
             + _json(state["research_synthesis"])
             + "\n\nPROPOSED TOPOLOGY:\n"
@@ -632,16 +879,72 @@ class Workflow:
         combined_issues = [item.model_dump(mode="json") for item in deterministic.issues] + [
             item.model_dump(mode="json") for item in review.design_issues
         ]
-        blocking_gap = any(
-            gap.get("blocking") and gap.get("scope", "topology") == "topology"
-            for gap in state["topology"].get("catalog_gaps", [])
-        )
+        blocking_gap = bool(blocking_catalog_gaps(state["topology"].get("catalog_gaps", [])))
         verdict = "invalid" if deterministic.verdict == "invalid" or review.verdict == "invalid" or blocking_gap else "valid"
         scope = repair_scope(combined_issues)
+        fingerprint = _topology_validation_fingerprint(state["topology"], combined_issues)
+        previous_fingerprints = state.get("topology_validation_fingerprints") or []
+        no_progress = verdict == "invalid" and fingerprint in previous_fingerprints
+
+        # v0.4.0 scope escalation.
+        #
+        # The exact-fingerprint stop only catches a design that is byte-identical
+        # to a previous round. In practice a repair round would move a component,
+        # rename a role or add one more valve, produce a *new* fingerprint and the
+        # *same* error codes, and the loop would spend its whole budget inside one
+        # scope that cannot fix the fault. Rewiring cannot repair a wrong component
+        # choice, and reselecting components cannot repair a contradictory
+        # requirement.
+        #
+        # So track the error *codes* separately from the full fingerprint. When the
+        # same unresolved code set survives a repair round, escalate one level
+        # outward instead of retrying the scope that just failed.
+        error_signature = _topology_error_signature(combined_issues)
+        previous_signatures = state.get("topology_error_signatures") or []
+        subjects = _topology_error_subjects(combined_issues, state["topology"])
+        previous_subjects = state.get("topology_error_subjects") or []
+        repeated_subjects = any(
+            _subjects_overlap(subjects, frozenset(earlier)) >= _SUBJECT_STALL_OVERLAP
+            for earlier in previous_subjects
+        )
+        escalate = (
+            verdict == "invalid"
+            and not no_progress
+            and (
+                (bool(error_signature) and error_signature in previous_signatures)
+                or repeated_subjects
+            )
+        )
+        if escalate:
+            escalated_scope = _ESCALATED_SCOPE.get(scope, scope)
+            if escalated_scope != scope:
+                reason = (
+                    f"the error set {error_signature}"
+                    if error_signature in previous_signatures
+                    else f"errors about {sorted(subjects)}"
+                )
+                summary_escalation = (
+                    f" Repair scope escalated from {scope!r} to {escalated_scope!r}: "
+                    f"{reason} survived a {scope} repair round."
+                )
+                scope = escalated_scope
+            else:
+                summary_escalation = ""
+        else:
+            summary_escalation = ""
+
+        stop_reason = (
+            f"No progress: topology and repairable error fingerprint {fingerprint} repeated."
+            if no_progress
+            else ""
+        )
         summary = (
             f"Deterministic validation: {deterministic.verdict}. Engineering review: {review.verdict}. "
             f"{review.summary}"
         )
+        summary += summary_escalation
+        if stop_reason:
+            summary += " " + stop_reason
         combined = CombinedTopologyValidation(
             verdict=verdict,
             deterministic=deterministic,
@@ -653,7 +956,60 @@ class Workflow:
         return {
             "deterministic_validation": deterministic.model_dump(mode="json"),
             "topology_validation": combined.model_dump(mode="json"),
+            "topology_validation_fingerprints": [fingerprint],
+            "topology_error_signatures": [error_signature] if error_signature else [],
+            "topology_error_subjects": [sorted(subjects)] if subjects else [],
+            "topology_repair_escalated": bool(summary_escalation),
+            "topology_no_progress": no_progress,
+            "repair_stop_reason": stop_reason,
         }
+
+    def repair_topology_requirements(self, state: OverallState) -> dict[str, Any]:
+        """Repair an upstream contract once instead of asking the designer to work around it."""
+        validation = state["topology_validation"]
+        issues = validation.get("deterministic", {}).get("issues", []) + validation.get(
+            "design_review", {}
+        ).get("design_issues", [])
+        requirements_issues = [
+            issue
+            for issue in issues
+            if issue.get("severity") == "error" and issue.get("scope") == "requirements"
+        ]
+        payload = (
+            "ORIGINAL PROBLEM:\n"
+            + state["user_query"]
+            + "\n\nAUTHORITATIVE USER CLARIFICATIONS:\n"
+            + _clarification_context(state)
+            + "\n\nCURRENT REQUIREMENTS:\n"
+            + _json(state["requirements"])
+            + "\n\nTOPOLOGY VALIDATION FOUND THESE UPSTREAM REQUIREMENT ERRORS:\n"
+            + _json(requirements_issues)
+            + "\n\nReturn one complete corrected RequirementsSpec. Preserve explicit facts and answered "
+            "clarifications. Do not invent a hydraulic sequence for an operator-commanded mode."
+        )
+        result: RequirementsSpec = self.agents.extractor.invoke(
+            [SystemMessage(PROMPT_BY_AGENT["extractor"]), HumanMessage(payload)]
+        )
+        normalized, notes = normalize_requirements(result, state["user_query"])
+        remaining = requirements_quality_issues(normalized, state["user_query"])
+        return {
+            "requirements": normalized.model_dump(mode="json"),
+            "requirements_structural_issues": remaining,
+            "requirements_normalizations": [*state.get("requirements_normalizations", []), *notes],
+            "topology_requirements_repair_count": state.get("topology_requirements_repair_count", 0) + 1,
+            "topology_requirements_repair_failed": bool(remaining),
+            "topology_no_progress": False,
+        }
+
+    @staticmethod
+    def route_after_topology_requirements_repair(
+        state: OverallState,
+    ) -> Literal["curate_design_brief", "finalize_topology"]:
+        return (
+            "finalize_topology"
+            if state.get("topology_requirements_repair_failed")
+            else "curate_design_brief"
+        )
 
     def plan_targeted_research(self, state: OverallState) -> dict[str, Any]:
         """Turn an unsupported design-pattern issue into one bounded evidence need."""
@@ -712,18 +1068,30 @@ class Workflow:
             "pending_research_tasks": tasks,
             "research_stalled_rounds": 0,
             "targeted_research_attempts": state.get("targeted_research_attempts", 0) + 1,
+            "targeted_research_fingerprints": [
+                (state.get("topology_validation_fingerprints") or [""])[-1]
+            ],
         }
 
     def route_after_topology_validation(
         self, state: OverallState
-    ) -> Literal["targeted_research", "plan_components", "build_netlist", "finalize_topology"]:
+    ) -> Literal["repair_topology_requirements", "targeted_research", "plan_components", "build_netlist", "finalize_topology"]:
         validation = state["topology_validation"]
         if validation.get("verdict") == "valid":
             return "finalize_topology"
         rounds_left = state.get("topology_round", 0) < state.get("max_topology_rounds", self.settings.max_topology_rounds)
         if not rounds_left:
             return "finalize_topology"
+        if validation.get("repair_scope") == "requirements":
+            if state.get("topology_requirements_repair_count", 0) < 1:
+                return "repair_topology_requirements"
+            return "finalize_topology"
+        current_fingerprint = (state.get("topology_validation_fingerprints") or [""])[-1]
+        if state.get("topology_no_progress"):
+            return "finalize_topology"
         if validation.get("repair_scope") == "research":
+            if current_fingerprint in set(state.get("targeted_research_fingerprints") or []):
+                return "finalize_topology"
             research_budget = state.get("searches_used", 0) < state.get(
                 "max_searches", self.settings.max_searches
             )
@@ -794,11 +1162,14 @@ class Workflow:
             function_implementations=topology.function_implementations,
             design_decisions=topology.design_decisions,
             catalog_gaps=topology.catalog_gaps,
+            evidence_gaps=topology.evidence_gaps,
             assumptions=topology.assumptions,
             open_issues=topology.open_issues + unresolved_descriptions,
             research_audit=summarize_research_audit(state),
             research_coverage=coverage,
             validation=validation,
+            repair_stop_reason=state.get("repair_stop_reason") or None,
+            validation_fingerprints=state.get("topology_validation_fingerprints", []),
         )
         return {"final_output": output.model_dump(mode="json")}
 
@@ -844,6 +1215,7 @@ def build_graph(
     graph.add_node("plan_components", workflow.plan_components)
     graph.add_node("build_netlist", workflow.build_netlist)
     graph.add_node("validate_topology", workflow.validate_and_review_topology)
+    graph.add_node("repair_topology_requirements", workflow.repair_topology_requirements)
     graph.add_node("targeted_research", workflow.plan_targeted_research)
     graph.add_node("finalize_topology", workflow.finalize_topology)
 
@@ -894,9 +1266,18 @@ def build_graph(
         "validate_topology",
         workflow.route_after_topology_validation,
         {
+            "repair_topology_requirements": "repair_topology_requirements",
             "targeted_research": "targeted_research",
             "plan_components": "plan_components",
             "build_netlist": "build_netlist",
+            "finalize_topology": "finalize_topology",
+        },
+    )
+    graph.add_conditional_edges(
+        "repair_topology_requirements",
+        workflow.route_after_topology_requirements_repair,
+        {
+            "curate_design_brief": "curate_design_brief",
             "finalize_topology": "finalize_topology",
         },
     )

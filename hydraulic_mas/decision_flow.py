@@ -24,6 +24,7 @@ from .schemas import (
     MotionControlDecision,
     MotionDirection,
     RequirementsSpec,
+    SpeedRealization,
     SynchronizationStrategy,
 )
 
@@ -42,6 +43,7 @@ def motion_decisions_from_requirements(
                     phase_name=phase.name,
                     motion=phase.motion,
                     load_type=phase.load_type,
+                    speed_realization=phase.speed_realization,
                     metering_side=phase.metering_side,
                     metered_chamber=phase.metered_chamber,
                     metered_flow=phase.metered_flow,
@@ -101,6 +103,8 @@ def motion_decision_issues(requirements: RequirementsSpec | dict[str, Any]) -> l
                 issues.append(f"{prefix} has unspecified motion direction.")
             if phase.metering_side == MeteringSide.undecided:
                 issues.append(f"{prefix} has an undecided metering_side.")
+            if phase.speed_realization == SpeedRealization.unspecified:
+                issues.append(f"{prefix} has an unspecified speed_realization.")
             if phase.metering_side not in {MeteringSide.none, MeteringSide.undecided}:
                 expected = expected_metered_chamber(phase.motion, phase.metering_side)
                 if phase.metered_chamber != expected:
@@ -115,12 +119,47 @@ def motion_decision_issues(requirements: RequirementsSpec | dict[str, Any]) -> l
                     issues.append(
                         f"{prefix} has metered_flow={phase.metered_flow.value}; expected {expected_flow.value}."
                     )
+            if phase.speed_load_independent and phase.speed_realization != SpeedRealization.load_independent_throttled:
+                issues.append(
+                    f"{prefix} requires load-independent speed but speed_realization is not "
+                    "load_independent_throttled."
+                )
             if phase.speed_load_independent and phase.flow_compensation != FlowCompensation.pressure_compensated:
                 issues.append(
                     f"{prefix} requires load-independent speed but does not select pressure_compensated flow control."
                 )
+            if phase.speed_adjustable and phase.speed_realization not in {
+                SpeedRealization.adjustable_throttled,
+                SpeedRealization.load_independent_throttled,
+            }:
+                issues.append(
+                    f"{prefix} requires adjustable speed but does not select an adjustable throttled realization."
+                )
             if (phase.speed_adjustable or phase.speed_load_independent) and phase.metering_side == MeteringSide.none:
                 issues.append(f"{prefix} requires speed regulation but metering_side is none.")
+            if phase.speed_realization in {
+                SpeedRealization.sizing_only,
+                SpeedRealization.unrestricted_rapid,
+                SpeedRealization.regenerative,
+            } and phase.flow_compensation != FlowCompensation.none:
+                issues.append(
+                    f"{prefix} uses {phase.speed_realization.value} but declares flow compensation."
+                )
+            if phase.speed_realization in {
+                SpeedRealization.load_sensitive_throttled,
+                SpeedRealization.adjustable_throttled,
+            } and phase.flow_compensation != FlowCompensation.non_compensated:
+                issues.append(
+                    f"{prefix} requires a non-compensated throttled path for "
+                    f"speed_realization={phase.speed_realization.value}."
+                )
+            if (
+                phase.speed_realization == SpeedRealization.load_independent_throttled
+                and phase.flow_compensation != FlowCompensation.pressure_compensated
+            ):
+                issues.append(
+                    f"{prefix} requires pressure compensation for load_independent_throttled speed."
+                )
             if (
                 phase.load_type in {LoadType.overrunning, LoadType.both}
                 and phase.metering_side == MeteringSide.meter_in
@@ -210,4 +249,3 @@ def inject_topology_decisions(topology: dict[str, Any], component_plan: dict[str
     output["motion_control_decisions"] = deepcopy(component_plan.get("motion_control_decisions", []))
     output["synchronization_decisions"] = deepcopy(component_plan.get("synchronization_decisions", []))
     return output
-

@@ -58,6 +58,18 @@ class MeteringSide(str, Enum):
     undecided = "undecided"
 
 
+class SpeedRealization(str, Enum):
+    """Topology-level mechanism used to realize a phase speed."""
+
+    sizing_only = "sizing_only"
+    unrestricted_rapid = "unrestricted_rapid"
+    load_sensitive_throttled = "load_sensitive_throttled"
+    adjustable_throttled = "adjustable_throttled"
+    load_independent_throttled = "load_independent_throttled"
+    regenerative = "regenerative"
+    unspecified = "unspecified"
+
+
 class ActuatorChamber(str, Enum):
     cap = "cap"
     rod = "rod"
@@ -136,6 +148,13 @@ class MotionPhase(BaseModel):
     load_type: LoadType = LoadType.unspecified
     speed_adjustable: bool = False
     speed_load_independent: bool = False
+    speed_realization: SpeedRealization = Field(
+        ...,
+        description=(
+            "First-class topology decision. A numeric target alone is sizing_only; "
+            "select throttling or regeneration only when the specified behavior requires it."
+        ),
+    )
     metering_side: MeteringSide
     metered_chamber: ActuatorChamber
     metered_flow: MeteredFlow
@@ -146,6 +165,25 @@ class MotionPhase(BaseModel):
         description="Concise auditable basis for the metering and load-control decision.",
     )
     motion_control_source: Source = Source.inferred
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_speed_decision(cls, value):
+        """Read v0.2.x records while keeping the new field required for agents."""
+        if not isinstance(value, dict) or value.get("speed_realization") is not None:
+            return value
+        normalized = dict(value)
+        side = normalized.get("metering_side")
+        if normalized.get("speed_load_independent"):
+            realization = SpeedRealization.load_independent_throttled.value
+        elif normalized.get("speed_adjustable") and side not in {None, "none", "undecided"}:
+            realization = SpeedRealization.adjustable_throttled.value
+        elif side not in {None, "none", "undecided"}:
+            realization = SpeedRealization.load_sensitive_throttled.value
+        else:
+            realization = SpeedRealization.sizing_only.value
+        normalized["speed_realization"] = realization
+        return normalized
 
     @model_validator(mode="after")
     def validate_motion_control_fields(self) -> "MotionPhase":
@@ -160,6 +198,22 @@ class MotionPhase(BaseModel):
         elif self.metering_side == MeteringSide.meter_out:
             if self.metered_flow != MeteredFlow.exhaust:
                 raise ValueError("meter_out requires metered_flow=exhaust")
+        if self.speed_realization in {
+            SpeedRealization.sizing_only,
+            SpeedRealization.unrestricted_rapid,
+            SpeedRealization.regenerative,
+        } and self.metering_side not in {MeteringSide.none, MeteringSide.undecided}:
+            raise ValueError(
+                f"speed_realization={self.speed_realization.value} cannot declare a throttled metering path"
+            )
+        if self.speed_realization in {
+            SpeedRealization.load_sensitive_throttled,
+            SpeedRealization.adjustable_throttled,
+            SpeedRealization.load_independent_throttled,
+        } and self.metering_side in {MeteringSide.none, MeteringSide.undecided}:
+            raise ValueError(
+                f"speed_realization={self.speed_realization.value} requires an explicit metering side"
+            )
         return self
 
 
@@ -169,6 +223,7 @@ class MotionControlDecision(BaseModel):
     phase_name: str
     motion: MotionDirection
     load_type: LoadType
+    speed_realization: SpeedRealization
     metering_side: MeteringSide
     metered_chamber: ActuatorChamber
     metered_flow: MeteredFlow
@@ -222,6 +277,17 @@ class FunctionRequirement(BaseModel):
     total_travel: Quantity | None = None
     peak_force: Quantity | None = None
     holding_force: Quantity | None = None
+    max_working_pressure: Quantity | None = Field(
+        None,
+        description="Explicit pressure ceiling for this function/branch when it differs from the system ceiling.",
+    )
+    branch_pressure_limit_required: bool = Field(
+        False,
+        description=(
+            "True only when this branch must be independently limited below the global system pressure; "
+            "a sizing target such as force at up to a pressure does not automatically set this flag."
+        ),
+    )
     speeds_adjustable: bool = False
     speed_load_independent: bool = False
     cycle_time: Quantity | None = None
@@ -293,6 +359,7 @@ class DerivedDesignDriver(BaseModel):
         "flow_priority_sharing",
         "two_speed_force_switching",
         "pressure_limiting_stall",
+        "branch_pressure_reduction",
     ]
     evidence: str
     related_function_ids: list[str] = Field(default_factory=list)
@@ -317,8 +384,20 @@ class Assumption(BaseModel):
     needs_human_approval: bool = False
 
 
+class ClarificationTopic(str, Enum):
+    load_character = "load_character"
+    orientation = "orientation"
+    motion_direction = "motion_direction"
+    holding_safety = "holding_safety"
+    sequence_trigger = "sequence_trigger"
+    synchronization = "synchronization"
+    topology_preference = "topology_preference"
+    other = "other"
+
+
 class Clarification(BaseModel):
     id: str
+    topic: ClarificationTopic = ClarificationTopic.other
     question: str
     why_it_matters: str
     blocking: bool
@@ -532,6 +611,16 @@ class CatalogGap(BaseModel):
     blocking: bool = True
 
 
+class EvidenceGap(BaseModel):
+    """Missing corroboration for a plausible pattern, not a missing catalog class."""
+
+    capability: str
+    reason: str
+    related_function_ids: list[str] = Field(default_factory=list)
+    evidence_needed: str | None = None
+    blocking: bool = False
+
+
 class PlannedComponent(BaseModel):
     id: str
     catalog_key: str = Field(..., description="Exact generic component-class key returned by a catalog tool.")
@@ -634,6 +723,7 @@ class ComponentPlan(BaseModel):
     synchronization_decisions: list[FunctionSynchronizationDecision] = Field(default_factory=list)
     design_ledger: list[LedgerEntry] = Field(default_factory=list)
     catalog_gaps: list[CatalogGap] = Field(default_factory=list)
+    evidence_gaps: list[EvidenceGap] = Field(default_factory=list)
     open_issues: list[str] = Field(default_factory=list)
     repair_actions: list[RepairAction] = Field(default_factory=list)
 
@@ -734,6 +824,15 @@ class PhaseConfiguration(BaseModel):
     component_states: list[ComponentStateSelection] = Field(default_factory=list)
     expected_active_function_ids: list[str] = Field(default_factory=list)
     forbidden_active_function_ids: list[str] = Field(default_factory=list)
+    completed_function_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Functions already driven to their mechanical end position by an earlier phase of the "
+            "same command, and therefore physically unable to move further in that direction. Use "
+            "this instead of adding an isolating valve when a forbidden-overlap function is simply "
+            "finished. An earlier phase must actually drive the function in that direction."
+        ),
+    )
     notes: str | None = None
 
 
@@ -749,6 +848,7 @@ class TopologyDesign(BaseModel):
     function_implementations: list[FunctionImplementation] = Field(default_factory=list)
     design_decisions: list[DesignDecision] = Field(default_factory=list)
     catalog_gaps: list[CatalogGap] = Field(default_factory=list)
+    evidence_gaps: list[EvidenceGap] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     open_issues: list[str] = Field(default_factory=list)
 
@@ -783,7 +883,7 @@ class CombinedTopologyValidation(BaseModel):
     verdict: Literal["valid", "invalid"]
     deterministic: DeterministicValidation
     design_review: TopologyReview
-    repair_scope: Literal["none", "wiring", "selection", "research"]
+    repair_scope: Literal["none", "wiring", "selection", "requirements", "research"]
     topology_round: int
     summary: str
 
@@ -829,8 +929,11 @@ class FinalTopologyOutput(BaseModel):
     function_implementations: list[FunctionImplementation] = Field(default_factory=list)
     design_decisions: list[DesignDecision] = Field(default_factory=list)
     catalog_gaps: list[CatalogGap] = Field(default_factory=list)
+    evidence_gaps: list[EvidenceGap] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     open_issues: list[str] = Field(default_factory=list)
     research_audit: ResearchAudit = Field(default_factory=ResearchAudit)
     research_coverage: ResearchCoverage
     validation: CombinedTopologyValidation
+    repair_stop_reason: str | None = None
+    validation_fingerprints: list[str] = Field(default_factory=list)

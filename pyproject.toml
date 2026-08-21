@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hydraulic-topology-mas"
-version = "0.2.2"
+version = "0.4.5"
 description = "Terminal-only LangGraph multi-agent workflow for hydraulic topology research, design, and validation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -34,7 +34,7 @@ where = ["."]
 include = ["hydraulic_mas*"]
 
 [tool.setuptools.package-data]
-hydraulic_mas = ["data/*.py"]
+hydraulic_mas = ["data/*.py", "data/*.txt"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

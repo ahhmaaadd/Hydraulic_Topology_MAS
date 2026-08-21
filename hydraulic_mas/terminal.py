@@ -27,6 +27,7 @@ NODE_TITLES = {
     "plan_components": "10. Generic Topology Component Designer",
     "build_netlist": "11. Port-Level Netlist Builder",
     "validate_topology": "12. Deterministic + Engineering Validator",
+    "repair_topology_requirements": "Upstream Requirements Repair",
     "targeted_research": "Targeted Research Repair",
     "finalize_topology": "13. Final Topology Output",
 }
@@ -220,11 +221,14 @@ class TerminalReporter:
         if non_interactive:
             self.console.print("Non-interactive mode: requesting conservative, explicit assumptions.")
             return {"use_assumptions": True}
-        answers: list[str] = []
+        answers: list[dict[str, str]] = []
         for question in payload.get("questions", []):
-            self.console.print(Panel(str(question.get("why_it_matters") or ""), title=str(question.get("question"))))
+            detail = str(question.get("why_it_matters") or "")
+            if question.get("topic"):
+                detail += f"\n\nDecision topic: {question.get('topic')}"
+            self.console.print(Panel(detail, title=str(question.get("question"))))
             answer = self.console.input("[bold cyan]Your answer:[/bold cyan] ").strip()
-            answers.append(f"{question.get('id')}: {answer}")
+            answers.append({"id": str(question.get("id")), "answer": answer})
         return {"answers": answers}
 
     def final_output(self, output: dict[str, Any]) -> None:
@@ -274,6 +278,7 @@ class TerminalReporter:
                 "Function",
                 "Motion",
                 "Load",
+                "Speed realization",
                 "Metering",
                 "Chamber",
                 "Flow",
@@ -287,6 +292,7 @@ class TerminalReporter:
                     str(item.get("function_id")),
                     str(item.get("motion")),
                     str(item.get("load_type")),
+                    str(item.get("speed_realization")),
                     str(item.get("metering_side")),
                     str(item.get("metered_chamber")),
                     str(item.get("metered_flow")),
@@ -348,6 +354,19 @@ class TerminalReporter:
                     str(item.get("notes") or ""),
                 )
             self.console.print(interfaces)
+
+        if output.get("catalog_gaps") or output.get("evidence_gaps"):
+            gaps = Table("Kind", "Capability", "Blocking", "Reason", show_lines=True)
+            for item in output.get("catalog_gaps", []):
+                gaps.add_row("catalog", str(item.get("capability")), str(item.get("blocking")), str(item.get("reason")))
+            for item in output.get("evidence_gaps", []):
+                gaps.add_row("evidence", str(item.get("capability")), str(item.get("blocking")), str(item.get("reason")))
+            self.console.print(gaps)
+
+        if output.get("repair_stop_reason"):
+            self.console.print(
+                Panel(str(output["repair_stop_reason"]), title="Repair loop stopped", border_style="yellow")
+            )
 
         self.console.print(Panel(str(output.get("scope_statement", "")), title="Validation scope", border_style="yellow"))
         if output.get("research_audit"):
