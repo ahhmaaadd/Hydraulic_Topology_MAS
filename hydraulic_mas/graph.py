@@ -20,6 +20,11 @@ from .models import build_chat_model
 from .gap_policy import blocking_catalog_gaps
 from .patterns import format_pattern_hints
 from .requirements_quality import normalize_requirements, requirements_quality_issues
+from .sizing.agent import build_sizing_planner, build_sizing_repairer
+from .sizing.contract import compile_contract
+from .sizing.planner import _load_tolerance as sizing_load_tolerance, size_problem
+from .sizing.schemas_sizing import SizingPlanSet, SizingRepairPlan
+from .sizing.selection import evaluate_and_select_sizing, score_candidate
 from .research_guards import calibrate_finding, derive_research_need_hints, enforce_coverage_gate, enforce_minimum_plan
 from .schemas import (
     CombinedTopologyValidation,
@@ -1173,6 +1178,169 @@ class Workflow:
         )
         return {"final_output": output.model_dump(mode="json")}
 
+    # ------------------------------------------------------------------
+    # Sizing
+    # ------------------------------------------------------------------
+
+    def _sizing_context(self, state: OverallState):
+        """Contract and load tolerance for the problem being sized."""
+        requirements = state["requirements"]
+        contract = compile_contract(requirements, str(state.get("problem_id") or ""))
+        return contract, sizing_load_tolerance(requirements)
+
+    def plan_sizing(self, state: OverallState) -> dict[str, Any]:
+        """Ask the planner for two or three strategies, then score them.
+
+        Falls back to the deterministic planner when no sizing-capable model is
+        configured. That is not only graceful degradation: the deterministic arm
+        is the control the LLM arm has to beat, so having both reachable through
+        the same graph is what makes the comparison a controlled one.
+        """
+        contract, tolerance = self._sizing_context(state)
+        topology = state["topology"]
+        requirements = state["requirements"]
+        model = getattr(self.agents, "sizing_model", None)
+        if model is None:
+            return self._plan_sizing_deterministically(state, contract, tolerance)
+        planner = build_sizing_planner(
+            model, topology, requirements, contract, tolerance)
+        payload = (
+            "PROBLEM:\n" + state["user_query"]
+            + "\n\nVALIDATED TOPOLOGY:\n" + _json(topology)
+            + "\n\nACCEPTANCE CONTRACT:\n"
+            + _json([
+                {
+                    "id": item.id, "kind": item.kind, "phase_id": item.phase_id,
+                    "function_id": item.function_id, "required": item.describe_band(),
+                    "rationale": item.rationale,
+                }
+                for item in contract.criteria
+            ])
+            + "\n\nTOLERANCE ASSUMPTIONS:\n" + _json(contract.assumptions)
+            + "\n\nSize this circuit. Use the tools for every number, and evaluate each "
+            "candidate with evaluate_sizing_policy before returning it."
+        )
+        result: SizingPlanSet = planner.invoke(
+            {"messages": [HumanMessage(payload)]}
+        )["structured_response"]
+        candidate, sizing, throttles, certificate, scores = evaluate_and_select_sizing(
+            result, topology, requirements, contract, tolerance)
+        return {
+            "sizing_contract": {
+                "criteria": [item.id for item in contract.criteria],
+                "assumptions": contract.assumptions,
+            },
+            "sizing_candidates": [item.model_dump(mode="json") for item in result.candidates],
+            "sizing_scores": [item.model_dump(mode="json") for item in scores],
+            "sizing_plan": candidate.model_dump(mode="json"),
+            "sizing": sizing,
+            "sizing_throttles": throttles,
+            "sizing_certificate": certificate.to_dict() if certificate else {},
+            "sizing_mode": "llm",
+            "sizing_round": state.get("sizing_round", 0) + 1,
+        }
+
+    def _plan_sizing_deterministically(self, state, contract, tolerance) -> dict[str, Any]:
+        result = size_problem(
+            str(state.get("problem_id") or ""), state["topology"], state["requirements"])
+        certificate = result.certificate
+        return {
+            "sizing_contract": {
+                "criteria": [item.id for item in contract.criteria],
+                "assumptions": contract.assumptions,
+            },
+            "sizing_candidates": [],
+            "sizing_scores": [],
+            "sizing_plan": {"candidate_id": "deterministic", "approach": "deterministic planner"},
+            "sizing": result.sizing,
+            "sizing_throttles": result.throttle_k,
+            "sizing_certificate": certificate.to_dict() if certificate else {},
+            "sizing_mode": "deterministic",
+            "sizing_round": state.get("sizing_round", 0) + 1,
+            "sizing_repairs": list(result.repairs),
+        }
+
+    def repair_sizing(self, state: OverallState) -> dict[str, Any]:
+        """Revise the policy against the certificate that refuted it."""
+        contract, tolerance = self._sizing_context(state)
+        topology = state["topology"]
+        requirements = state["requirements"]
+        certificate = state.get("sizing_certificate") or {}
+        if getattr(self.agents, "sizing_model", None) is None:
+            # The deterministic planner already repaired in closed form; there is
+            # no second opinion to ask for.
+            return {"sizing_round": state.get("sizing_round", 0) + 1}
+        repairer = build_sizing_repairer(
+            self.agents.sizing_model, topology, requirements, contract, tolerance)
+        unresolved = [
+            item for item in certificate.get("criteria", [])
+            if item.get("verdict") != "PROVED"
+        ]
+        payload = (
+            "PROBLEM:\n" + state["user_query"]
+            + "\n\nCURRENT SIZING POLICY:\n" + _json(state.get("sizing_plan"))
+            + "\n\nWHAT DID NOT HOLD:\n" + _json(unresolved)
+            + "\n\nFINDINGS:\n" + _json(certificate.get("findings", []))
+            + "\n\nOPERATING POINTS:\n" + _json(certificate.get("operating_points", {}))
+            + "\n\nRevise the policy and confirm it with evaluate_sizing_policy."
+        )
+        result: SizingRepairPlan = repairer.invoke(
+            {"messages": [HumanMessage(payload)]}
+        )["structured_response"]
+        score, sizing, throttles, revised = score_candidate(
+            result.candidate, topology, requirements, contract, tolerance)
+        return {
+            "sizing_plan": result.candidate.model_dump(mode="json"),
+            "sizing_scores": [score.model_dump(mode="json")],
+            "sizing": sizing,
+            "sizing_throttles": throttles,
+            "sizing_certificate": revised.to_dict() if revised else {},
+            "sizing_round": state.get("sizing_round", 0) + 1,
+            "sizing_repairs": [result.rationale],
+        }
+
+    @staticmethod
+    def route_after_topology_to_sizing(state: OverallState) -> Literal["plan_sizing", "end"]:
+        status = (state.get("final_output") or {}).get("status")
+        return "plan_sizing" if status in {"validated", "validated_with_warnings"} else "end"
+
+    def route_after_sizing(
+        self, state: OverallState
+    ) -> Literal["repair_sizing", "finalize_sizing"]:
+        certificate = state.get("sizing_certificate") or {}
+        if certificate.get("verdict") == "PROVED":
+            return "finalize_sizing"
+        rounds = state.get("sizing_round", 0)
+        if rounds >= state.get("max_sizing_rounds", self.settings.max_sizing_rounds):
+            return "finalize_sizing"
+        return "repair_sizing"
+
+    def finalize_sizing(self, state: OverallState) -> dict[str, Any]:
+        certificate = state.get("sizing_certificate") or {}
+        verdict = certificate.get("verdict", "UNKNOWN")
+        stop = ""
+        if verdict != "PROVED":
+            stop = (
+                f"sizing stopped after {state.get('sizing_round', 0)} round(s) with verdict "
+                f"{verdict}; unresolved criteria are listed in the certificate"
+            )
+        return {
+            "sizing_stop_reason": stop,
+            "final_sized_output": {
+                "problem_id": state.get("problem_id"),
+                "verdict": verdict,
+                "mode": state.get("sizing_mode", "deterministic"),
+                "policy": state.get("sizing_plan"),
+                "sizing": state.get("sizing"),
+                "throttle_settings": state.get("sizing_throttles"),
+                "certificate": certificate,
+                "candidate_scores": state.get("sizing_scores", []),
+                "repairs": state.get("sizing_repairs", []),
+                "rounds": state.get("sizing_round", 0),
+                "stop_reason": stop or None,
+            },
+        }
+
 
 def build_graph(
     *,
@@ -1218,6 +1386,10 @@ def build_graph(
     graph.add_node("repair_topology_requirements", workflow.repair_topology_requirements)
     graph.add_node("targeted_research", workflow.plan_targeted_research)
     graph.add_node("finalize_topology", workflow.finalize_topology)
+    if settings.enable_sizing:
+        graph.add_node("plan_sizing", workflow.plan_sizing)
+        graph.add_node("repair_sizing", workflow.repair_sizing)
+        graph.add_node("finalize_sizing", workflow.finalize_sizing)
 
     graph.add_edge(START, "extract_requirements")
     graph.add_edge("extract_requirements", "critique_requirements")
@@ -1282,5 +1454,26 @@ def build_graph(
         },
     )
     graph.add_edge("targeted_research", "research_dispatch")
-    graph.add_edge("finalize_topology", END)
+    if settings.enable_sizing:
+        # Sizing runs only on a topology that validated. An unresolved topology
+        # has no settled valve states, and without those every phase model is a
+        # guess - so there is nothing here worth sizing.
+        graph.add_conditional_edges(
+            "finalize_topology",
+            workflow.route_after_topology_to_sizing,
+            {"plan_sizing": "plan_sizing", "end": END},
+        )
+        graph.add_conditional_edges(
+            "plan_sizing",
+            workflow.route_after_sizing,
+            {"repair_sizing": "repair_sizing", "finalize_sizing": "finalize_sizing"},
+        )
+        graph.add_conditional_edges(
+            "repair_sizing",
+            workflow.route_after_sizing,
+            {"repair_sizing": "repair_sizing", "finalize_sizing": "finalize_sizing"},
+        )
+        graph.add_edge("finalize_sizing", END)
+    else:
+        graph.add_edge("finalize_topology", END)
     return graph.compile(checkpointer=checkpointer or InMemorySaver())

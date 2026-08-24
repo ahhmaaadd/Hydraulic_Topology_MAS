@@ -45,6 +45,7 @@ class AgentSuite:
     component_planner: Any
     netlist_builder: Any
     topology_reviewer: Any
+    sizing_model: Any = None
 
 
 def _structured(model: Any, schema: type[Any]):
@@ -80,6 +81,7 @@ def build_agent_suite(design_model: Any, fast_model: Any) -> AgentSuite:
         ),
         netlist_builder=_structured(design_model, TopologyDesign),
         topology_reviewer=_structured(design_model, TopologyReview),
+        sizing_model=design_model,
     )
 
 

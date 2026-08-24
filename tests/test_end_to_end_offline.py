@@ -245,3 +245,19 @@ def test_full_graph_reaches_validated_output_without_network() -> None:
     assert result["final_output"]["status"] == "validated"
     assert result["final_output"]["research_audit"]["verified_evidence_claims"] == 6
     assert len(result["final_output"]["selected_components"]) == 7
+
+    # The graph must carry a validated topology all the way through sizing to a
+    # certificate. This stub configures no sizing model, so the deterministic
+    # arm runs - which is also the control the LLM arm is measured against.
+    sized = result["final_sized_output"]
+    assert sized["mode"] == "deterministic"
+    assert sized["verdict"] in {"PROVED", "UNDECIDED", "REFUTED"}
+    # This fixture's phases carry no loads or speeds, so there is genuinely
+    # nothing to certify - and the certificate has to say so rather than report
+    # an empty PROVED, which would be the most dangerous output of this stage.
+    assert not sized["certificate"]["criteria"]
+    assert any(f["code"] == "NO_CHECKABLE_CRITERIA" for f in sized["certificate"]["findings"])
+    assert sized["sizing"]["__supply__"]["motor_kw"] > 0
+    for record in sized["sizing"].values():
+        if "bore_mm" in record:
+            assert record["rod_mm"] < record["bore_mm"]

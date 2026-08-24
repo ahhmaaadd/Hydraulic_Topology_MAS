@@ -1268,3 +1268,132 @@ def repair_scope(issues: list[dict[str, Any]] | list[TopologyIssue]) -> str:
     if "research" in scopes:
         return "research"
     return "selection"
+
+
+# ---------------------------------------------------------------------------
+# Public accessor for the sizing stage
+# ---------------------------------------------------------------------------
+
+
+def phase_flow_paths(
+    design: dict[str, Any] | TopologyDesign,
+    requirements: dict[str, Any] | RequirementsSpec,
+    phase_id: str,
+) -> dict[str, Any] | None:
+    """Return the proved supply and exhaust paths for one motion phase.
+
+    The sizing stage needs exactly what validation already computed: which
+    components a phase's oil actually flows through, in order, in that phase's
+    valve states. Recomputing it there would risk the two stages disagreeing
+    about the circuit, so the certified paths are exposed instead.
+
+    Returns ``None`` when the phase is not a motion phase or has no configuration.
+    Each path is a list of ``(component_id, comp_type, kind)`` for the internal
+    edges traversed, in flow order.
+    """
+    design = _as_dict(design)
+    requirements = _as_dict(requirements)
+
+    components = design.get("components", [])
+    entry_by_id: dict[str, dict[str, Any]] = {}
+    for component in components:
+        entry = CATALOG.get(str(component.get("catalog_key")))
+        if entry is None:
+            return None
+        entry_by_id[str(component.get("id"))] = entry
+
+    valid_lines: list[tuple[Node, Node, str]] = []
+    for connection in design.get("connections", []):
+        source = (str(connection.get("from_component")), str(connection.get("from_port")))
+        target = (str(connection.get("to_component")), str(connection.get("to_port")))
+        if source[0] not in entry_by_id or target[0] not in entry_by_id:
+            return None
+        valid_lines.append((source, target, str(connection.get("line") or "unspecified")))
+
+    configuration = next(
+        (
+            item
+            for item in design.get("phase_configurations", [])
+            if str(item.get("phase_id")) == str(phase_id)
+        ),
+        None,
+    )
+    if configuration is None:
+        return None
+
+    pump_nodes = [
+        (component_id, "P")
+        for component_id, entry in entry_by_id.items()
+        if entry.get("type") == "pump"
+    ]
+    tank_nodes = [
+        (component_id, "R")
+        for component_id, entry in entry_by_id.items()
+        if entry.get("type") == "tank"
+    ]
+
+    issues: list[TopologyIssue] = []
+    graph, states = _build_phase_graph(
+        valid_lines=valid_lines,
+        components=components,
+        entry_by_id=entry_by_id,
+        configuration=configuration,
+        pump_nodes=pump_nodes,
+        issues=issues,
+    )
+
+    motion = str(configuration.get("motion"))
+    if motion not in {"extend", "retract"}:
+        return None
+    supply_port = "Cap" if motion == "extend" else "Rod"
+    exhaust_port = "Rod" if motion == "extend" else "Cap"
+
+    function_id = str(configuration.get("function_id"))
+    cylinders = [
+        str(component.get("id"))
+        for component in components
+        if component.get("comp_type") == "cylinder"
+        and str(component.get("function_id")) == function_id
+    ]
+    if not cylinders:
+        return None
+
+    def elements(path: list[FlowEdge] | None) -> list[tuple[str, str, str]]:
+        if path is None:
+            return []
+        return [
+            (str(edge.owner), str(entry_by_id.get(str(edge.owner), {}).get("type")), edge.kind)
+            for edge in path
+            if edge.internal and edge.owner in entry_by_id
+        ]
+
+    result: dict[str, Any] = {
+        "phase_id": str(phase_id),
+        "motion": motion,
+        "function_id": function_id,
+        "supply_port": supply_port,
+        "exhaust_port": exhaust_port,
+        "component_states": states,
+        "cylinders": {},
+    }
+    unmetered = lambda edge: edge.kind not in METER_KINDS
+    for cylinder_id in cylinders:
+        supply = _find_path(graph, pump_nodes, [(cylinder_id, supply_port)])
+        exhaust = _find_path(graph, [(cylinder_id, exhaust_port)], tank_nodes)
+        # A phase whose bypass is open has a second, unrestricted path in
+        # parallel with the metered one. The validator already treats that as
+        # defeating the metering (METERING_BYPASSED_IN_PHASE); sizing has to
+        # agree, or a rapid-approach phase gets sized at its feed speed.
+        supply_open = _find_path(graph, pump_nodes, [(cylinder_id, supply_port)],
+                                 edge_allowed=unmetered)
+        exhaust_open = _find_path(graph, [(cylinder_id, exhaust_port)], tank_nodes,
+                                  edge_allowed=unmetered)
+        result["cylinders"][cylinder_id] = {
+            "supply_elements": elements(supply_open if supply_open is not None else supply),
+            "exhaust_elements": elements(exhaust_open if exhaust_open is not None else exhaust),
+            "supply_proved": supply is not None,
+            "exhaust_proved": exhaust is not None,
+            "supply_metered": supply_open is None,
+            "exhaust_metered": exhaust_open is None,
+        }
+    return result

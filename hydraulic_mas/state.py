@@ -65,6 +65,21 @@ class OverallState(TypedDict, total=False):
     topology_requirements_repair_count: int
     topology_requirements_repair_failed: bool
 
+    # Sizing
+    sizing_contract: dict[str, Any]
+    sizing_candidates: list[dict[str, Any]]
+    sizing_scores: list[dict[str, Any]]
+    sizing_plan: dict[str, Any]
+    sizing: dict[str, Any]
+    sizing_throttles: dict[str, float]
+    sizing_certificate: dict[str, Any]
+    sizing_mode: str
+    sizing_round: int
+    max_sizing_rounds: int
+    sizing_repairs: Annotated[list[str], operator.add]
+    sizing_stop_reason: str
+    final_sized_output: dict[str, Any]
+
     # Final result / controlled failure
     final_output: dict[str, Any]
     failure: dict[str, Any]

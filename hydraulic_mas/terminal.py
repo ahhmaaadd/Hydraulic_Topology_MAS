@@ -384,6 +384,89 @@ class TerminalReporter:
         if not self.compact:
             self.console.print(Panel(Syntax(_json(output), "json", word_wrap=True), title="Complete machine-readable output"))
 
+    def sized_output(self, sized: dict[str, Any]) -> None:
+        """Render the sizing certificate: what was selected and what was proved."""
+        verdict = str(sized.get("verdict", "UNKNOWN"))
+        colour = {"PROVED": "green", "UNDECIDED": "yellow"}.get(verdict, "red")
+        self.console.rule(f"[bold]Sizing - {verdict}")
+
+        sizing = sized.get("sizing") or {}
+        supply = sizing.get("__supply__") or {}
+        components = Table("Item", "Selection", "Detail", show_lines=True)
+        for component_id, record in sizing.items():
+            if component_id == "__supply__" or "bore_mm" not in record:
+                continue
+            ratio = record["cap_area_m2"] / max(record["annulus_area_m2"], 1e-12)
+            components.add_row(
+                component_id,
+                f"{record['bore_mm']:g}/{record['rod_mm']:g} mm",
+                f"cap {record['cap_area_m2'] * 1e6:.0f} mm2, "
+                f"annulus {record['annulus_area_m2'] * 1e6:.0f} mm2, ratio {ratio:.2f}",
+            )
+        if supply:
+            components.add_row(
+                "Pump", f"{supply.get('displacement_cm3', 0):g} cm3/rev",
+                f"{supply.get('flow_m3s', 0) * 60000:.2f} L/min at "
+                f"{supply.get('speed_rpm', 1500):g} rpm")
+            components.add_row("Relief valve", f"{supply.get('relief_pa', 0) / 1e5:.1f} bar", "")
+            components.add_row("Prime mover", f"{supply.get('motor_kw', 0)} kW", "shaft power, worst phase")
+            components.add_row("Reservoir", f"{supply.get('reservoir_l', 0):g} L", "three times delivered flow")
+            components.add_row("Valves", str(supply.get("valve_size", "")),
+                               f"peak return {supply.get('peak_return_lpm', 0):.1f} L/min")
+            for label in ("suction", "pressure", "return"):
+                if supply.get(f"{label}_tube"):
+                    components.add_row(f"{label.title()} line", str(supply[f"{label}_tube"]), "")
+        self.console.print(components)
+
+        certificate = sized.get("certificate") or {}
+        criteria = certificate.get("criteria") or []
+        if criteria:
+            table = Table("Criterion", "Required", "Achieved", "Verdict", "Method", show_lines=True)
+            for item in criteria:
+                mark = {"PROVED": "[green]", "UNDECIDED": "[yellow]"}.get(
+                    str(item.get("verdict")), "[red]")
+                table.add_row(
+                    str(item.get("criterion_id")), str(item.get("required")),
+                    str(item.get("achieved")),
+                    f"{mark}{item.get('verdict')}[/]", str(item.get("method")),
+                )
+            self.console.print(table)
+
+        points = certificate.get("operating_points") or {}
+        if points:
+            table = Table("Phase", "Regime", "Velocity", "Pump", "Supply", "Exhaust", "Over relief")
+            for phase_id, point in points.items():
+                table.add_row(
+                    phase_id, str(point.get("regime")),
+                    f"{point.get('velocity_m_min', 0):.3f} m/min",
+                    f"{point.get('pump_pressure_bar', 0):.2f} bar",
+                    f"{point.get('supply_pressure_bar', 0):.2f} bar",
+                    f"{point.get('exhaust_pressure_bar', 0):.2f} bar",
+                    f"{point.get('relief_flow_lpm', 0):.2f} L/min",
+                )
+            self.console.print(table)
+
+        for finding in certificate.get("findings") or []:
+            style = "red" if finding.get("severity") == "error" else "yellow"
+            self.console.print(
+                f"[{style}][{finding.get('layer')}] {finding.get('code')}[/]: {finding.get('message')}")
+
+        scores = sized.get("candidate_scores") or []
+        if scores:
+            table = Table("Candidate", "Eligible", "Score", "P/U/R", "Oversizing", "Selected")
+            for score in scores:
+                table.add_row(
+                    str(score.get("candidate_id")), str(score.get("eligible")),
+                    f"{score.get('score', 0):.1f}",
+                    f"{score.get('proved', 0)}/{score.get('undecided', 0)}/{score.get('refuted', 0)}",
+                    f"{score.get('oversizing_index', 0):.3f}", str(score.get("selected")),
+                )
+            self.console.print(table)
+
+        if sized.get("stop_reason"):
+            self.console.print(
+                Panel(str(sized["stop_reason"]), title="Sizing stopped", border_style=colour))
+
     def failure(self, failure: dict[str, Any]) -> None:
         self.console.print(Panel(Syntax(_json(failure), "json", word_wrap=True), title="Workflow stopped safely", border_style="red"))
 

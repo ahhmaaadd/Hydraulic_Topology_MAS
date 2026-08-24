@@ -1,3 +1,182 @@
+# LLM Sizing Agent in the Graph — v0.6.0 — 2026-08-20
+
+## What is new
+
+The sizing stage from v0.5.0 is now an agent inside the LangGraph workflow, so a
+single run goes from a problem statement to a certified set of standard
+components.
+
+### Graph
+
+Four nodes after `finalize_topology`: `plan_sizing`, `repair_sizing`,
+`finalize_sizing`, and the routing between them. Sizing runs only on a topology
+that validated - an unresolved topology has no settled valve states, so every
+phase model would be a guess and there is nothing worth sizing.
+
+### The planner
+
+An agent with ten tools and no arithmetic of its own. It decides which phase
+governs a dimension, what pressure to design against, whether a rod is chosen for
+force or for area ratio, and how much margin to carry; every number comes from a
+tool. That split is deliberate: the defects the reference audit found were unit
+and convention errors - hydraulic power quoted as shaft power, force divided by
+area without the mechanical efficiency - and those are exactly the mistakes a
+language model makes fluently. Behind a tool they are impossible rather than
+unlikely.
+
+`evaluate_sizing_policy` is the important tool. It applies a candidate policy and
+returns the full certificate, so the planner can test a design before committing
+to it. That turns the model from a guesser into a searcher.
+
+### Selection and repair
+
+The planner returns two or three strategies and a deterministic score decides
+between them. The score is the certificate: more criteria proved wins, and among
+candidates that verify equally the smaller design wins. Without that last clause
+the winning strategy is always "go up three bore sizes", which passes everything
+and is a bad design.
+
+The repairer sees what did not hold *and the operating point of every phase*,
+because the regime is what says which change can help - a pressure-limited phase
+needs a larger bore, and a bigger pump does nothing for it.
+
+### Deterministic fallback
+
+With no sizing model configured, the deterministic planner runs instead. That is
+graceful degradation, and it is also the A0 control arm: both paths reach the
+same certificate through the same graph, so comparing them is controlled.
+
+### Empty certificates can no longer read as success
+
+A requirements extraction carrying no loads or speeds, or one whose criteria all
+resolve to nothing because no phase could be solved, previously produced an empty
+certificate reporting PROVED. That is the most dangerous output this stage could
+produce, because it looks exactly like success. It now raises
+`NO_CHECKABLE_CRITERIA` and verdicts UNDECIDED.
+
+### CLI and terminal
+
+`--no-sizing` and `--max-sizing-rounds`. The terminal prints the selected
+components, the certificate, the operating point of every phase, the findings and
+the candidate scores. Exit code 3 distinguishes "topology valid but sizing not
+certified" from both success and topology failure.
+
+## Results
+
+All seven problems reach the same certificates through the graph as through the
+direct planner: four PROVED, two UNDECIDED on a single marginal criterion, one
+REFUTED with a closed-form proof.
+
+## Tests
+
+261 offline tests pass, up from 230. `tests/test_sizing_agent.py` stubs the
+planner and repairer to exercise the tools, the scoring, the repair loop, the
+routing, the fallback and the rendering. What the model *chooses* is not testable
+offline; what the system does with a choice is, and that is the part that has to
+be right.
+
+# Sizing and Certification — v0.5.0 — 2026-08-20
+
+## What is new
+
+A sizing stage that takes a validated topology to a set of standard components
+and a machine-checkable certificate for every acceptance criterion. The topology
+stage is unchanged; this builds on it.
+
+### Phase-Resolved Quasi-Static verification (PQV)
+
+The enabling observation: the topology stage already emits and *proves* the
+discrete valve state of every phase. That is the combinatorial part of hydraulic
+analysis, and with it fixed each phase reduces to a small algebraic system in
+pressures, flows and one velocity. The only discreteness left is whether the
+relief is cracked or shut; both regimes are enumerated, solved and checked
+against their own consistency conditions, so the answer is certified rather than
+assumed. Two degenerate outcomes are reported rather than hidden: no consistent
+regime means the sizing cannot deliver that phase, and two consistent regimes
+mean the circuit has more than one stable operating point.
+
+`validation.phase_flow_paths` exposes the proved supply and exhaust paths so the
+two stages cannot disagree about the circuit.
+
+### Interval certification
+
+Every criterion is bounded over an operating envelope - two points either way on
+each efficiency, plus the load tolerance where a brief states one - using corner
+evaluation where the outcome is monotone and verified interior sampling where it
+is not. A verdict is PROVED only when the corner argument actually holds;
+otherwise it is UNDECIDED and says so. Infeasible points inside the envelope
+refute outright rather than being dropped.
+
+### Parametric catalog
+
+ISO 3320 bores, ISO 4395 rods, standard displacements, NG valve sizes, tube
+series, IEC motor ratings and reservoir sizes, all vendor-neutral. Components
+excluded from the topology stage because they do not change topology - filters,
+reservoirs, prime movers, lines - enter here, which is the clean split between
+topology-changing classes and sizing-only components.
+
+### Deterministic planner
+
+Sizes from the theoretical minimum bore upward and lets verification drive the
+growth, so the result is the smallest design that passes rather than the first
+one a conservative design pressure lands on. Most repairs are closed form: a
+refuted force gives the required area directly, and a load-actuated speed ratio
+that no bore can meet is diagnosed with the derived window rather than by
+enlarging parts at random.
+
+## Results on the seven problems
+
+Four certify clean (P7-02, P7-03, P7-05, P7-06); two are UNDECIDED on a single
+marginal criterion; one is REFUTED with a proof.
+
+40 of 44 criteria PROVED, 3 UNDECIDED, 1 REFUTED.
+
+**P7-04 is refuted for a provable reason.** A 3:1 load-actuated speed ratio
+through one fixed orifice needs 9:1 in orifice pressure drop. Writing the force
+balance at both operating points with the cap pinned at the relief, the annulus
+area cancels and the cap area is squeezed into 6944..7639 mm2 at a 20 bar
+ceiling. No ISO preferred bore lies in that window, so the requirement is
+unreachable for any rod diameter. That is a closed-form infeasibility proof, not
+a failure to converge.
+
+## E1 - the reference audit as ground truth
+
+The seven defects found by hand before this verifier existed are rediscovered on
+**six of seven** reference designs, each by the layer that owns the physics it
+violates:
+
+| Problem | Layer | What was found |
+| --- | --- | --- |
+| P7-01 | V6 | worst phase needs 2.46 kW at the shaft against a 1.5 kW prime mover |
+| P7-02 | V6 | 5.76 kW needed against 3.0 kW specified |
+| P7-04 | V6/V7 | 0.41 kW against 0.37 kW, and 0.15 bar from the relief |
+| P7-05 | V4/V3 | the drill needs 9.57 bar in an 8 bar system and cannot move |
+| P7-06 | V4/V3 | the platen needs 72.84 bar against a 70 bar relief |
+| P7-07 | V3 | the clamp branch reaches 43.1 bar against a 40 bar ceiling |
+
+The seventh, P7-03, certifies clean and that is the correct answer: the audit's
+finding there was that the *prose* quoted hydraulic power as shaft power, but the
+1.5 kW motor actually specified does cover the 1.45 kW the design needs. A
+verifier that flagged it anyway would be reporting a false positive, so the test
+suite asserts it stays clean.
+
+## Correction to the earlier audit
+
+The audit claimed P7-04's reference 100/50 cylinder could not produce the
+required speed ratio. That was computed on the reference pack's own mixed basis,
+with efficiency omitted from the rod-side pressure but applied to the ceiling
+check. Solved consistently, the 100/50 *is* nominally feasible - and far worse
+than infeasible in practice: at 0.88 mechanical efficiency it stalls completely,
+and at 0.92 it runs 49 percent fast. The operating point sits 0.4 bar from stall.
+Nominal feasibility with no margin is the more useful finding, and it is exactly
+what the envelope check exists to expose.
+
+## Tests
+
+230 offline tests pass, up from 157. `tests/test_sizing.py` pins the physics
+against independently computed hand calculations, pins the reporting contract so
+the verifier keeps the ability to say REFUTED and UNDECIDED, and runs E1.
+
 # Common-Command Interlock and Subject Stall Detection — v0.4.5 — 2026-08-20
 
 ## Run set diagnosed

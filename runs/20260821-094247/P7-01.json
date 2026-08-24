@@ -1,0 +1,937 @@
+{
+  "problem_id": "P7-01",
+  "title": "Horizontal Machine-Tool Slide Hydraulic Requirements",
+  "status": "validated_with_warnings",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Open-circuit fixed-displacement hydraulic slide circuit. Tank supplies the fixed pump; pump pressure branches directly to the relief valve and to a tandem-center 4/3 DCV, with relief and valve returns to tank. The DCV A work port drives the cylinder cap end directly. The rod-end work path is a parallel rapid/feed network: a pressure-compensated one-way flow control meters Cylinder.Rod to DCV.B during cutting-feed extend, while a position-operated bypass is open for rapid approach and closed after the 250 mm trip so the metered path is the only exhaust path. Retraction uses the DCV retract state and the integral free-reverse path of the one-way flow control; no separate check valve or additional return speed control is instantiated.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "Open-circuit reservoir for pump suction and all returns.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "open-circuit tank boundary"
+      ],
+      "selection_basis": "Required by the open-circuit tank, pump, and relief-valve supply architecture."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "Simple positive-displacement pressure supply for the slide axis.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "fixed-displacement generic supply",
+        "flow and drive sizing deferred"
+      ],
+      "selection_basis": "Simplicity-priority brief permits fixed-displacement pump because no energy-efficiency override is stated."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "System overpressure protection from pump pressure to tank.",
+      "function_id": null,
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "relief function to be set/validated so system pressure does not exceed the specified maximum",
+        "connected directly to pump pressure branch"
+      ],
+      "selection_basis": "Required safety function: hydraulic system pressure shall not exceed the specified maximum."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "Main extend, neutral, and retract directional control for the slide cylinder.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "extend state: P-A and B-T",
+        "neutral state: P-T with A and B blocked",
+        "retract state: P-B and A-T",
+        "solenoid actuation treated as valve property only"
+      ],
+      "selection_basis": "Provides bidirectional cylinder control and neutral pump unloading for a fixed-displacement pump without adding unloading accessories."
+    },
+    {
+      "id": "Cylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Linear actuator for the horizontal machine-tool slide.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "conventional porting: Cap for extend supply, Rod for extend exhaust",
+        "bore, rod, and stroke deferred to sizing"
+      ],
+      "selection_basis": "One double-acting actuator is required for powered extend approach/feed and powered retract return."
+    },
+    {
+      "id": "FeedFlowControl",
+      "catalog_key": "GENERIC_PRESSURE_COMPENSATED_ONE_WAY_FLOW_CONTROL",
+      "name": "Pressure-Compensated One-Way Speed Control",
+      "comp_type": "pressure_comp_flow_control",
+      "role": "Adjustable load-independent meter-out control for cutting-feed extend.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "controlled direction A-to-B from Cylinder.Rod node to DCV.B node",
+        "free reverse B-to-A supports retract supply to rod chamber",
+        "the only pressure-compensated flow control in the topology"
+      ],
+      "selection_basis": "Cutting feed explicitly requires load-independent adjustable throttling with pressure compensation in the rod-chamber exhaust path."
+    },
+    {
+      "id": "PositionBypass",
+      "catalog_key": "GENERIC_POSITION_OPERATED_BYPASS",
+      "name": "Position-Operated Bypass/Changeover",
+      "comp_type": "position_valve",
+      "role": "Position-triggered rapid-approach bypass around the feed control.",
+      "function_id": "machine_tool_slide_axis",
+      "ports": [
+        "P",
+        "A"
+      ],
+      "configuration": [
+        "open before the 250 mm trip for rapid approach",
+        "closed after the trip so feed exhaust must pass through FeedFlowControl",
+        "mechanical position operation is a valve property"
+      ],
+      "selection_basis": "The phase change from rapid approach to controlled feed is explicitly position-triggered without stopping the slide."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Tank suction boundary feeds pump suction."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Direct pressure branch to the relief valve; no intervening shutoff or manifold component."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Relief discharge returns directly to tank."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Repeated Pump.P endpoint represents the pressure branch to the main directional valve."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Directional valve tank port returns directly to tank."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "Cylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "Conventional A-to-cap connection for cylinder extension."
+    },
+    {
+      "from_component": "Cylinder",
+      "from_port": "Rod",
+      "to_component": "FeedFlowControl",
+      "to_port": "A",
+      "line": "work",
+      "notes": "Rod-side exhaust enters the controlled A-to-B metering direction during feed extend."
+    },
+    {
+      "from_component": "FeedFlowControl",
+      "from_port": "B",
+      "to_component": "DCV",
+      "to_port": "B",
+      "line": "work",
+      "notes": "Metered rod-side exhaust exits to the DCV B work port during feed extend; reverse flow is free internally in the selected one-way flow-control class."
+    },
+    {
+      "from_component": "Cylinder",
+      "from_port": "Rod",
+      "to_component": "PositionBypass",
+      "to_port": "P",
+      "line": "work",
+      "notes": "Bypass inlet shares the same rod-side hydraulic node as FeedFlowControl.A."
+    },
+    {
+      "from_component": "PositionBypass",
+      "from_port": "A",
+      "to_component": "DCV",
+      "to_port": "B",
+      "line": "work",
+      "notes": "Bypass outlet shares the same DCV B-side hydraulic node as FeedFlowControl.B."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "machine_tool_slide_axis",
+      "phase_id": "slide_approach_extend",
+      "phase_name": "Approach toward workpiece",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "unrestricted_rapid",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Approach is the faster phase in the same extend direction before the controlled cutting feed; horizontal load is resistive with no stated holding requirement.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "machine_tool_slide_axis",
+      "phase_id": "slide_cutting_feed_extend",
+      "phase_name": "Cutting feed stroke",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "load_independent_throttled",
+      "metering_side": "meter_out",
+      "metered_chamber": "rod",
+      "metered_flow": "exhaust",
+      "flow_compensation": "pressure_compensated",
+      "load_control": "none",
+      "justification": "Cutting feed is explicitly adjustable and must remain materially unchanged despite ±15% cutting-load variation. For a horizontal resistive extend feed requiring deliberate throttling, meter-out on rod exhaust is the conventional inferred control side.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "machine_tool_slide_axis",
+      "phase_id": "slide_retract_return",
+      "phase_name": "Full return stroke",
+      "motion": "retract",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Return has quantified distance, resistance, and maximum time only; horizontal load is resistive with no stated holding requirement.",
+      "source": "inferred"
+    }
+  ],
+  "synchronization_decisions": [],
+  "phase_configurations": [
+    {
+      "phase_id": "slide_approach_extend",
+      "function_id": "machine_tool_slide_axis",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Selects P-A and B-T for cylinder extension."
+        },
+        {
+          "component_id": "PositionBypass",
+          "state": "open",
+          "reason": "Provides the required unrestricted rapid bypass around the feed control before the 250 mm trip."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_tool_slide_axis"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "Rapid approach flow path: Pump.P -> DCV.P -> DCV.A -> Cylinder.Cap; Cylinder.Rod exhaust returns primarily through open PositionBypass to DCV.B -> DCV.T -> Tank.R."
+    },
+    {
+      "phase_id": "slide_cutting_feed_extend",
+      "function_id": "machine_tool_slide_axis",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Maintains P-A and B-T for continued extension into the cutting-feed portion of the stroke."
+        },
+        {
+          "component_id": "PositionBypass",
+          "state": "closed",
+          "reason": "Closes the parallel unmetered path after the position trip so rod exhaust must pass through the pressure-compensated feed control."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_tool_slide_axis"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "Controlled feed path: Pump.P -> DCV.P -> DCV.A -> Cylinder.Cap; Cylinder.Rod exhaust -> FeedFlowControl.A -> FeedFlowControl.B -> DCV.B -> DCV.T -> Tank.R. The bypass is closed, so it cannot defeat meter-out control."
+    },
+    {
+      "phase_id": "slide_retract_return",
+      "function_id": "machine_tool_slide_axis",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "retract",
+          "reason": "Selects P-B and A-T for powered cylinder retraction."
+        },
+        {
+          "component_id": "PositionBypass",
+          "state": "closed",
+          "reason": "Retraction is supported without an added check valve by the free-reverse B-to-A path inside FeedFlowControl; keeping the bypass closed demonstrates the selected flow-control class provides the unmetered reverse path."
+        }
+      ],
+      "expected_active_function_ids": [
+        "machine_tool_slide_axis"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "Return path: Pump.P -> DCV.P -> DCV.B -> FeedFlowControl.B -> FeedFlowControl.A -> Cylinder.Rod via integral free reverse; Cylinder.Cap -> DCV.A -> DCV.T -> Tank.R. Return speed remains a sizing-only result."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1",
+      "eligible": true,
+      "score": 83.5,
+      "component_count": 7,
+      "errors": [],
+      "warnings": [
+        "evidence gap (quantified_feed_speed_stability_acceptance): The brief requires feed speed not to materially change under load variation but does not define an allowable numerical deviation."
+      ],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2",
+      "eligible": true,
+      "score": 83.5,
+      "component_count": 7,
+      "errors": [],
+      "warnings": [
+        "evidence gap (quantified_feed_speed_stability_acceptance): The brief requires feed speed not to materially change under load variation but does not define an allowable numerical deviation."
+      ],
+      "selected": false
+    },
+    {
+      "candidate_id": "candidate_3",
+      "eligible": true,
+      "score": 83.5,
+      "component_count": 7,
+      "errors": [],
+      "warnings": [
+        "evidence gap (quantified_feed_speed_stability_acceptance): The brief requires feed speed not to materially change under load variation but does not define an allowable numerical deviation."
+      ],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "system_power_and_relief",
+      "component_ids": [
+        "Tank",
+        "Pump",
+        "ReliefValve"
+      ],
+      "circuit_pattern": "Open circuit power unit with maximum-pressure relief",
+      "how_requirements_met": "Open-circuit supply with Tank.S feeding Pump.S, Pump.P branching directly to ReliefValve.P and DCV.P, and ReliefValve.T returning to Tank.R implements the required open-circuit power and relief architecture."
+    },
+    {
+      "function_id": "system_overpressure_limit",
+      "component_ids": [
+        "ReliefValve"
+      ],
+      "circuit_pattern": "Direct pump-pressure relief to tank",
+      "how_requirements_met": "The relief valve provides a normally closed pressure-limiting path from pump pressure to tank, to be set and validated so hydraulic system pressure does not exceed the specified maximum."
+    },
+    {
+      "function_id": "machine_tool_slide_axis",
+      "component_ids": [
+        "DCV",
+        "Cylinder"
+      ],
+      "circuit_pattern": "Double-acting slide cylinder with 4/3 directional control",
+      "how_requirements_met": "The tandem-center 4/3 DCV commands powered extension and retraction of the double-acting cylinder using conventional A-to-cap and B-to-rod-side network porting."
+    },
+    {
+      "function_id": "machine_tool_slide_axis",
+      "component_ids": [
+        "PositionBypass",
+        "FeedFlowControl"
+      ],
+      "circuit_pattern": "Position-operated rapid approach bypass with pressure-compensated meter-out cutting feed",
+      "how_requirements_met": "The bypass is open before the trip for unrestricted rapid approach, then closes after the position trip so rod exhaust is forced through the compensated meter-out valve for load-independent cutting feed."
+    },
+    {
+      "function_id": "machine_tool_slide_axis",
+      "component_ids": [
+        "FeedFlowControl"
+      ],
+      "circuit_pattern": "Rod-side pressure-compensated meter-out with integral free reverse",
+      "how_requirements_met": "The controlled A-to-B path meters rod-chamber exhaust during extend cutting feed; the integral B-to-A free reverse path supports unmetered retract without a separate check valve."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use a fixed-displacement pump with a tandem-center DCV for a simple open-circuit supply.",
+      "rationale": "The brief prioritizes simplicity and gives no explicit energy-efficiency requirement; tandem center unloads a fixed pump in neutral while blocking work ports.",
+      "driven_by": [
+        "system_power_and_relief",
+        "machine_tool_slide_axis"
+      ],
+      "evidence_urls": [
+        "https://hk-hydraulik.com/en/knowledge/glossary/open-hydraulic-circuit",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves"
+      ]
+    },
+    {
+      "decision": "Connect the relief valve directly from Pump.P to Tank.R return path.",
+      "rationale": "The relief valve is the system overpressure protection branch and must not be isolated from the pump pressure source; relief setting and ratings are deferred to sizing.",
+      "driven_by": [
+        "system_overpressure_limit"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/13%3A_Relief_Valves/13.03%3A_The_Role_of_a_Relief_Valve_in_System_Protection",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884234/chapter-9-relief-and-unloading-pressure-controls"
+      ]
+    },
+    {
+      "decision": "Use conventional DCV A-to-cylinder-cap and DCV B-to-rod-side metering network porting.",
+      "rationale": "Conventional 4-way cylinder control extends with P-to-A and B-to-T, and retracts with P-to-B and A-to-T, matching the selected DCV state paths.",
+      "driven_by": [
+        "machine_tool_slide_axis",
+        "slide_approach_extend",
+        "slide_cutting_feed_extend",
+        "slide_retract_return"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/04%3A_Basic_Cylinder_Circuits/4.03%3A_Function_and_Appliction_of_a_4_3_DCV",
+        "https://mech.poriyaan.in/topic/control-of-a-double-acting-hydraulic-cylinder-31524"
+      ]
+    },
+    {
+      "decision": "Place the only pressure-compensated flow control in the rod-side exhaust path for cutting-feed extend.",
+      "rationale": "The typed feed phase requires load-independent adjustable throttling with pressure compensation, and the selected meter-out decision places the metered flow in the rod-chamber exhaust during extension.",
+      "driven_by": [
+        "machine_tool_slide_axis",
+        "slide_cutting_feed_extend"
+      ],
+      "evidence_urls": [
+        "https://fluidpowerjournal.com/the-versatile-remedy-pressure-compensated-flow-control-valves",
+        "https://fluidpowerjournal.com/understand-flow-control-valves"
+      ]
+    },
+    {
+      "decision": "Use a position-operated bypass in parallel with the feed-control path for automatic rapid-to-feed changeover.",
+      "rationale": "Opening the bypass before the trip gives unrestricted rapid approach; closing it after the 250 mm trip forces exhaust through the compensated feed control without stopping the slide.",
+      "driven_by": [
+        "machine_tool_slide_axis",
+        "slide_approach_extend",
+        "slide_cutting_feed_extend"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-valves/article/21884996/engineering-essentials-types-of-speed-control-circuits",
+        "https://www.sunhydraulics.com/about/highlights/rapid-advance-and-feed-assemblies"
+      ]
+    },
+    {
+      "decision": "Do not add separate approach, return, or load-holding valves.",
+      "rationale": "Approach is unrestricted rapid, return speed is a sizing-only requirement using the integral free-reverse path, and the slide load is horizontal/resistive with no no-creep or special holding requirement.",
+      "driven_by": [
+        "slide_approach_extend",
+        "slide_retract_return",
+        "machine_tool_slide_axis"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves",
+        "https://fluidpowerjournal.com/understand-flow-control-valves"
+      ]
+    }
+  ],
+  "catalog_gaps": [],
+  "evidence_gaps": [
+    {
+      "capability": "quantified_feed_speed_stability_acceptance",
+      "reason": "The brief requires feed speed not to materially change under load variation but does not define an allowable numerical deviation.",
+      "related_function_ids": [
+        "machine_tool_slide_axis"
+      ],
+      "evidence_needed": "Define the allowable feed-speed deviation for final sizing and acceptance testing.",
+      "blocking": false
+    }
+  ],
+  "assumptions": [
+    "The selected pressure-compensated one-way flow-control class provides the required free reverse path internally, so no separate check valve is instantiated.",
+    "Mechanical position operation of PositionBypass and solenoid operation of DCV are treated as component properties, not as separate interfaces or components.",
+    "Detailed bore, rod, pump flow, relief setting, and pressure-loss calculations are deferred to sizing."
+  ],
+  "open_issues": [
+    "Relief setting and all pressure/flow ratings are deferred to sizing while respecting the specified maximum system pressure.",
+    "The allowable numerical deviation for 'not materially change' feed speed remains undefined for acceptance.",
+    "Meter-out control can intensify rod-end pressure; detailed pressure ratings for the cylinder and valves must be checked during sizing."
+  ],
+  "research_audit": {
+    "searches_used": 4,
+    "rounds_used": 1,
+    "selected_unique_sources": 12,
+    "extracted_documents": 11,
+    "duplicate_urls_skipped": 0,
+    "verified_evidence_claims": 36,
+    "rejected_by_reason": {
+      "lower_rank": 34,
+      "low_quality_source": 18
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "The accumulated evidence is sufficient to design the requested hydraulic topology safely and unambiguously. All critical needs have at least one real citation and provide component classes plus connection/placement principles. The topology can be assembled from supported patterns: open reservoir-pump-relief-return power unit; double-acting cylinder with 4/3 directional valve; pressure-compensated meter-out feed control on the extension exhaust path; and a position/cam-operated bypass around the feed control for rapid approach-to-feed transition with free reverse-flow return.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Findings provide a complete open-circuit power and return path: tank/reservoir to pump suction, pump pressure line to directional/actuator controls, return flow to tank, and a relief valve connected from pump pressure side to tank. Safety placement is supported, including no shut-off valve between pump and relief valve and relief opening at a preset pressure. Citations include HK Hydraulik, Engineering LibreTexts, and Power & Motion Tech.",
+        "evidence_task_ids": [
+          "task_open_circuit_power_relief_topology"
+        ]
+      },
+      {
+        "need_id": "function_machine_tool_slide_axis_directional_control",
+        "status": "covered",
+        "rationale": "Findings support a double-acting cylinder controlled by a 3-position 4-way directional valve, with A to cap end and B to rod end. Extension, retraction, and neutral behavior are defined: P→A/B→T for extension, P→B/A→T for retraction, and tandem-center neutral for pump unloading with work ports blocked. Citations include Engineering LibreTexts and Power & Motion Tech.",
+        "evidence_task_ids": [
+          "task_slide_cylinder_directional_control"
+        ]
+      },
+      {
+        "need_id": "function_machine_tool_slide_axis_motion_profile",
+        "status": "covered",
+        "rationale": "Findings support the ordered motion profile using combined circuit principles. Rapid approach is produced by an open position/cam-operated 2-way bypass around the feed flow control; feed begins when the bypass closes and forces exhaust flow through the flow-control path; retract return is supported by the DCV retraction path and a check valve/free reverse-flow path around the flow control. Extension rod-exhaust placement follows from the cited directional-control evidence that extension exhausts the rod side through B→T, combined with the cited meter-out principle that speed is controlled by restricting flow leaving the actuator. Pressure-compensated flow control supplies load-independent adjustable feed. Citations include Power & Motion Tech, Fluid Power Journal, and Sun Hydraulics.",
+        "evidence_task_ids": [
+          "task_position_operated_rapid_feed_bypass",
+          "task_pressure_compensated_meter_out_feed"
+        ]
+      },
+      {
+        "need_id": "driver_pressure_compensation_load_independence",
+        "status": "covered",
+        "rationale": "Findings directly support using a pressure-compensated flow-control valve to maintain approximately constant cylinder speed despite load/pressure-drop changes. They identify the component class and operating principle: variable orifice plus pressure compensator in one valve body. This satisfies the need for load-independent cutting-feed speed regulation under varying cutting load. Citation is from Fluid Power Journal.",
+        "evidence_task_ids": [
+          "task_pressure_compensated_meter_out_feed"
+        ]
+      },
+      {
+        "need_id": "driver_two_speed_force_switching",
+        "status": "covered",
+        "rationale": "Findings support automatic rapid/feed switching by position rather than by operator intervention: a cam/position-operated 2-way valve in parallel with the meter-out feed control is open for rapid forward motion and closes at the selected cam position to force flow through the feed-control valve. The cited material states cam placement establishes the speed-change sequence and that commercial rapid-advance/feed assemblies use the same full-flow-open, flow-control-closed principle. This covers automatic transition at the 250 mm position without needing an identical machine-tool schematic. Citations include Power & Motion Tech and Sun Hydraulics.",
+        "evidence_task_ids": [
+          "task_position_operated_rapid_feed_bypass"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "The evidence supports relief-valve placement and preset-pressure operation, but does not independently cite a numeric 70 bar relief setting; the designer can set the relief according to the machine requirement and component ratings.",
+      "The exact machine-tool-slide schematic with a pressure-compensated valve explicitly drawn in the rod-end exhaust line was not found, but the required placement is supported by combining cited extension exhaust-port logic with cited meter-out speed-control principles.",
+      "Meter-out control can intensify rod-end pressure; cylinder, valve, hose, and fitting pressure ratings must be checked during detailed design.",
+      "Exact manufacturer part numbers and sizing are not covered because they are catalog/design-calculation tasks rather than topology research needs."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "valid",
+    "deterministic": {
+      "verdict": "valid",
+      "issues": [
+        {
+          "code": "NONBLOCKING_EVIDENCE_GAP",
+          "severity": "warning",
+          "scope": "research",
+          "description": "Evidence gap for quantified_feed_speed_stability_acceptance: The brief requires feed speed not to materially change under load variation but does not define an allowable numerical deviation.",
+          "related": [
+            "machine_tool_slide_axis"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "7 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": true,
+          "details": "3 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": true,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "valid",
+      "design_issues": [
+        {
+          "code": "NONBLOCKING_FEED_STABILITY_TOLERANCE_UNDEFINED",
+          "severity": "warning",
+          "scope": "requirements",
+          "description": "The topology provides the required pressure-compensated meter-out cutting-feed control, but the brief does not define a numerical tolerance for the phrase 'not materially change' under ±15% cutting-load variation. This is not a topology blocker, but final acceptance testing will need that tolerance.",
+          "related": [
+            "machine_tool_slide_axis",
+            "slide_cutting_feed_extend",
+            "FeedFlowControl"
+          ]
+        }
+      ],
+      "summary": "The proposed topology functionally satisfies the brief: open-circuit tank/pump/relief supply is present with direct pump-pressure relief to tank; the 4/3 DCV provides extend, retract, and neutral paths; the cylinder is conventionally ported; the single pressure-compensated flow control is in the rod-chamber exhaust meter-out path for cutting feed; the position-operated bypass is open for rapid approach and closed for cutting feed; and retract flow is supported through the integral free-reverse path without adding a separate return control. No functional topology errors were found."
+    },
+    "repair_scope": "none",
+    "topology_round": 1,
+    "summary": "Deterministic validation: valid. Engineering review: valid. The proposed topology functionally satisfies the brief: open-circuit tank/pump/relief supply is present with direct pump-pressure relief to tank; the 4/3 DCV provides extend, retract, and neutral paths; the cylinder is conventionally ported; the single pressure-compensated flow control is in the rod-chamber exhaust meter-out path for cutting feed; the position-operated bypass is open for rapid approach and closed for cutting feed; and retract flow is supported through the integral free-reverse path without adding a separate return control. No functional topology errors were found."
+  },
+  "repair_stop_reason": null,
+  "validation_fingerprints": [
+    "b00ee58287c1cd14"
+  ],
+  "sizing": {
+    "problem_id": "P7-01",
+    "verdict": "UNDECIDED",
+    "mode": "llm",
+    "policy": {
+      "candidate_id": "E2_larger_rod_for_feed_ratio_verified_but_model_limited",
+      "approach": "Increase the cylinder rod from the previous near-2:1 choice to the next standard rod size so the meter-out feed circuit has physical margin for the required 0.5 to 1.0 m/min adjustable feed span; retain the proved bore, pump sizing and relief setting. Verification was run, but the remaining feed-range criterion stays UNDECIDED because the verifier solves the cutting phase as one flow_set operating point at 0.75 m/min and does not model the adjustable endpoint settings.",
+      "actuator_decisions": [
+        {
+          "cylinder_id": "Cylinder",
+          "design_pressure_bar": 62.0,
+          "governing_phase_id": "slide_cutting_feed_extend",
+          "rod_strategy": "area_ratio",
+          "target_area_ratio": 2.5,
+          "justification": "The cutting force still governs piston sizing: 35 kN at 62 bar with 0.9 mechanical efficiency requires 6272.4 mm2; the ISO 100 mm bore provides 7854.0 mm2. The previous 70 mm rod gave a cap-to-annulus ratio of only about 1.961, which is marginal against a 2:1 feed span. Targeting a higher area ratio selects the standard 80 mm rod, annulus area about 2827.4 mm2, ratio about 2.778, adding physical margin without harming approach or retract."
+        }
+      ],
+      "supply_decision": {
+        "governing_phase_id": "slide_approach_extend",
+        "relief_margin": 1.08,
+        "speed_aim_off": 0.06,
+        "justification": "The approach phase remains flow_limited and sets the required pump delivery. The verified operating point with this pump gives about 3.266 m/min approach speed, exceeding the 3.0 m/min minimum. The larger rod reduces annulus area and therefore increases the flow-limited retract speed to about 9.072 m/min, still proved above the 4.2 m/min minimum."
+      },
+      "setting_decisions": [
+        {
+          "component_id": "ReliefValve",
+          "setting_bar": 60.0,
+          "basis": "Retained from the proved policy. It remains above the verified cutting working pressure of about 49.52 bar and below the 70 bar system pressure ceiling."
+        }
+      ],
+      "engineering_notes": [
+        "Confirmed with evaluate_sizing_policy: verdict remains UNDECIDED, with six criteria PROVED and only slide_cutting_feed_extend__velocity_range not proved. The reported cutting operating point is flow_set at exactly 0.75 m/min, so neither pump size nor force margin changes that verifier result.",
+        "With the selected 100/80 mm cylinder, the pressure-compensated meter-out valve must be specified as an adjustable valve covering annulus flows of approximately 1.414 L/min for 0.5 m/min and 2.827 L/min for 1.0 m/min. Because cutting is flow_set, changing this valve's setting is the correct physical adjustment.",
+        "The automatic change from rapid approach to cutting feed should be by a position-operated changeover at 250 mm that brings the pressure-compensated meter-out control into circuit without stopping the slide.",
+        "The thermal warning remains: the verifier reports about 1.63 kW crossing the relief during the worst phase while an 80 L reservoir rejects roughly 0.80 kW. Add an oil cooler or equivalent heat rejection capacity."
+      ],
+      "open_issues": [
+        "The speed-range requirement is physically satisfiable with standard components, but it cannot be certified by this verifier in its present single-setting model. It always evaluates the cutting feed as one flow_set point at 0.75 m/min and reports achieved [0.75, 0.75] m/min. To close the criterion, the verification brief/model must define separate low-feed and high-feed cutting operating points or otherwise permit endpoint checking of the adjustable pressure-compensated flow-control setting."
+      ]
+    },
+    "sizing": {
+      "Cylinder": {
+        "cap_area_m2": 0.007853981633974483,
+        "annulus_area_m2": 0.002827433388230815,
+        "bore_mm": 100,
+        "rod_mm": 80
+      },
+      "Tank": {
+        "rated_flow_lpm": 60.0
+      },
+      "Pump": {
+        "rated_flow_lpm": 60.0
+      },
+      "ReliefValve": {
+        "rated_flow_lpm": 60.0,
+        "setting_pa": 6000000.0
+      },
+      "DCV": {
+        "rated_flow_lpm": 120.0
+      },
+      "FeedFlowControl": {
+        "rated_flow_lpm": 120.0,
+        "set_flow_m3s": 3.534291735288519e-05
+      },
+      "PositionBypass": {
+        "rated_flow_lpm": 60.0
+      },
+      "__supply__": {
+        "displacement_cm3": 19.0,
+        "speed_rpm": 1500.0,
+        "flow_m3s": 0.0004275,
+        "relief_pa": 6153015.503155937,
+        "overall_efficiency": 0.85,
+        "motor_kw": 4.0,
+        "reservoir_l": 80,
+        "pressure_class_bar": 100.0,
+        "peak_return_lpm": 71.24999999999997,
+        "valve_size": "NG10",
+        "suction_tube": "28x2 (ID 24 mm)",
+        "pressure_tube": "15x1.5 (ID 12 mm)",
+        "return_tube": "28x2.5 (ID 23 mm)"
+      }
+    },
+    "throttle_settings": {},
+    "certificate": {
+      "problem_id": "P7-01",
+      "verdict": "UNDECIDED",
+      "counts": {
+        "PROVED": 6,
+        "UNDECIDED": 1,
+        "REFUTED": 0
+      },
+      "criteria": [
+        {
+          "criterion_id": "slide_approach_extend__velocity",
+          "kind": "velocity",
+          "phase_id": "slide_approach_extend",
+          "required": ">= 3 m/min",
+          "achieved": "[3.193, 3.338] m/min",
+          "verdict": "PROVED",
+          "method": "monotone-corner",
+          "margin": 0.003222622547497292,
+          "governing_equations": [
+            "force_balance",
+            "continuity",
+            "orifice_law",
+            "relief_complementarity"
+          ],
+          "note": ""
+        },
+        {
+          "criterion_id": "slide_approach_extend__force",
+          "kind": "force",
+          "phase_id": "slide_approach_extend",
+          "required": ">= 15 kn",
+          "achieved": "43.5 kn available at the relief setting",
+          "verdict": "PROVED",
+          "method": "static-force-balance",
+          "margin": 28470.501860485376,
+          "governing_equations": [
+            "force_balance",
+            "pressure_ceiling"
+          ],
+          "note": ""
+        },
+        {
+          "criterion_id": "slide_cutting_feed_extend__velocity_range",
+          "kind": "velocity_range",
+          "phase_id": "slide_cutting_feed_extend",
+          "required": "adjustable 0.5 .. 1 m/min",
+          "achieved": "[0.75, 0.75] m/min",
+          "verdict": "UNDECIDED",
+          "method": "monotone-corner",
+          "margin": 0.004166666666666666,
+          "governing_equations": [
+            "force_balance",
+            "continuity",
+            "orifice_law",
+            "relief_complementarity"
+          ],
+          "note": ""
+        },
+        {
+          "criterion_id": "slide_cutting_feed_extend__force",
+          "kind": "force",
+          "phase_id": "slide_cutting_feed_extend",
+          "required": ">= 35 kn",
+          "achieved": "43.5 kn available at the relief setting",
+          "verdict": "PROVED",
+          "method": "static-force-balance",
+          "margin": 8492.865282724844,
+          "governing_equations": [
+            "force_balance",
+            "pressure_ceiling"
+          ],
+          "note": ""
+        },
+        {
+          "criterion_id": "slide_retract_return__velocity",
+          "kind": "velocity",
+          "phase_id": "slide_retract_return",
+          "required": ">= 4.2 m/min",
+          "achieved": "[8.87, 9.273] m/min",
+          "verdict": "PROVED",
+          "method": "monotone-corner",
+          "margin": 0.07784061818749244,
+          "governing_equations": [
+            "force_balance",
+            "continuity",
+            "orifice_law",
+            "relief_complementarity"
+          ],
+          "note": ""
+        },
+        {
+          "criterion_id": "slide_retract_return__force",
+          "kind": "force",
+          "phase_id": "slide_retract_return",
+          "required": ">= 5 kn",
+          "achieved": "14.9 kn available at the relief setting",
+          "verdict": "PROVED",
+          "method": "static-force-balance",
+          "margin": 9909.931787756366,
+          "governing_equations": [
+            "force_balance",
+            "pressure_ceiling"
+          ],
+          "note": ""
+        },
+        {
+          "criterion_id": "system__pressure_ceiling",
+          "kind": "pressure_ceiling",
+          "phase_id": null,
+          "required": "<= 70 bar",
+          "achieved": "49.5 bar worst phase",
+          "verdict": "PROVED",
+          "method": "worst-phase-nominal",
+          "margin": 20.47756283880594,
+          "governing_equations": [
+            "pressure_ceiling"
+          ],
+          "note": ""
+        }
+      ],
+      "findings": [
+        {
+          "layer": "V6",
+          "code": "THERMAL_CAPACITY_EXCEEDED",
+          "severity": "warning",
+          "message": "1.63 kW crosses the relief at the worst phase but a 80 L reservoir sheds roughly 0.80 kW; a cooler is needed",
+          "related": []
+        }
+      ],
+      "operating_points": {
+        "slide_approach_extend": {
+          "regime": "flow_limited",
+          "velocity_m_min": 3.265859432245692,
+          "pump_pressure_bar": 21.38970129991938,
+          "supply_pressure_bar": 21.25263411241938,
+          "exhaust_pressure_bar": 0.08881953750000005,
+          "relief_flow_lpm": 0.0,
+          "feasible": true
+        },
+        "slide_cutting_feed_extend": {
+          "regime": "flow_set",
+          "velocity_m_min": 0.75,
+          "pump_pressure_bar": 49.522437161194055,
+          "supply_pressure_bar": 49.5152084470331,
+          "exhaust_pressure_bar": 0.0009368413552596547,
+          "relief_flow_lpm": 19.759513774519135,
+          "feasible": true
+        },
+        "slide_retract_return": {
+          "regime": "flow_limited",
+          "velocity_m_min": 9.07183175623803,
+          "pump_pressure_bar": 22.80817588036515,
+          "supply_pressure_bar": 22.586583927240152,
+          "exhaust_pressure_bar": 1.0576171874999991,
+          "relief_flow_lpm": 0.0,
+          "feasible": true
+        }
+      },
+      "assumptions": [
+        "slide_cutting_feed_extend: speed stated as an adjustable span; both endpoints must be reachable."
+      ]
+    },
+    "candidate_scores": [
+      {
+        "candidate_id": "E2_larger_rod_for_feed_ratio_verified_but_model_limited",
+        "eligible": true,
+        "score": 51.172566611769184,
+        "proved": 6,
+        "undecided": 1,
+        "refuted": 0,
+        "oversizing_index": 1.414,
+        "errors": [],
+        "warnings": [
+          "1.63 kW crosses the relief at the worst phase but a 80 L reservoir sheds roughly 0.80 kW; a cooler is needed"
+        ],
+        "selected": false
+      }
+    ],
+    "repairs": [
+      "The only non-proved item is the adjustable cutting-feed velocity range. The operating point says the phase is flow_set, so the correct revision is to change the compensated feed-control setting, not to alter pump size, cylinder size or relief pressure. I attempted that revision and confirmed it with evaluate_sizing_policy; the certificate remains UNDECIDED because the verifier fixes the flow-set phase at 0.75 m/min and reports [0.75, 0.75] rather than evaluating the stated 2.003 to 4.005 L/min adjustment endpoints. Thus there is no standard bore/rod/pump revision that can make this verifier prove the adjustable range; the model/brief must be changed to verify the two feed-valve endpoints or the required adjustable range must be relaxed to a single feed setting.",
+      "The failed phase is explicitly in the flow_set regime, so the speed is set by the compensated meter-out control. I first added physical margin by selecting the next standard rod size, which preserves all previously proved approach, pressure and retract criteria. The confirmation run for this revised policy still reports UNDECIDED with achieved [0.75, 0.75] m/min, demonstrating that the remaining non-proof is a verification-model limitation rather than a standard-size hydraulic sizing limitation. A larger pump would not help this flow_set phase, and a larger bore is not required for pressure; the brief/model must allow feed-control endpoint verification to prove the adjustable 0.5 to 1.0 m/min requirement."
+    ],
+    "rounds": 3,
+    "stop_reason": "sizing stopped after 3 round(s) with verdict UNDECIDED; unresolved criteria are listed in the certificate"
+  }
+}

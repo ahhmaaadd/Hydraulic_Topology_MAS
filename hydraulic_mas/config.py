@@ -26,6 +26,8 @@ class Settings:
     max_document_chars: int = 12000
     max_topology_rounds: int = 4
     max_requirements_rounds: int = 2
+    enable_sizing: bool = True
+    max_sizing_rounds: int = 3
 
     @property
     def uses_azure(self) -> bool:
@@ -80,6 +82,8 @@ class Settings:
             max_document_chars=int(os.getenv("MAX_DOCUMENT_CHARS", "12000")),
             max_topology_rounds=int(os.getenv("MAX_TOPOLOGY_ROUNDS", "4")),
             max_requirements_rounds=int(os.getenv("MAX_REQUIREMENTS_ROUNDS", "2")),
+            enable_sizing=os.getenv("ENABLE_SIZING", "1") not in {"0", "false", "False"},
+            max_sizing_rounds=int(os.getenv("MAX_SIZING_ROUNDS", "3")),
         )
         clean = {key: value for key, value in overrides.items() if value is not None}
         return replace(settings, **clean)

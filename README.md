@@ -32,6 +32,38 @@ The schemas and core prompts are adapted from
 at commit `d33920a`. Sizing, simulation, the previous chat backend, and the
 frontend are deliberately not included.
 
+## Sizing and certification
+
+After a topology validates, the sizing stage selects standard components and
+certifies the result. Run it with the same command; it is on by default:
+
+```powershell
+python run_topology.py --problem P7-01
+python run_topology.py --problem P7-01 --no-sizing          # stop at topology
+python run_topology.py --problem P7-01 --max-sizing-rounds 2
+```
+
+Verification is **Phase-Resolved Quasi-Static**. Each motion phase is solved as a
+small algebraic system in the valve states the topology stage already proved, so
+the discrete part of hydraulic analysis is settled before sizing begins. The only
+remaining discreteness - whether the relief is cracked or shut - is enumerated
+exhaustively, which makes the result certified rather than assumed.
+
+Every acceptance criterion is then bounded over an operating envelope of two
+efficiency points either way, plus the load tolerance where a brief states one.
+A verdict of `PROVED` means the guaranteed enclosure lies inside the requirement
+*everywhere in that envelope*, not merely at nominal. `UNDECIDED` means the
+enclosure straddles the requirement, and `REFUTED` means it does not meet it.
+
+The planner is an LLM confined to engineering judgement - which phase governs a
+dimension, what pressure to design against, whether a rod is chosen for force or
+for area ratio - with every number produced by a tool. Configure no sizing model
+and the deterministic planner runs instead, which is also the control arm for
+comparing the two.
+
+Exit codes: `0` sized and proved, `2` topology unresolved, `3` topology valid but
+sizing not certified.
+
 ## What “validated” means
 
 A valid result means the generic component functions, exact per-phase valve

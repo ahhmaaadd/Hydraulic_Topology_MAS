@@ -34,6 +34,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-research-rounds", type=int)
     parser.add_argument("--max-searches", type=int)
     parser.add_argument("--max-topology-rounds", type=int)
+    parser.add_argument("--max-sizing-rounds", type=int)
+    parser.add_argument(
+        "--no-sizing", action="store_true",
+        help="Stop at a validated topology instead of sizing and certifying it.",
+    )
     parser.add_argument("--non-interactive", action="store_true", help="Do not pause for requirement answers.")
     parser.add_argument("--compact", action="store_true", help="Print summaries instead of every intermediate JSON field.")
     parser.add_argument("--no-save", action="store_true", help="Do not save the final JSON under runs/.")
@@ -148,11 +153,22 @@ def run_problem(
     if not output:
         reporter.failure({"stage": "unknown", "message": "Graph completed without final_output."})
         return 2
+    sized = state.get("final_sized_output")
+    if sized:
+        reporter.sized_output(sized)
+        output = dict(output)
+        output["sizing"] = sized
     if save_path is not None:
         save_path.parent.mkdir(parents=True, exist_ok=True)
         save_path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
         reporter.saved(str(save_path.resolve()))
-    return 0 if output.get("status") != "unresolved" else 2
+    if output.get("status") == "unresolved":
+        return 2
+    # A topology that validated but whose sizing could not be certified is a
+    # partial result, and the exit code should say so rather than claim success.
+    if sized and sized.get("verdict") != "PROVED":
+        return 3
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -169,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
         "max_research_rounds": args.max_research_rounds,
         "max_searches": args.max_searches,
         "max_topology_rounds": args.max_topology_rounds,
+        "enable_sizing": not args.no_sizing,
+        "max_sizing_rounds": args.max_sizing_rounds,
     }
     settings = Settings.from_env(**overrides)
     try:

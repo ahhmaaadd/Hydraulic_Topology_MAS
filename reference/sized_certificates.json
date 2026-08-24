@@ -1,0 +1,1346 @@
+{
+ "P7-01": {
+  "sizing": {
+   "SlideCylinder": {
+    "cap_area_m2": 0.007853981633974483,
+    "annulus_area_m2": 0.005390972993560087,
+    "bore_mm": 100,
+    "rod_mm": 56
+   },
+   "Tank": {
+    "rated_flow_lpm": 60.0
+   },
+   "Pump": {
+    "rated_flow_lpm": 60.0
+   },
+   "ReliefValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "DCV": {
+    "rated_flow_lpm": 60.0
+   },
+   "FeedFlowControl": {
+    "rated_flow_lpm": 60.0,
+    "set_flow_m3s": 6.738716241950109e-05
+   },
+   "RapidFeedBypass": {
+    "rated_flow_lpm": 60.0
+   },
+   "__supply__": {
+    "displacement_cm3": 19.0,
+    "speed_rpm": 1500.0,
+    "flow_m3s": 0.0004275,
+    "relief_pa": 6381801.171948666,
+    "overall_efficiency": 0.85,
+    "motor_kw": 4.0,
+    "reservoir_l": 80,
+    "pressure_class_bar": 100.0,
+    "peak_return_lpm": 37.368881118881106,
+    "valve_size": "NG6",
+    "suction_tube": "28x2 (ID 24 mm)",
+    "pressure_tube": "15x1.5 (ID 12 mm)",
+    "return_tube": "22x2.5 (ID 17 mm)"
+   }
+  },
+  "throttle_k": {},
+  "certificate": {
+   "problem_id": "P7-01",
+   "verdict": "UNDECIDED",
+   "counts": {
+    "PROVED": 6,
+    "UNDECIDED": 1,
+    "REFUTED": 0
+   },
+   "criteria": [
+    {
+     "criterion_id": "slide_approach_extend__velocity",
+     "kind": "velocity",
+     "phase_id": "slide_approach_extend",
+     "required": ">= 3 m/min",
+     "achieved": "[3.193, 3.338] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.003222622547497292,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "slide_approach_extend__force",
+     "kind": "force",
+     "phase_id": "slide_approach_extend",
+     "required": ">= 15 kn",
+     "achieved": "44.9 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 29859.632736369735,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "slide_cutting_feed_extend__velocity_range",
+     "kind": "velocity_range",
+     "phase_id": "slide_cutting_feed_extend",
+     "required": "adjustable 0.5 .. 1 m/min",
+     "achieved": "[0.75, 0.75] m/min",
+     "verdict": "UNDECIDED",
+     "method": "monotone-corner",
+     "margin": 0.004166666666666666,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "slide_cutting_feed_extend__force",
+     "kind": "force",
+     "phase_id": "slide_cutting_feed_extend",
+     "required": ">= 35 kn",
+     "achieved": "45.1 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 10103.684523116812,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "slide_retract_return__velocity",
+     "kind": "velocity",
+     "phase_id": "slide_retract_return",
+     "required": ">= 4.2 m/min",
+     "achieved": "[4.652, 4.864] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.007538785762670863,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "slide_retract_return__force",
+     "kind": "force",
+     "phase_id": "slide_retract_return",
+     "required": ">= 5 kn",
+     "achieved": "30.1 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 25141.13889366733,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "system__pressure_ceiling",
+     "kind": "pressure_ceiling",
+     "phase_id": null,
+     "required": "<= 70 bar",
+     "achieved": "49.6 bar worst phase",
+     "verdict": "PROVED",
+     "method": "worst-phase-nominal",
+     "margin": 20.446863070937255,
+     "governing_equations": [
+      "pressure_ceiling"
+     ],
+     "note": ""
+    }
+   ],
+   "findings": [
+    {
+     "layer": "V6",
+     "code": "THERMAL_CAPACITY_EXCEEDED",
+     "severity": "warning",
+     "message": "1.63 kW crosses the relief at the worst phase but a 80 L reservoir sheds roughly 0.80 kW; a cooler is needed",
+     "related": []
+    }
+   ],
+   "operating_points": {
+    "slide_approach_extend": {
+     "regime": "flow_limited",
+     "velocity_m_min": 3.265859432245692,
+     "pump_pressure_bar": 22.123541368137147,
+     "supply_pressure_bar": 21.575272618137145,
+     "exhaust_pressure_bar": 0.516628116576,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    },
+    "slide_cutting_feed_extend": {
+     "regime": "flow_set",
+     "velocity_m_min": 0.75,
+     "pump_pressure_bar": 49.553136929062745,
+     "supply_pressure_bar": 49.52422207241893,
+     "exhaust_pressure_bar": 0.013623088976856658,
+     "relief_flow_lpm": 19.759513774519135,
+     "feasible": true
+    },
+    "slide_retract_return": {
+     "regime": "flow_limited",
+     "velocity_m_min": 4.757953718306659,
+     "pump_pressure_bar": 12.887019652589379,
+     "supply_pressure_bar": 12.000651840089377,
+     "exhaust_pressure_bar": 1.1636943967308908,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    }
+   },
+   "assumptions": [
+    "slide_cutting_feed_extend: speed stated as an adjustable span; both endpoints must be reachable."
+   ]
+  },
+  "repairs": [],
+  "notes": []
+ },
+ "P7-02": {
+  "sizing": {
+   "PressCylinder": {
+    "cap_area_m2": 0.007853981633974483,
+    "annulus_area_m2": 0.005390972993560087,
+    "bore_mm": 100,
+    "rod_mm": 56
+   },
+   "Tank": {
+    "rated_flow_lpm": 60.0
+   },
+   "Pump": {
+    "rated_flow_lpm": 60.0
+   },
+   "ReliefValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "DCV": {
+    "rated_flow_lpm": 120.0
+   },
+   "LoadLock": {
+    "rated_flow_lpm": 120.0
+   },
+   "RodMeterOutFlowControl": {
+    "rated_flow_lpm": 120.0,
+    "set_flow_m3s": 0.0001904810457722659
+   },
+   "RapidApproachBypass": {
+    "rated_flow_lpm": 60.0
+   },
+   "__supply__": {
+    "displacement_cm3": 32.0,
+    "speed_rpm": 1500.0,
+    "flow_m3s": 0.00072,
+    "relief_pa": 7977739.61793224,
+    "overall_efficiency": 0.85,
+    "motor_kw": 7.5,
+    "reservoir_l": 160,
+    "pressure_class_bar": 100.0,
+    "peak_return_lpm": 62.937062937062926,
+    "valve_size": "NG10",
+    "suction_tube": "38x3 (ID 32 mm)",
+    "pressure_tube": "20x2 (ID 16 mm)",
+    "return_tube": "28x3 (ID 22 mm)"
+   }
+  },
+  "throttle_k": {},
+  "certificate": {
+   "problem_id": "P7-02",
+   "verdict": "PROVED",
+   "counts": {
+    "PROVED": 8,
+    "UNDECIDED": 0,
+    "REFUTED": 0
+   },
+   "criteria": [
+    {
+     "criterion_id": "ram_rapid_down_approach__velocity",
+     "kind": "velocity",
+     "phase_id": "ram_rapid_down_approach",
+     "required": ">= 5 m/min",
+     "achieved": "[5.378, 5.623] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.006304767799327024,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "ram_working_feed_down__velocity",
+     "kind": "velocity",
+     "phase_id": "ram_working_feed_down",
+     "required": ">= 2 m/min",
+     "achieved": "[2.12, 2.12] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.0019999999999980034,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "ram_working_feed_down__force",
+     "kind": "force",
+     "phase_id": "ram_working_feed_down",
+     "required": ">= 12 kn",
+     "achieved": "56.4 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 44369.97345548672,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "ram_final_press_down__velocity",
+     "kind": "velocity",
+     "phase_id": "ram_final_press_down",
+     "required": ">= 2 m/min",
+     "achieved": "[2.12, 2.12] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.0019999999999980034,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "ram_final_press_down__force",
+     "kind": "force",
+     "phase_id": "ram_final_press_down",
+     "required": ">= 50 kn",
+     "achieved": "56.4 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 6369.973455486717,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "ram_return_up__velocity",
+     "kind": "velocity",
+     "phase_id": "ram_return_up",
+     "required": ">= 7.5 m/min",
+     "achieved": "[7.835, 8.191] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.005591639179235164,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "ram_return_up__force",
+     "kind": "force",
+     "phase_id": "ram_return_up",
+     "required": ">= 3 kn",
+     "achieved": "37.8 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 34763.97296118112,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "system__pressure_ceiling",
+     "kind": "pressure_ceiling",
+     "phase_id": null,
+     "required": "<= 100 bar",
+     "achieved": "70.9 bar worst phase",
+     "verdict": "PROVED",
+     "method": "worst-phase-nominal",
+     "margin": 29.140897798388526,
+     "governing_equations": [
+      "pressure_ceiling"
+     ],
+     "note": ""
+    }
+   ],
+   "findings": [
+    {
+     "layer": "V6",
+     "code": "THERMAL_CAPACITY_EXCEEDED",
+     "severity": "warning",
+     "message": "3.14 kW crosses the relief at the worst phase but a 160 L reservoir sheds roughly 1.60 kW; a cooler is needed",
+     "related": []
+    }
+   ],
+   "operating_points": {
+    "ram_rapid_down_approach": {
+     "regime": "flow_limited",
+     "velocity_m_min": 5.500394833255903,
+     "pump_pressure_bar": 1.3347746642519662,
+     "supply_pressure_bar": 0.7062146642519659,
+     "exhaust_pressure_bar": 1.0288675178496005,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    },
+    "ram_working_feed_down": {
+     "regime": "flow_set",
+     "velocity_m_min": 2.11999999999788,
+     "pump_pressure_bar": 17.100099201682387,
+     "supply_pressure_bar": 17.00672417668334,
+     "exhaust_pressure_bar": 0.04399317241817647,
+     "relief_flow_lpm": 26.549558935990746,
+     "feasible": true
+    },
+    "ram_final_press_down": {
+     "regime": "flow_set",
+     "velocity_m_min": 2.11999999999788,
+     "pump_pressure_bar": 70.85910220161148,
+     "supply_pressure_bar": 70.76572717661242,
+     "exhaust_pressure_bar": 0.04399317241817647,
+     "relief_flow_lpm": 26.549558935990746,
+     "feasible": true
+    },
+    "ram_return_up": {
+     "regime": "flow_limited",
+     "velocity_m_min": 8.013395736095429,
+     "pump_pressure_bar": 8.995131637947516,
+     "supply_pressure_bar": 8.126811637947515,
+     "exhaust_pressure_bar": 1.3341116925033008,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    }
+   },
+   "assumptions": []
+  },
+  "repairs": [],
+  "notes": []
+ },
+ "P7-03": {
+  "sizing": {
+   "Cylinder": {
+    "cap_area_m2": 0.001963495408493621,
+    "annulus_area_m2": 0.0013477432483900216,
+    "bore_mm": 50,
+    "rod_mm": 28
+   },
+   "Tank": {
+    "rated_flow_lpm": 60.0
+   },
+   "Pump": {
+    "rated_flow_lpm": 60.0
+   },
+   "ReliefValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "DCV": {
+    "rated_flow_lpm": 20.0
+   },
+   "LoadLock": {
+    "rated_flow_lpm": 20.0
+   },
+   "__supply__": {
+    "displacement_cm3": 8.0,
+    "speed_rpm": 1500.0,
+    "flow_m3s": 0.00018,
+    "relief_pa": 9530146.57651941,
+    "overall_efficiency": 0.85,
+    "motor_kw": 2.2,
+    "reservoir_l": 40,
+    "pressure_class_bar": 160.0,
+    "peak_return_lpm": 15.734265734265731,
+    "valve_size": "NG4",
+    "suction_tube": "20x2 (ID 16 mm)",
+    "pressure_tube": "10x1 (ID 8 mm)",
+    "return_tube": "15x2 (ID 11 mm)"
+   }
+  },
+  "throttle_k": {},
+  "certificate": {
+   "problem_id": "P7-03",
+   "verdict": "PROVED",
+   "counts": {
+    "PROVED": 6,
+    "UNDECIDED": 0,
+    "REFUTED": 0
+   },
+   "criteria": [
+    {
+     "criterion_id": "carriage_advance__velocity",
+     "kind": "velocity",
+     "phase_id": "carriage_advance",
+     "required": ">= 3.5 m/min",
+     "achieved": "[5.378, 5.623] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.03130476779932703,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "carriage_advance__force",
+     "kind": "force",
+     "phase_id": "carriage_advance",
+     "required": ">= 15 kn",
+     "achieved": "16.8 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 1760.3364169828528,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "carriage_return__velocity",
+     "kind": "velocity",
+     "phase_id": "carriage_return",
+     "required": ">= 5.5 m/min",
+     "achieved": "[7.835, 8.191] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.03892497251253517,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "carriage_return__force",
+     "kind": "force",
+     "phase_id": "carriage_return",
+     "required": ">= 9.5 kn",
+     "achieved": "11 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 1529.318392217985,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "carriage_hold_any_position__force",
+     "kind": "force",
+     "phase_id": "carriage_hold_any_position",
+     "required": ">= 15 kn",
+     "achieved": "16.8 kn sustainable",
+     "verdict": "PROVED",
+     "method": "static-hold-balance",
+     "margin": 1841.159140740354,
+     "governing_equations": [
+      "force_balance",
+      "load_lock_retention"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "system__pressure_ceiling",
+     "kind": "pressure_ceiling",
+     "phase_id": null,
+     "required": "<= 100 bar",
+     "achieved": "86.8 bar worst phase",
+     "verdict": "PROVED",
+     "method": "worst-phase-nominal",
+     "margin": 13.24574062653914,
+     "governing_equations": [
+      "pressure_ceiling"
+     ],
+     "note": ""
+    }
+   ],
+   "findings": [],
+   "operating_points": {
+    "carriage_advance": {
+     "regime": "flow_limited",
+     "velocity_m_min": 5.500394833255903,
+     "pump_pressure_bar": 86.75425937346085,
+     "supply_pressure_bar": 85.33999937346086,
+     "exhaust_pressure_bar": 0.6663214711296004,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    },
+    "carriage_return": {
+     "regime": "flow_limited",
+     "velocity_m_min": 8.013395736095429,
+     "pump_pressure_bar": 84.10766662596373,
+     "supply_pressure_bar": 82.69340662596372,
+     "exhaust_pressure_bar": 3.0017513081324276,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    }
+   },
+   "assumptions": []
+  },
+  "repairs": [],
+  "notes": []
+ },
+ "P7-04": {
+  "sizing": {
+   "SlideCylinder": {
+    "cap_area_m2": 0.007853981633974483,
+    "annulus_area_m2": 0.002827433388230815,
+    "bore_mm": 100,
+    "rod_mm": 80
+   },
+   "Tank": {
+    "rated_flow_lpm": 60.0
+   },
+   "Pump": {
+    "rated_flow_lpm": 60.0
+   },
+   "ReliefValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "DCV": {
+    "rated_flow_lpm": 60.0
+   },
+   "RodEndMeterOutFlowControl": {
+    "rated_flow_lpm": 60.0
+   },
+   "__supply__": {
+    "displacement_cm3": 11.0,
+    "speed_rpm": 1500.0,
+    "flow_m3s": 0.0002475,
+    "relief_pa": 2000000.0,
+    "overall_efficiency": 0.85,
+    "motor_kw": 0.75,
+    "reservoir_l": 60,
+    "pressure_class_bar": 100.0,
+    "peak_return_lpm": 41.249999999999986,
+    "valve_size": "NG6",
+    "suction_tube": "22x2 (ID 18 mm)",
+    "pressure_tube": "12x1.5 (ID 9 mm)",
+    "return_tube": "22x2 (ID 18 mm)"
+   }
+  },
+  "throttle_k": {
+   "RodEndMeterOutFlowControl": 3.1239892846237596e-08
+  },
+  "certificate": {
+   "problem_id": "P7-04",
+   "verdict": "REFUTED",
+   "counts": {
+    "PROVED": 4,
+    "UNDECIDED": 1,
+    "REFUTED": 1
+   },
+   "criteria": [
+    {
+     "criterion_id": "slide_rapid_approach__velocity",
+     "kind": "velocity",
+     "phase_id": "slide_rapid_approach",
+     "required": ">= 1.5 m/min",
+     "achieved": "[1.41, 1.416] m/min",
+     "verdict": "REFUTED",
+     "method": "monotone-corner",
+     "margin": -0.001506915266074639,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "slide_rapid_approach__force",
+     "kind": "force",
+     "phase_id": "slide_rapid_approach",
+     "required": ">= 2.5 kn",
+     "achieved": "2.57 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 72.5499211479123,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "slide_working_feed__velocity",
+     "kind": "velocity",
+     "phase_id": "slide_working_feed",
+     "required": ">= 0.5 m/min",
+     "achieved": "[0.4819, 0.5723] m/min",
+     "verdict": "UNDECIDED",
+     "method": "monotone-corner",
+     "margin": -0.00030203314873676265,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "slide_working_feed__force",
+     "kind": "force",
+     "phase_id": "slide_working_feed",
+     "required": ">= 12.5 kn",
+     "achieved": "12.5 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 10.206636468081342,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "slide_full_return__force",
+     "kind": "force",
+     "phase_id": "slide_full_return",
+     "required": ">= 2.5 kn",
+     "achieved": "4.09 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 1587.0770520109895,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "system__pressure_ceiling",
+     "kind": "pressure_ceiling",
+     "phase_id": null,
+     "required": "<= 20 bar",
+     "achieved": "20 bar worst phase",
+     "verdict": "PROVED",
+     "method": "worst-phase-nominal",
+     "margin": 0.0,
+     "governing_equations": [
+      "pressure_ceiling"
+     ],
+     "note": ""
+    }
+   ],
+   "findings": [
+    {
+     "layer": "V7",
+     "code": "RELIEF_MARGIN_THIN",
+     "severity": "warning",
+     "message": "only 0.00 bar between the worst working pressure and the relief setting; the valve will simmer",
+     "related": []
+    }
+   ],
+   "operating_points": {
+    "slide_rapid_approach": {
+     "regime": "pressure_limited",
+     "velocity_m_min": 1.4130353235583646,
+     "pump_pressure_bar": 20.0,
+     "supply_pressure_bar": 19.89736285714118,
+     "exhaust_pressure_bar": 45.44607317774429,
+     "relief_flow_lpm": 3.752046520615411,
+     "feasible": true
+    },
+    "slide_working_feed": {
+     "regime": "pressure_limited",
+     "velocity_m_min": 0.52999999999788,
+     "pump_pressure_bar": 20.0,
+     "supply_pressure_bar": 19.98556056314456,
+     "exhaust_pressure_bar": 6.393549992717812,
+     "relief_flow_lpm": 10.687389734010175,
+     "feasible": true
+    },
+    "slide_full_return": {
+     "regime": "flow_limited",
+     "velocity_m_min": 5.252113122032544,
+     "pump_pressure_bar": 14.060274099036741,
+     "supply_pressure_bar": 13.763181286536742,
+     "exhaust_pressure_bar": 1.4179687499999991,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    }
+   },
+   "assumptions": []
+  },
+  "repairs": [
+   "SlideCylinder: rod 70 -> 80 mm (more area ratio for the load-actuated speed change)"
+  ],
+  "notes": [
+   "SlideCylinder: rod chosen for a 3.0:1 speed ratio, not for force alone",
+   "machine_slide_linear_motion: a 3.0:1 load-actuated speed ratio at 20.0 bar needs a cap area of 6944..7639 mm2, and no preferred bore lies in that window. The requirement is unreachable at this ceiling for any rod diameter.",
+   "repair stopped: the last change did not move any verdict"
+  ]
+ },
+ "P7-05": {
+  "sizing": {
+   "ClampCylinder": {
+    "cap_area_m2": 0.007853981633974483,
+    "annulus_area_m2": 0.005390972993560087,
+    "bore_mm": 100,
+    "rod_mm": 56
+   },
+   "DrillCylinder": {
+    "cap_area_m2": 0.005026548245743669,
+    "annulus_area_m2": 0.0034361169648638367,
+    "bore_mm": 80,
+    "rod_mm": 45
+   },
+   "Tank": {
+    "rated_flow_lpm": 60.0
+   },
+   "Pump": {
+    "rated_flow_lpm": 60.0
+   },
+   "ReliefValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "SharedDCV": {
+    "rated_flow_lpm": 60.0
+   },
+   "ClampHoldCheck": {
+    "rated_flow_lpm": 60.0
+   },
+   "ForwardSequenceValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "ReverseSequenceValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "DrillFeedFlowControl": {
+    "rated_flow_lpm": 60.0
+   },
+   "__supply__": {
+    "displacement_cm3": 11.0,
+    "speed_rpm": 1500.0,
+    "flow_m3s": 0.0002475,
+    "relief_pa": 800000.0,
+    "overall_efficiency": 0.85,
+    "motor_kw": 0.25,
+    "reservoir_l": 60,
+    "pressure_class_bar": 100.0,
+    "peak_return_lpm": 21.723428571428567,
+    "valve_size": "NG6",
+    "suction_tube": "22x2 (ID 18 mm)",
+    "pressure_tube": "12x1.5 (ID 9 mm)",
+    "return_tube": "16x1.5 (ID 13 mm)"
+   }
+  },
+  "throttle_k": {
+   "DrillFeedFlowControl": 1.0092466813149988e-08
+  },
+  "certificate": {
+   "problem_id": "P7-05",
+   "verdict": "PROVED",
+   "counts": {
+    "PROVED": 6,
+    "UNDECIDED": 0,
+    "REFUTED": 0
+   },
+   "criteria": [
+    {
+     "criterion_id": "clamp_extend_to_workpiece__velocity",
+     "kind": "velocity",
+     "phase_id": "clamp_extend_to_workpiece",
+     "required": ">= 1.5 m/min",
+     "achieved": "[1.849, 1.933] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.005813097264340539,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "clamp_extend_to_workpiece__force",
+     "kind": "force",
+     "phase_id": "clamp_extend_to_workpiece",
+     "required": ">= 4 kn",
+     "achieved": "5.57 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 1570.850027538454,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "clamp_hold_during_drilling__force",
+     "kind": "force",
+     "phase_id": "clamp_hold_during_drilling",
+     "required": ">= 4 kn",
+     "achieved": "5.65 kn sustainable",
+     "verdict": "PROVED",
+     "method": "static-hold-balance",
+     "margin": 1654.8667764616284,
+     "governing_equations": [
+      "force_balance",
+      "load_lock_retention"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "drill_feed_stroke__velocity",
+     "kind": "velocity",
+     "phase_id": "drill_feed_stroke",
+     "required": ">= 0.1 m/min",
+     "achieved": "[0.1033, 0.1085] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 5.461660240820834e-05,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "drill_feed_stroke__force",
+     "kind": "force",
+     "phase_id": "drill_feed_stroke",
+     "required": ">= 2.5 kn",
+     "achieved": "2.5 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 0.21405724285796168,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "system__pressure_ceiling",
+     "kind": "pressure_ceiling",
+     "phase_id": null,
+     "required": "<= 8 bar",
+     "achieved": "8 bar worst phase",
+     "verdict": "PROVED",
+     "method": "worst-phase-nominal",
+     "margin": 0.0,
+     "governing_equations": [
+      "pressure_ceiling"
+     ],
+     "note": ""
+    }
+   ],
+   "findings": [
+    {
+     "layer": "V7",
+     "code": "RELIEF_MARGIN_THIN",
+     "severity": "warning",
+     "message": "only 0.00 bar between the worst working pressure and the relief setting; the valve will simmer",
+     "related": []
+    }
+   ],
+   "operating_points": {
+    "clamp_extend_to_workpiece": {
+     "regime": "flow_limited",
+     "velocity_m_min": 1.8907607239317163,
+     "pump_pressure_bar": 6.074794619266357,
+     "supply_pressure_bar": 5.777701806766357,
+     "exhaust_pressure_bar": 0.1731634407360001,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    },
+    "drill_feed_stroke": {
+     "regime": "pressure_limited",
+     "velocity_m_min": 0.10600212,
+     "pump_pressure_bar": 8.0,
+     "supply_pressure_bar": 7.999526829606869,
+     "exhaust_pressure_bar": 3.6181043606746646,
+     "relief_flow_lpm": 14.31717522966889,
+     "feasible": true
+    }
+   },
+   "assumptions": []
+  },
+  "repairs": [],
+  "notes": []
+ },
+ "P7-06": {
+  "sizing": {
+   "LeftCylinder": {
+    "cap_area_m2": 0.0031172453105244723,
+    "annulus_area_m2": 0.002099369290761379,
+    "bore_mm": 63,
+    "rod_mm": 36
+   },
+   "RightCylinder": {
+    "cap_area_m2": 0.0031172453105244723,
+    "annulus_area_m2": 0.002099369290761379,
+    "bore_mm": 63,
+    "rod_mm": 36
+   },
+   "Tank": {
+    "rated_flow_lpm": 60.0
+   },
+   "Pump": {
+    "rated_flow_lpm": 60.0
+   },
+   "ReliefValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "DCV": {
+    "rated_flow_lpm": 120.0
+   },
+   "__supply__": {
+    "displacement_cm3": 32.0,
+    "speed_rpm": 1500.0,
+    "flow_m3s": 0.00072,
+    "relief_pa": 8000000.0,
+    "overall_efficiency": 0.85,
+    "motor_kw": 7.5,
+    "reservoir_l": 160,
+    "pressure_class_bar": 100.0,
+    "peak_return_lpm": 64.14545454545456,
+    "valve_size": "NG10",
+    "suction_tube": "38x3 (ID 32 mm)",
+    "pressure_tube": "20x2 (ID 16 mm)",
+    "return_tube": "28x3 (ID 22 mm)"
+   }
+  },
+  "throttle_k": {},
+  "certificate": {
+   "problem_id": "P7-06",
+   "verdict": "PROVED",
+   "counts": {
+    "PROVED": 4,
+    "UNDECIDED": 0,
+    "REFUTED": 0
+   },
+   "criteria": [
+    {
+     "criterion_id": "platen_advance__velocity",
+     "kind": "velocity",
+     "phase_id": "platen_advance",
+     "required": ">= 6 m/min",
+     "achieved": "[6.775, 7.083] m/min",
+     "verdict": "PROVED",
+     "method": "monotone-corner",
+     "margin": 0.012922777944856426,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "platen_advance__force",
+     "kind": "force",
+     "phase_id": "platen_advance",
+     "required": ">= 40 kn",
+     "achieved": "44.8 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 4821.69426179638,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "platen_return__force",
+     "kind": "force",
+     "phase_id": "platen_return",
+     "required": ">= 12 kn",
+     "achieved": "29.7 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 17749.930030082316,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "system__pressure_ceiling",
+     "kind": "pressure_ceiling",
+     "phase_id": null,
+     "required": "<= 80 bar",
+     "achieved": "71.8 bar worst phase",
+     "verdict": "PROVED",
+     "method": "worst-phase-nominal",
+     "margin": 8.204425003137878,
+     "governing_equations": [
+      "pressure_ceiling"
+     ],
+     "note": ""
+    }
+   ],
+   "findings": [],
+   "operating_points": {
+    "platen_advance": {
+     "regime": "flow_limited",
+     "velocity_m_min": 6.929194801279797,
+     "pump_pressure_bar": 71.79557499686213,
+     "supply_pressure_bar": 71.40677499686213,
+     "exhaust_pressure_bar": 0.17634452311536858,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    },
+    "platen_return": {
+     "regime": "flow_limited",
+     "velocity_m_min": 10.288804401900306,
+     "pump_pressure_bar": 33.41720580582989,
+     "supply_pressure_bar": 33.02840580582989,
+     "exhaust_pressure_bar": 0.85721652892562,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    }
+   },
+   "assumptions": []
+  },
+  "repairs": [],
+  "notes": []
+ },
+ "P7-07": {
+  "sizing": {
+   "ClampCylinder": {
+    "cap_area_m2": 0.005026548245743669,
+    "annulus_area_m2": 0.0034361169648638367,
+    "bore_mm": 80,
+    "rod_mm": 45
+   },
+   "WorkCylinder": {
+    "cap_area_m2": 0.007853981633974483,
+    "annulus_area_m2": 0.005390972993560087,
+    "bore_mm": 100,
+    "rod_mm": 56
+   },
+   "Tank": {
+    "rated_flow_lpm": 60.0
+   },
+   "Pump": {
+    "rated_flow_lpm": 60.0
+   },
+   "ReliefValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "MainDCV": {
+    "rated_flow_lpm": 60.0
+   },
+   "ClampPressureReducingValve": {
+    "rated_flow_lpm": 60.0,
+    "setting_pa": 4000000.0
+   },
+   "ClampReleasePressureReducingValve": {
+    "rated_flow_lpm": 60.0,
+    "setting_pa": 4000000.0
+   },
+   "ClampDualPilotCheck": {
+    "rated_flow_lpm": 60.0
+   },
+   "ForwardSequenceValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "ReverseSequenceValve": {
+    "rated_flow_lpm": 60.0
+   },
+   "__supply__": {
+    "displacement_cm3": 19.0,
+    "speed_rpm": 1500.0,
+    "flow_m3s": 0.0004275,
+    "relief_pa": 4896098.191874135,
+    "overall_efficiency": 0.85,
+    "motor_kw": 3.0,
+    "reservoir_l": 80,
+    "pressure_class_bar": 100.0,
+    "peak_return_lpm": 37.52228571428571,
+    "valve_size": "NG6",
+    "suction_tube": "28x2 (ID 24 mm)",
+    "pressure_tube": "15x1.5 (ID 12 mm)",
+    "return_tube": "22x2.5 (ID 17 mm)"
+   }
+  },
+  "throttle_k": {},
+  "certificate": {
+   "problem_id": "P7-07",
+   "verdict": "UNDECIDED",
+   "counts": {
+    "PROVED": 6,
+    "UNDECIDED": 1,
+    "REFUTED": 0
+   },
+   "criteria": [
+    {
+     "criterion_id": "clamp_extend_apply_force__force",
+     "kind": "force",
+     "phase_id": "clamp_extend_apply_force",
+     "required": ">= 12 kn",
+     "achieved": "18 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 6046.714008822793,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "clamp_hold_during_work__force",
+     "kind": "force",
+     "phase_id": "clamp_hold_during_work",
+     "required": ">= 12 kn",
+     "achieved": "18.1 kn sustainable",
+     "verdict": "PROVED",
+     "method": "static-hold-balance",
+     "margin": 6095.573684677209,
+     "governing_equations": [
+      "force_balance",
+      "load_lock_retention"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "clamp_actuator__pressure_ceiling",
+     "kind": "pressure_ceiling",
+     "phase_id": null,
+     "required": "<= 40 bar",
+     "achieved": "40 bar worst phase",
+     "verdict": "PROVED",
+     "method": "worst-phase-nominal",
+     "margin": 0.0,
+     "governing_equations": [
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "working_advance__velocity",
+     "kind": "velocity",
+     "phase_id": "working_advance",
+     "required": "2.7 .. 3.3 m/min",
+     "achieved": "[3.193, 3.338] m/min",
+     "verdict": "UNDECIDED",
+     "method": "monotone-corner",
+     "margin": -0.0006393585273591004,
+     "governing_equations": [
+      "force_balance",
+      "continuity",
+      "orifice_law",
+      "relief_complementarity"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "working_advance__force",
+     "kind": "force",
+     "phase_id": "working_advance",
+     "required": ">= 30 kn",
+     "achieved": "34.5 kn available at the relief setting",
+     "verdict": "PROVED",
+     "method": "static-force-balance",
+     "margin": 4483.147979315749,
+     "governing_equations": [
+      "force_balance",
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "working_actuator__pressure_ceiling",
+     "kind": "pressure_ceiling",
+     "phase_id": null,
+     "required": "<= 60 bar",
+     "achieved": "43.7 bar worst phase",
+     "verdict": "PROVED",
+     "method": "worst-phase-nominal",
+     "margin": 16.284837572552366,
+     "governing_equations": [
+      "pressure_ceiling"
+     ],
+     "note": ""
+    },
+    {
+     "criterion_id": "system__pressure_ceiling",
+     "kind": "pressure_ceiling",
+     "phase_id": null,
+     "required": "<= 70 bar",
+     "achieved": "43.7 bar worst phase",
+     "verdict": "PROVED",
+     "method": "worst-phase-nominal",
+     "margin": 26.284837572552366,
+     "governing_equations": [
+      "pressure_ceiling"
+     ],
+     "note": ""
+    }
+   ],
+   "findings": [],
+   "operating_points": {
+    "clamp_extend_apply_force": {
+     "regime": "flow_limited",
+     "velocity_m_min": 5.102905362883893,
+     "pump_pressure_bar": 40.0,
+     "supply_pressure_bar": 26.633827444900586,
+     "exhaust_pressure_bar": 0.15799383223056793,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    },
+    "working_advance": {
+     "regime": "flow_limited",
+     "velocity_m_min": 3.265859432245692,
+     "pump_pressure_bar": 43.71516242744763,
+     "supply_pressure_bar": 42.618624927447634,
+     "exhaust_pressure_bar": 0.258314058288,
+     "relief_flow_lpm": 0.0,
+     "feasible": true
+    }
+   },
+   "assumptions": [
+    "working_advance: velocity stated as approximate; judged within +/-10%."
+   ]
+  },
+  "repairs": [],
+  "notes": []
+ }
+}

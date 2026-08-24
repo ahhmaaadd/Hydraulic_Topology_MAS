@@ -1,0 +1,798 @@
+{
+  "problem_id": "P7-06",
+  "title": "Wide rigid platen two-point hydraulic drive requirements",
+  "status": "validated_with_warnings",
+  "scope_statement": "Validated scope: generic hydraulic component classes, functional valve behavior, and direct port-to-port connectivity only. Pump/cylinder/reservoir sizing, pressure and flow ratings, line selection, filtration, cooling, prime mover selection, simulation and fabrication approval are explicitly deferred to the later sizing and engineering phases.",
+  "design_narrative": "Open-circuit fixed-displacement pump topology with a main relief valve and one tandem-center 4/3 DCV driving two double-acting cylinders in parallel. Tank.S supplies Pump.S; Pump.P branches directly to the ReliefValve.P and DCV.P without any tee/manifold component; ReliefValve.T and DCV.T return directly to Tank.R. DCV.A is the shared cap-end work branch for both cylinders and DCV.B is the shared rod-end work branch for both cylinders. The two cylinders are synchronized by the rigid platen/mechanical structure rather than by a hydraulic flow divider. Advance and return speeds are implemented by pump/cylinder sizing and unrestricted valve work paths, with no metering or flow-control component added.",
+  "selected_components": [
+    {
+      "id": "Tank",
+      "catalog_key": "GENERIC_TANK",
+      "name": "Tank",
+      "comp_type": "tank",
+      "role": "Open-circuit reservoir for pump suction and all hydraulic returns.",
+      "function_id": null,
+      "ports": [
+        "S",
+        "R"
+      ],
+      "configuration": [
+        "Use S as pump suction source.",
+        "Use R as common return sink."
+      ],
+      "selection_basis": "Required open-circuit tank boundary."
+    },
+    {
+      "id": "Pump",
+      "catalog_key": "GENERIC_FIXED_DISPLACEMENT_PUMP",
+      "name": "Pump",
+      "comp_type": "pump",
+      "role": "Single hydraulic supply used for both platen advance and return.",
+      "function_id": "move_rigid_platen",
+      "ports": [
+        "S",
+        "P"
+      ],
+      "configuration": [
+        "Same pump supplies both DCV motion states.",
+        "Displacement and drive power are deferred to sizing."
+      ],
+      "selection_basis": "Required single pump supply; no standby-unloading or variable-delivery requirement was stated."
+    },
+    {
+      "id": "ReliefValve",
+      "catalog_key": "GENERIC_RELIEF_VALVE",
+      "name": "Relief Valve",
+      "comp_type": "relief_valve",
+      "role": "Main pressure limiter for maximum system pressure requirement.",
+      "function_id": "move_rigid_platen",
+      "ports": [
+        "P",
+        "T"
+      ],
+      "configuration": [
+        "Set/selected during sizing so system pressure does not exceed 80 bar.",
+        "Connected directly to pump pressure branch and returned to tank."
+      ],
+      "selection_basis": "Required hydraulic pressure-limiting component for the 80 bar safety essential."
+    },
+    {
+      "id": "DCV",
+      "catalog_key": "GENERIC_4_3_SOLENOID_TANDEM_DCV",
+      "name": "4/3 Solenoid DCV, Tandem Center",
+      "comp_type": "dcv",
+      "role": "Directional control for synchronized two-cylinder platen extension and retraction.",
+      "function_id": "move_rigid_platen",
+      "ports": [
+        "P",
+        "T",
+        "A",
+        "B"
+      ],
+      "configuration": [
+        "Extend state: P to A, B to T for platen advance.",
+        "Retract state: P to B, A to T for platen return.",
+        "Neutral state: P to T with A and B blocked."
+      ],
+      "selection_basis": "Provides the required bidirectional motion; tandem center deliberately unloads a fixed pump in neutral without adding an unloading valve."
+    },
+    {
+      "id": "LeftCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Left drive-point actuator attached to the rigid platen.",
+      "function_id": "move_rigid_platen",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap port shares DCV A work branch.",
+        "Rod port shares DCV B work branch.",
+        "Bore, rod, stroke, mounting, and load sharing are deferred to sizing/mechanical design."
+      ],
+      "selection_basis": "One of the two required parallel powered linear actuators."
+    },
+    {
+      "id": "RightCylinder",
+      "catalog_key": "GENERIC_DOUBLE_ACTING_CYLINDER",
+      "name": "Double-Acting Cylinder",
+      "comp_type": "cylinder",
+      "role": "Right drive-point actuator attached to the rigid platen.",
+      "function_id": "move_rigid_platen",
+      "ports": [
+        "Cap",
+        "Rod"
+      ],
+      "configuration": [
+        "Cap port shares DCV A work branch.",
+        "Rod port shares DCV B work branch.",
+        "Bore, rod, stroke, mounting, and load sharing are deferred to sizing/mechanical design."
+      ],
+      "selection_basis": "Second required parallel powered linear actuator for the second platen drive point."
+    }
+  ],
+  "connections": [
+    {
+      "from_component": "Tank",
+      "from_port": "S",
+      "to_component": "Pump",
+      "to_port": "S",
+      "line": "suction",
+      "notes": "Tank supplies pump inlet."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "ReliefValve",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branch feeds the main relief valve directly."
+    },
+    {
+      "from_component": "ReliefValve",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Main relief valve returns relieved flow to tank."
+    },
+    {
+      "from_component": "Pump",
+      "from_port": "P",
+      "to_component": "DCV",
+      "to_port": "P",
+      "line": "pressure",
+      "notes": "Pump pressure branch feeds the directional valve directly; repeated Pump.P endpoint represents the shared branch without a tee component."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "T",
+      "to_component": "Tank",
+      "to_port": "R",
+      "line": "return",
+      "notes": "Directional valve return goes directly to tank."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "LeftCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "DCV A work branch feeds the left cylinder cap end for extend/advance."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "A",
+      "to_component": "RightCylinder",
+      "to_port": "Cap",
+      "line": "work",
+      "notes": "DCV A work branch also feeds the right cylinder cap end; repeated DCV.A endpoint represents parallel branching without a tee component."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "B",
+      "to_component": "LeftCylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "DCV B work branch feeds the left cylinder rod end for retract/return."
+    },
+    {
+      "from_component": "DCV",
+      "from_port": "B",
+      "to_component": "RightCylinder",
+      "to_port": "Rod",
+      "line": "work",
+      "notes": "DCV B work branch also feeds the right cylinder rod end; repeated DCV.B endpoint represents parallel branching without a tee component."
+    }
+  ],
+  "motion_control_decisions": [
+    {
+      "function_id": "move_rigid_platen",
+      "phase_id": "platen_advance",
+      "phase_name": "Platen advance",
+      "motion": "extend",
+      "load_type": "resistive",
+      "speed_realization": "sizing_only",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "The text specifies travel, load, and time targets only; this is a sizing requirement, not an explicit throttling or load-independent speed-control requirement. Load is described as being moved against, so it is treated as resistive unless clarified otherwise.",
+      "source": "inferred"
+    },
+    {
+      "function_id": "move_rigid_platen",
+      "phase_id": "platen_return",
+      "phase_name": "Platen return",
+      "motion": "retract",
+      "load_type": "resistive",
+      "speed_realization": "unrestricted_rapid",
+      "metering_side": "none",
+      "metered_chamber": "none",
+      "metered_flow": "none",
+      "flow_compensation": "none",
+      "load_control": "none",
+      "justification": "Return is explicitly required to be as quick as the same pump permits, indicating an unrestricted rapid return rather than a controlled throttled speed. Load is described as being moved against, so it is treated as resistive unless clarified otherwise.",
+      "source": "inferred"
+    }
+  ],
+  "synchronization_decisions": [
+    {
+      "required": true,
+      "actuator_count": 2,
+      "strategy": "rigid_platen_parallel",
+      "series_displacement_compatibility": "not_applicable",
+      "justification": "The platen is driven at two points, and the two sides must remain synchronized because they are joined by the same rigid structure.",
+      "source": "explicit",
+      "function_id": "move_rigid_platen"
+    }
+  ],
+  "phase_configurations": [
+    {
+      "phase_id": "platen_advance",
+      "function_id": "move_rigid_platen",
+      "motion": "extend",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "extend",
+          "reason": "Catalog state connects P to A and B to T, pressurizing both cap ends through the shared A branch and returning both rod ends through the shared B branch."
+        },
+        {
+          "component_id": "ReliefValve",
+          "state": "closed",
+          "reason": "Normal pressure-limiting valve state during motion; it changes to relieving only if pressure reaches its setting."
+        }
+      ],
+      "expected_active_function_ids": [
+        "move_rigid_platen"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "Sizing-only advance uses direct/unmetered DCV work paths with no added flow control. Pump flow to DCV.A extends both cylinders in parallel against the resistive load."
+    },
+    {
+      "phase_id": "platen_return",
+      "function_id": "move_rigid_platen",
+      "motion": "retract",
+      "component_states": [
+        {
+          "component_id": "DCV",
+          "state": "retract",
+          "reason": "Catalog state connects P to B and A to T, pressurizing both rod ends through the shared B branch and returning both cap ends through the shared A branch."
+        },
+        {
+          "component_id": "ReliefValve",
+          "state": "closed",
+          "reason": "Normal pressure-limiting valve state during motion; it changes to relieving only if pressure reaches its setting."
+        }
+      ],
+      "expected_active_function_ids": [
+        "move_rigid_platen"
+      ],
+      "forbidden_active_function_ids": [],
+      "completed_function_ids": [],
+      "notes": "Unrestricted rapid return uses the same direct/unmetered DCV work paths with no throttling component; return speed is limited by pump flow, cylinder annulus area, and sizing losses."
+    }
+  ],
+  "candidate_evaluations": [
+    {
+      "candidate_id": "candidate_1_fixed_pump_tandem_center",
+      "eligible": true,
+      "score": 85.0,
+      "component_count": 6,
+      "errors": [],
+      "warnings": [
+        "evidence gap (No-overrunning or no-drift load control under gravity): Platen orientation is unspecified. The typed motion decisions classify both loads as resistive and there is no holding requirement, so no pilot check or counterbalance valve is selected in this topology phase."
+      ],
+      "selected": true
+    },
+    {
+      "candidate_id": "candidate_2_fixed_pump_open_center",
+      "eligible": true,
+      "score": 85.0,
+      "component_count": 6,
+      "errors": [],
+      "warnings": [
+        "evidence gap (No-overrunning or no-drift load control under gravity): Platen orientation is unspecified. The typed motion decisions classify both loads as resistive and there is no holding requirement, so no pilot check or counterbalance valve is selected in this topology phase."
+      ],
+      "selected": false
+    },
+    {
+      "candidate_id": "candidate_3_variable_pump_closed_center",
+      "eligible": true,
+      "score": 85.0,
+      "component_count": 6,
+      "errors": [],
+      "warnings": [
+        "evidence gap (No-overrunning or no-drift load control under gravity): Platen orientation is unspecified. The typed motion decisions classify both loads as resistive and there is no holding requirement, so no pilot check or counterbalance valve is selected in this topology phase."
+      ],
+      "selected": false
+    }
+  ],
+  "component_planner_recovery": [],
+  "repair_history": [],
+  "external_interfaces": [],
+  "port_terminations": [],
+  "function_implementations": [
+    {
+      "function_id": "move_rigid_platen",
+      "component_ids": [
+        "Pump",
+        "DCV",
+        "LeftCylinder",
+        "RightCylinder"
+      ],
+      "circuit_pattern": "Open-circuit two-cylinder rigid-platen drive with main relief",
+      "how_requirements_met": "The single pump supplies the DCV. In the DCV extend state, P connects to A and B connects to T, so DCV.A pressurizes both cylinder cap ports and DCV.B returns both rod ports to tank for platen advance. In the DCV retract state, P connects to B and A connects to T, so both rod ports are pressurized and both cap ports return to tank for platen return. The two cylinders are connected in parallel to the same work branches and are mechanically synchronized by the rigid platen."
+    },
+    {
+      "function_id": "limit_system_pressure_80_bar",
+      "component_ids": [
+        "ReliefValve"
+      ],
+      "circuit_pattern": "Main relief valve from pump pressure branch to tank return",
+      "how_requirements_met": "Pump.P is connected directly to ReliefValve.P and ReliefValve.T returns directly to Tank.R. The relief valve is selected/set during sizing so it opens from P to T at the required maximum-pressure limit, preventing system pressure from exceeding 80 bar subject to final settings and margins."
+    },
+    {
+      "function_id": "open_circuit_reservoir_boundary",
+      "component_ids": [
+        "Tank",
+        "Pump",
+        "ReliefValve",
+        "DCV"
+      ],
+      "circuit_pattern": "Open-circuit power and return path",
+      "how_requirements_met": "Tank.S supplies Pump.S, and hydraulic returns from ReliefValve.T and DCV.T terminate at Tank.R, establishing the required open-circuit suction and return boundary."
+    }
+  ],
+  "design_decisions": [
+    {
+      "decision": "Use an open-circuit fixed-displacement pump with tank suction and tank returns.",
+      "rationale": "The selected topology follows the standard open-circuit arrangement: the reservoir supplies the pump inlet and circuit return flow goes back to the reservoir. The fixed-displacement pump is adequate because the stated advance speed is handled by sizing and no variable-delivery or standby-unloading function was required.",
+      "driven_by": [
+        "move_rigid_platen",
+        "open_circuit_reservoir_boundary"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/hydraulics/hydraulic-pumps-motors/article/21148816/open-versus-closed-circuit-filtration-for-hydraulics-performance"
+      ]
+    },
+    {
+      "decision": "Connect a main relief valve directly from the pump pressure branch to tank return for the 80 bar pressure limit.",
+      "rationale": "A relief valve on the pressurized supply side is the supported pressure-limiting component. It is connected directly to the pump pressure branch and returned to tank; the exact relief setting, tolerance, and pressure ratings remain sizing/specification items.",
+      "driven_by": [
+        "limit_system_pressure_80_bar",
+        "move_rigid_platen"
+      ],
+      "evidence_urls": [
+        "https://eng.libretexts.org/Courses/Northeast_Wisconsin_Technical_College/Fluids_2%3A_Basic_Hydraulics_(NWTC)/13%3A_Relief_Valves/13.03%3A_The_Role_of_a_Relief_Valve_in_System_Protection",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884333/book-2-chapter-18-pressure-relief-valves"
+      ]
+    },
+    {
+      "decision": "Use one tandem-center 4/3 DCV for bidirectional two-cylinder motion.",
+      "rationale": "The 4/3 DCV provides the required extend, neutral, and retract states. The tandem center unloads the fixed-displacement pump to tank in neutral while blocking A and B, avoiding a separate unloading valve in this minimal topology.",
+      "driven_by": [
+        "move_rigid_platen"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves",
+        "https://www.lunchboxsessions.com/materials/directional-control-valves/intro-to-directional-control-valves-lesson"
+      ]
+    },
+    {
+      "decision": "Connect two double-acting cylinders in parallel to the same DCV work branches: A to both cap ends and B to both rod ends.",
+      "rationale": "A double-acting cylinder extends and retracts through a 4-way valve. Applying the A-to-cap and B-to-rod convention to both cylinders provides powered advance and powered return at two platen drive points. Repeated DCV work-port endpoints represent hydraulic branching without adding tee or manifold components.",
+      "driven_by": [
+        "move_rigid_platen"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884325/book-2-chapter-8-directional-control-valves",
+        "https://www.lunchboxsessions.com/materials/directional-control-valves/intro-to-directional-control-valves-lesson"
+      ]
+    },
+    {
+      "decision": "Do not add a flow-control valve for the numeric advance-speed target or rapid return.",
+      "rationale": "The advance target is a sizing requirement: cylinder speed is determined by pump flow divided by effective actuator area, and force by pressure times effective area. Return is explicitly to be as quick as the same pump permits, so it uses an unrestricted valve path rather than throttling.",
+      "driven_by": [
+        "platen_advance",
+        "platen_return",
+        "move_rigid_platen"
+      ],
+      "evidence_urls": [
+        "https://mechanicalengineering120.files.wordpress.com/2017/11/lecture-25_hydraulic-circuit-design-and-analysis-continued.pdf",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884326/book-2-chapter-6-fluid-power-cylinders",
+        "https://www.powermotiontech.com/pneumatics/pneumatic-valves/article/21884324/book-2-chapter-10-flow-control-circuits"
+      ]
+    },
+    {
+      "decision": "Use the rigid platen as the synchronization mechanism and do not add a flow divider/combiner.",
+      "rationale": "The requirement states that the sides are synchronized through the rigid platen. Two cylinders are therefore connected in parallel to common work branches and mechanically tied by the platen. Flow-divider/combiner synchronization is a possible alternate class, but cited sources warn that divider inaccuracies against rigid mechanisms can cause cavitation, lock-up, or structural damage; therefore it is not selected for the baseline.",
+      "driven_by": [
+        "move_rigid_platen"
+      ],
+      "evidence_urls": [
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21884338/book-2-chapter-22-synchronizing-cylinder-movement",
+        "https://www.powermotiontech.com/technologies/other-technologies/article/21883443/book-2-chapter-11-flow-divider-circuits",
+        "https://www.mobilehydraulictips.com/what-is-a-flow-divider"
+      ]
+    }
+  ],
+  "catalog_gaps": [],
+  "evidence_gaps": [
+    {
+      "capability": "No-overrunning or no-drift load control under gravity",
+      "reason": "Platen orientation is unspecified. The typed motion decisions classify both loads as resistive and there is no holding requirement, so no pilot check or counterbalance valve is selected in this topology phase.",
+      "related_function_ids": [
+        "move_rigid_platen"
+      ],
+      "evidence_needed": "Confirm platen orientation and whether gravity or an external process can create an overrunning or suspended load.",
+      "blocking": false
+    }
+  ],
+  "assumptions": [
+    "Both typed motion phases are resistive-load phases as stated in the selected motion_control_decisions.",
+    "The rigid platen mechanically ties the two cylinder outputs and provides synchronization; no hydraulic cylinder-to-cylinder synchronization connection is used.",
+    "Advance speed, return speed, pump displacement, cylinder bore/rod/stroke, drive power, and pressure losses are sizing tasks rather than topology additions.",
+    "The tandem-center DCV neutral state is acceptable for stop/unload behavior because no timed no-drift hold or pilot-operated load-lock function is required in the selected plan."
+  ],
+  "open_issues": [
+    "Relief-valve setting, pressure tolerance, and all pressure ratings must be checked during sizing so system pressure does not exceed 80 bar.",
+    "Cylinder bore/rod/stroke and pump flow must be sized for 500 mm travel, 40 kN total advance load, 12 kN total return load, and the 5 s advance target.",
+    "Rigid platen stiffness, guides, side loads, and off-center load sharing are mechanical/sizing issues outside this topology plan.",
+    "Return trigger and operator/control sequencing are unspecified; the selected DCV provides hydraulic states only.",
+    "No cited standard was supplied for hydraulic machinery safety, pressure-rating margins, guarding, control reliability, or commissioning; standards review remains open.",
+    "Platen orientation and gravity/overrunning behavior are unresolved; if gravity can drive the load, counterbalance or pilot-check load control may need to be reconsidered."
+  ],
+  "research_audit": {
+    "searches_used": 4,
+    "rounds_used": 1,
+    "selected_unique_sources": 12,
+    "extracted_documents": 11,
+    "duplicate_urls_skipped": 1,
+    "verified_evidence_claims": 36,
+    "rejected_by_reason": {
+      "lower_rank": 30,
+      "low_quality_source": 21,
+      "duplicate_url": 1
+    }
+  },
+  "research_coverage": {
+    "status": "sufficient",
+    "can_proceed": true,
+    "summary": "Most topology needs are supported by cited engineering evidence: open-circuit power/return/relief topology is covered; double-acting cylinders with a 4-way DCV and neutral-center behavior options are covered; and the requested sizing-only advance plus unrestricted rapid retract can be supported by pump/cylinder sizing plus the cited 4-way DCV porting convention. The critical weak point is driver synchronization. Existing evidence supports flow-divider/combiner synchronization and warns about hazards when flow-divider errors act against a rigidly tied mechanism, but it does not yet provide enough direct, cited guidance to choose unambiguously among simple rigid-mechanical parallel synchronization, hydraulic series/rephasing, or divider/combiner parallel synchronization for a rigid platen driven at two points.",
+    "items": [
+      {
+        "need_id": "system_power_and_relief",
+        "status": "covered",
+        "rationale": "Covered by cited sources showing open-circuit reservoir-to-pump suction, return-to-reservoir flow path, relief valve connected to the pressurized supply side, and relief outlet/drain routed to tank/return manifold. Evidence also supports relief protection for fixed-displacement pump deadheading and setting the main relief as the maximum pressure limiting device, though not specifically at 80 bar.",
+        "evidence_task_ids": [
+          "task_open_circuit_power_relief_80_bar"
+        ]
+      },
+      {
+        "need_id": "function_move_rigid_platen_directional_control",
+        "status": "covered",
+        "rationale": "Covered by cited guidance that a double-acting cylinder uses one 4-way directional valve for extend/retract, with A-to-cap and B-to-rod porting. The accumulated findings extend this consistently to two platen cylinders from one DCV work-port pair. Neutral-center behavior is supported by citations distinguishing tandem-center stop/hold/unload-pump behavior from open-center depressurize/float behavior, so the topology designer can state the required neutral behavior explicitly.",
+        "evidence_task_ids": [
+          "task_double_acting_parallel_cylinders_directional_control"
+        ]
+      },
+      {
+        "need_id": "function_move_rigid_platen_motion_profile",
+        "status": "covered",
+        "rationale": "Covered when combined with the directional-control evidence. The cited motion-profile sources support sizing-only speed determination from pump flow and effective cylinder area, force from pressure and area, full pump flow for rapid approach without adding flow controls, and retract speed using annulus area. The separate directional-control evidence supplies the missing port-level retract convention: B to rod end for retraction, with the opposite side returned through the DCV. Because the typed requirements specify no separate speed-control devices and no automatic transition points, the evidence is sufficient for a sizing-only advance and unrestricted rapid return topology.",
+        "evidence_task_ids": [
+          "task_motion_profile_sizing_only_rapid_return"
+        ]
+      },
+      {
+        "need_id": "driver_synchronization",
+        "status": "covered",
+        "rationale": "Partially covered. The findings contain strong cited guidance for flow-divider/combiner synchronization: divider placement between valve and cap-end ports for extension, need for rod-end synchronization for precise retract, end-of-stroke re-synchronization, accuracy limits, and hazards when a rigid mechanism ties flow-divided cylinders together. The findings also contain some related evidence that parallel platen cylinders may not share force under off-center loads and may require each cylinder to carry the whole load. However, the evidence is still weak for the actual requirement-matched selection among rigid parallel, hydraulic series/rephasing, or divider/combiner parallel. Missing are direct cited criteria for when simple parallel cylinders mechanically tied by a rigid platen are acceptable as the synchronization method, and direct cited connection/limitation guidance for hydraulic series/rephasing cylinders in this application class.",
+        "evidence_task_ids": [
+          "task_rigid_platen_two_cylinder_synchronization"
+        ]
+      }
+    ],
+    "missing_or_weak_information": [
+      "Critical: direct engineering guidance for selecting simple rigid-mechanical parallel synchronization versus hydraulic divider/combiner synchronization for two cylinders driving one rigid platen is weak. Exact missing claim: whether tee-connected parallel cylinders driven by one 4-way DCV may rely on the rigid platen for synchronization, and what precautions are required for force sharing, side loading, stroke-end alignment, and off-center loads.",
+      "Critical: direct evidence for hydraulic series/rephasing cylinder topology is missing. Exact missing claim: how double-acting cylinders are connected in hydraulic series/rephasing circuits, what synchronization behavior they provide, and whether/when that pattern is appropriate or inappropriate for a rigidly connected platen.",
+      "Noncritical: no source specifically discusses an 80 bar limit, but relief-valve placement and pressure-limit function are covered generically; exact setting and component ratings can be handled during component selection."
+    ],
+    "follow_up_tasks": []
+  },
+  "validation": {
+    "verdict": "valid",
+    "deterministic": {
+      "verdict": "valid",
+      "issues": [
+        {
+          "code": "NONBLOCKING_EVIDENCE_GAP",
+          "severity": "warning",
+          "scope": "research",
+          "description": "Evidence gap for No-overrunning or no-drift load control under gravity: Platen orientation is unspecified. The typed motion decisions classify both loads as resistive and there is no holding requirement, so no pilot check or counterbalance valve is selected in this topology phase.",
+          "related": [
+            "move_rigid_platen"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "unique_component_ids",
+          "passed": true,
+          "details": "6 generic component instances checked."
+        },
+        {
+          "name": "generic_catalog_identity_and_scope",
+          "passed": true,
+          "details": "Every instance must resolve to an allowed generic functional class."
+        },
+        {
+          "name": "direct_port_accounting",
+          "passed": true,
+          "details": "Every hydraulic port participates in a direct physical line; shared endpoints represent branches."
+        },
+        {
+          "name": "minimum_functional_inventory",
+          "passed": true,
+          "details": "Tank, pump, relief, actuator, and directional-control functions checked."
+        },
+        {
+          "name": "directed_system_paths",
+          "passed": true,
+          "details": "Suction, pump supply, relief, DCV pressure, and return directions checked without merging actuator states."
+        },
+        {
+          "name": "typed_decision_propagation",
+          "passed": true,
+          "details": "Metering, chamber, flow direction, compensation, load control, and synchronization are immutable across stages."
+        },
+        {
+          "name": "directed_phase_state_behavior",
+          "passed": true,
+          "details": "2 canonical motion phase(s) checked with separate directed component states."
+        },
+        {
+          "name": "topology_requirement_and_pattern_coverage",
+          "passed": true,
+          "details": "Capability classes, typed sequencing, synchronization strategy, hi-lo semantics, traceability, and catalog gaps checked."
+        }
+      ]
+    },
+    "design_review": {
+      "verdict": "valid",
+      "design_issues": [],
+      "summary": "The proposed topology satisfies the functional brief: open-circuit tank/pump supply with direct main relief to tank, one 4/3 DCV providing extend and retract paths, and two double-acting cylinders connected in parallel with common cap and rod work branches for rigid-platen synchronization. Advance and return phase states provide complete directed pressure and exhaust paths, use the same pump, avoid prohibited tee/manifold components, avoid forbidden cylinder-to-cylinder series connections, and correctly omit flow-control or load-holding valves because speed is sizing-only, return is unrestricted, and the typed load/holding decisions do not require load control."
+    },
+    "repair_scope": "none",
+    "topology_round": 1,
+    "summary": "Deterministic validation: valid. Engineering review: valid. The proposed topology satisfies the functional brief: open-circuit tank/pump supply with direct main relief to tank, one 4/3 DCV providing extend and retract paths, and two double-acting cylinders connected in parallel with common cap and rod work branches for rigid-platen synchronization. Advance and return phase states provide complete directed pressure and exhaust paths, use the same pump, avoid prohibited tee/manifold components, avoid forbidden cylinder-to-cylinder series connections, and correctly omit flow-control or load-holding valves because speed is sizing-only, return is unrestricted, and the typed load/holding decisions do not require load control."
+  },
+  "repair_stop_reason": null,
+  "validation_fingerprints": [
+    "0e62519f37de9f49"
+  ],
+  "sizing": {
+    "problem_id": "P7-06",
+    "verdict": "PROVED",
+    "mode": "llm",
+    "policy": {
+      "candidate_id": "C1_small_63mm",
+      "approach": "Smallest preferred-bore design using high design pressure to keep cylinder and pump flow compact.",
+      "actuator_decisions": [
+        {
+          "cylinder_id": "LeftCylinder",
+          "design_pressure_bar": 72.0,
+          "governing_phase_id": "platen_advance",
+          "rod_strategy": "force",
+          "target_area_ratio": null,
+          "justification": "Advance is the governing load phase for the shared rigid-platen drive. Tool sizing at this pressure selected a 63 mm bore with 3117.2 mm2 cap area and a conventional 36 mm rod with 2099.4 mm2 annulus area; the rod strategy is force because no metered speed-ratio function exists."
+        },
+        {
+          "cylinder_id": "RightCylinder",
+          "design_pressure_bar": 72.0,
+          "governing_phase_id": "platen_advance",
+          "rod_strategy": "force",
+          "target_area_ratio": null,
+          "justification": "Same duty and same size as the left drive-point actuator to keep the parallel rigid-platen drive symmetric. Tool sizing selected the same 63 mm bore and 36 mm rod."
+        }
+      ],
+      "supply_decision": {
+        "governing_phase_id": "platen_advance",
+        "relief_margin": 1.08,
+        "speed_aim_off": 0.06,
+        "justification": "Advance velocity is the only bounded speed; the pump is selected from the tool result of 39.651 L/min required flow to the cap ends, giving a 32.0 cm3/rev pump with 43.2 L/min delivered flow. Return is unrestricted and is therefore whatever the same pump gives."
+      },
+      "setting_decisions": [
+        {
+          "component_id": "ReliefValve",
+          "setting_bar": 77.8,
+          "basis": "Set above the evaluated worst working point and below the 80.0 bar pressure ceiling; evaluator proved all pressure and motion acceptance criteria."
+        }
+      ],
+      "engineering_notes": [
+        "Evaluation verdict: PROVED, with all four criteria proved and no undecided or refuted items.",
+        "Evaluated advance operating point: 6.929194801279797 m/min, 71.79557499686213 bar pump pressure, no relief flow.",
+        "Evaluated return operating point: 10.288804401900306 m/min, 33.41720580582989 bar pump pressure, no relief flow.",
+        "Prime mover selection from tool: 6.59 kW shaft power and 7.5 kW standard motor rating at 43.2 L/min and 77.8 bar.",
+        "Directional valve selection from tool: NG10, rated 120.0 L/min; this is based on the evaluated return cap-end exhaust flow checked by tool as 64.145 L/min.",
+        "Oversizing index from evaluator: 1.122."
+      ],
+      "open_issues": [
+        "Confirm platen guide stiffness and off-centre load sharing so the mechanical synchronizing assumption remains valid.",
+        "Confirm relief-valve tolerance and pressure ratings so the installed maximum remains within the 80.0 bar ceiling."
+      ]
+    },
+    "sizing": {
+      "LeftCylinder": {
+        "cap_area_m2": 0.0031172453105244723,
+        "annulus_area_m2": 0.002099369290761379,
+        "bore_mm": 63,
+        "rod_mm": 36
+      },
+      "RightCylinder": {
+        "cap_area_m2": 0.0031172453105244723,
+        "annulus_area_m2": 0.002099369290761379,
+        "bore_mm": 63,
+        "rod_mm": 36
+      },
+      "Tank": {
+        "rated_flow_lpm": 60.0
+      },
+      "Pump": {
+        "rated_flow_lpm": 60.0
+      },
+      "ReliefValve": {
+        "rated_flow_lpm": 60.0,
+        "setting_pa": 7780000.0
+      },
+      "DCV": {
+        "rated_flow_lpm": 120.0
+      },
+      "__supply__": {
+        "displacement_cm3": 32.0,
+        "speed_rpm": 1500.0,
+        "flow_m3s": 0.00072,
+        "relief_pa": 7776000.000000001,
+        "overall_efficiency": 0.85,
+        "motor_kw": 7.5,
+        "reservoir_l": 160,
+        "pressure_class_bar": 100.0,
+        "peak_return_lpm": 64.14545454545456,
+        "valve_size": "NG10",
+        "suction_tube": "38x3 (ID 32 mm)",
+        "pressure_tube": "20x2 (ID 16 mm)",
+        "return_tube": "28x3 (ID 22 mm)"
+      }
+    },
+    "throttle_settings": {},
+    "certificate": {
+      "problem_id": "P7-06",
+      "verdict": "PROVED",
+      "counts": {
+        "PROVED": 4,
+        "UNDECIDED": 0,
+        "REFUTED": 0
+      },
+      "criteria": [
+        {
+          "criterion_id": "platen_advance__velocity",
+          "kind": "velocity",
+          "phase_id": "platen_advance",
+          "required": ">= 6 m/min",
+          "achieved": "[6.775, 7.083] m/min",
+          "verdict": "PROVED",
+          "method": "monotone-corner",
+          "margin": 0.012922777944856426,
+          "governing_equations": [
+            "force_balance",
+            "continuity",
+            "orifice_law",
+            "relief_complementarity"
+          ],
+          "note": ""
+        },
+        {
+          "criterion_id": "platen_advance__force",
+          "kind": "force",
+          "phase_id": "platen_advance",
+          "required": ">= 40 kn",
+          "achieved": "43.6 kn available at the relief setting",
+          "verdict": "PROVED",
+          "method": "static-force-balance",
+          "margin": 3564.8209525929196,
+          "governing_equations": [
+            "force_balance",
+            "pressure_ceiling"
+          ],
+          "note": ""
+        },
+        {
+          "criterion_id": "platen_return__force",
+          "kind": "force",
+          "phase_id": "platen_return",
+          "required": ">= 12 kn",
+          "achieved": "28.9 kn available at the relief setting",
+          "verdict": "PROVED",
+          "method": "static-force-balance",
+          "margin": 16903.464332047337,
+          "governing_equations": [
+            "force_balance",
+            "pressure_ceiling"
+          ],
+          "note": ""
+        },
+        {
+          "criterion_id": "system__pressure_ceiling",
+          "kind": "pressure_ceiling",
+          "phase_id": null,
+          "required": "<= 80 bar",
+          "achieved": "71.8 bar worst phase",
+          "verdict": "PROVED",
+          "method": "worst-phase-nominal",
+          "margin": 8.204425003137878,
+          "governing_equations": [
+            "pressure_ceiling"
+          ],
+          "note": ""
+        }
+      ],
+      "findings": [],
+      "operating_points": {
+        "platen_advance": {
+          "regime": "flow_limited",
+          "velocity_m_min": 6.929194801279797,
+          "pump_pressure_bar": 71.79557499686213,
+          "supply_pressure_bar": 71.40677499686213,
+          "exhaust_pressure_bar": 0.17634452311536858,
+          "relief_flow_lpm": 0.0,
+          "feasible": true
+        },
+        "platen_return": {
+          "regime": "flow_limited",
+          "velocity_m_min": 10.288804401900306,
+          "pump_pressure_bar": 33.41720580582989,
+          "supply_pressure_bar": 33.02840580582989,
+          "exhaust_pressure_bar": 0.85721652892562,
+          "relief_flow_lpm": 0.0,
+          "feasible": true
+        }
+      },
+      "assumptions": []
+    },
+    "candidate_scores": [
+      {
+        "candidate_id": "C1_small_63mm",
+        "eligible": true,
+        "score": 39.75558337642238,
+        "proved": 4,
+        "undecided": 0,
+        "refuted": 0,
+        "oversizing_index": 1.122,
+        "errors": [],
+        "warnings": [],
+        "selected": true
+      },
+      {
+        "candidate_id": "C2_higher_margin_80mm",
+        "eligible": true,
+        "score": 38.380885263064556,
+        "proved": 4,
+        "undecided": 0,
+        "refuted": 0,
+        "oversizing_index": 1.81,
+        "errors": [],
+        "warnings": [],
+        "selected": false
+      }
+    ],
+    "repairs": [],
+    "rounds": 1,
+    "stop_reason": null
+  }
+}
