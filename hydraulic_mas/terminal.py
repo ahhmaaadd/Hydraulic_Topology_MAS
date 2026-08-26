@@ -432,6 +432,23 @@ class TerminalReporter:
                 )
             self.console.print(table)
 
+        # What the verdict does *not* range over, said out loud. A verdict shown
+        # without its coverage reads as "fully verified", and the checks answer
+        # about three in five of the stated acceptance criteria.
+        coverage = certificate.get("coverage") or {}
+        if coverage.get("stated"):
+            self.console.print(
+                f"[dim]Coverage: {coverage['answered']} of {coverage['stated']} stated "
+                f"acceptance criteria answered by {coverage['checks']} checks.[/]")
+            reasons: dict[str, int] = {}
+            for item in certificate.get("uncovered") or []:
+                reasons[item["reason"]] = reasons.get(item["reason"], 0) + 1
+            if reasons:
+                detail = ", ".join(f"{count} {reason.replace('_', ' ')}"
+                                   for reason, count in sorted(reasons.items(),
+                                                               key=lambda pair: -pair[1]))
+                self.console.print(f"[dim]Not answered: {detail}.[/]")
+
         points = certificate.get("operating_points") or {}
         if points:
             table = Table("Phase", "Regime", "Velocity", "Pump", "Supply", "Exhaust", "Over relief")

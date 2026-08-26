@@ -1,0 +1,493 @@
+{
+  "overall": {
+    "phases": 22,
+    "usable": 22,
+    "unsettled": [],
+    "diverged": [],
+    "max_abs_velocity_error": 0.03243731900201599,
+    "median_abs_velocity_error": 0.000625114331657383,
+    "max_overshoot": 0.8582211633639053,
+    "median_stroke_fraction_settling": 0.04725173626459925,
+    "phases_never_reaching_steady_state": [
+      "clamp_extend_apply_force"
+    ],
+    "phases_mostly_transient": [
+      "clamp_extend_to_workpiece",
+      "platen_advance",
+      "platen_return"
+    ]
+  },
+  "per_problem": {
+    "P7-01": {
+      "summary": {
+        "phases": 3,
+        "usable": 3,
+        "unsettled": [],
+        "diverged": [],
+        "max_abs_velocity_error": 0.00034701955745294644,
+        "median_abs_velocity_error": 0.0003468837102487953,
+        "max_overshoot": 0.8582211633639053,
+        "median_stroke_fraction_settling": 0.04235813430856748,
+        "phases_never_reaching_steady_state": [],
+        "phases_mostly_transient": []
+      },
+      "phases": [
+        {
+          "phase_id": "slide_approach_extend",
+          "quasi_static_velocity_m_s": 0.0544309905374282,
+          "settled_velocity_m_s": 0.054412101919180174,
+          "peak_velocity_m_s": 0.10110971932933437,
+          "velocity_error": -0.00034701955745294644,
+          "overshoot": 0.8582211633639053,
+          "settling_time_s": 0.6557999999999441,
+          "settling_distance_m": 0.03633346789945231,
+          "stroke_m": 0.25,
+          "stroke_fraction_settling": 0.14533387159780925,
+          "relief_opened": false,
+          "steps": 6759,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "slide_cutting_feed_extend",
+          "quasi_static_velocity_m_s": 0.0125,
+          "settled_velocity_m_s": 0.0125,
+          "peak_velocity_m_s": 0.0125,
+          "velocity_error": 0.0,
+          "overshoot": 0.0,
+          "settling_time_s": 0.018599999999999943,
+          "settling_distance_m": 0.000293079309513266,
+          "stroke_m": 0.1,
+          "stroke_fraction_settling": 0.0029307930951326597,
+          "relief_opened": false,
+          "steps": 386,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "slide_retract_return",
+          "quasi_static_velocity_m_s": 0.07929922863844432,
+          "settled_velocity_m_s": 0.0793267362490943,
+          "peak_velocity_m_s": 0.12870924590584176,
+          "velocity_error": 0.0003468837102487953,
+          "overshoot": 0.6225203757492455,
+          "settling_time_s": 0.17159999999999742,
+          "settling_distance_m": 0.01482534700799862,
+          "stroke_m": 0.35000000000000003,
+          "stroke_fraction_settling": 0.04235813430856748,
+          "relief_opened": false,
+          "steps": 1917,
+          "diverged": false,
+          "notes": []
+        }
+      ]
+    },
+    "P7-02": {
+      "summary": {
+        "phases": 4,
+        "usable": 4,
+        "unsettled": [],
+        "diverged": [],
+        "max_abs_velocity_error": 0.001881830848848746,
+        "median_abs_velocity_error": 0.00033493946102881465,
+        "max_overshoot": 0.5595144937873198,
+        "median_stroke_fraction_settling": 0.018116083645492956,
+        "phases_never_reaching_steady_state": [],
+        "phases_mostly_transient": []
+      },
+      "phases": [
+        {
+          "phase_id": "ram_rapid_down_approach",
+          "quasi_static_velocity_m_s": 0.09167324722093172,
+          "settled_velocity_m_s": 0.09170395220894666,
+          "peak_velocity_m_s": 0.1378486547164271,
+          "velocity_error": 0.00033493946102881465,
+          "overshoot": 0.5031920805587543,
+          "settling_time_s": 0.06457611787650241,
+          "settling_distance_m": 0.00769104797033016,
+          "stroke_m": 0.8,
+          "stroke_fraction_settling": 0.0096138099629127,
+          "relief_opened": false,
+          "steps": 1192,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "ram_working_feed_down",
+          "quasi_static_velocity_m_s": 0.035333333333298,
+          "settled_velocity_m_s": 0.035333333333298,
+          "peak_velocity_m_s": 0.035333333333298,
+          "velocity_error": 0.0,
+          "overshoot": 0.0,
+          "settling_time_s": 0.006900000000000005,
+          "settling_distance_m": 0.000769839712512879,
+          "stroke_m": 0.12,
+          "stroke_fraction_settling": 0.0064153309376073255,
+          "relief_opened": false,
+          "steps": 270,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "ram_final_press_down",
+          "quasi_static_velocity_m_s": 0.035333333333298,
+          "settled_velocity_m_s": 0.035333333333298,
+          "peak_velocity_m_s": 0.035333333333298,
+          "velocity_error": 0.0,
+          "overshoot": 0.0,
+          "settling_time_s": 0.050300000000000414,
+          "settling_distance_m": 0.0014492866916394366,
+          "stroke_m": 0.08,
+          "stroke_fraction_settling": 0.018116083645492956,
+          "relief_opened": false,
+          "steps": 703,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "ram_return_up",
+          "quasi_static_velocity_m_s": 0.13355659560159047,
+          "settled_velocity_m_s": 0.13330526467992018,
+          "peak_velocity_m_s": 0.2078914923664904,
+          "velocity_error": -0.001881830848848746,
+          "overshoot": 0.5595144937873198,
+          "settling_time_s": 0.14470000000000038,
+          "settling_distance_m": 0.021412198792791638,
+          "stroke_m": 1.0,
+          "stroke_fraction_settling": 0.021412198792791638,
+          "relief_opened": false,
+          "steps": 1648,
+          "diverged": false,
+          "notes": []
+        }
+      ]
+    },
+    "P7-03": {
+      "summary": {
+        "phases": 2,
+        "usable": 2,
+        "unsettled": [],
+        "diverged": [],
+        "max_abs_velocity_error": 0.03243731900201599,
+        "median_abs_velocity_error": 0.03243731900201599,
+        "max_overshoot": 0.09470321889855082,
+        "median_stroke_fraction_settling": 0.17976118070462918,
+        "phases_never_reaching_steady_state": [],
+        "phases_mostly_transient": []
+      },
+      "phases": [
+        {
+          "phase_id": "carriage_advance",
+          "quasi_static_velocity_m_s": 0.09167324722093172,
+          "settled_velocity_m_s": 0.09464688158498775,
+          "peak_velocity_m_s": 0.1022473229484721,
+          "velocity_error": 0.03243731900201599,
+          "overshoot": 0.08030313557303582,
+          "settling_time_s": 0.665499999999943,
+          "settling_distance_m": 0.05392835421138875,
+          "stroke_m": 0.3,
+          "stroke_fraction_settling": 0.17976118070462918,
+          "relief_opened": false,
+          "steps": 6856,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "carriage_return",
+          "quasi_static_velocity_m_s": 0.13355659560159047,
+          "settled_velocity_m_s": 0.13748559365342786,
+          "peak_velocity_m_s": 0.15050592192458564,
+          "velocity_error": 0.02941822554056324,
+          "overshoot": 0.09470321889855082,
+          "settling_time_s": 0.4049999999999717,
+          "settling_distance_m": 0.0469672733987447,
+          "stroke_m": 0.3,
+          "stroke_fraction_settling": 0.15655757799581568,
+          "relief_opened": false,
+          "steps": 4251,
+          "diverged": false,
+          "notes": []
+        }
+      ]
+    },
+    "P7-04": {
+      "summary": {
+        "phases": 3,
+        "usable": 3,
+        "unsettled": [],
+        "diverged": [],
+        "max_abs_velocity_error": 0.002101103797465829,
+        "median_abs_velocity_error": 0.0018404953132580614,
+        "max_overshoot": 0.1935050325891592,
+        "median_stroke_fraction_settling": 0.03126613184895248,
+        "phases_never_reaching_steady_state": [],
+        "phases_mostly_transient": []
+      },
+      "phases": [
+        {
+          "phase_id": "slide_rapid_approach",
+          "quasi_static_velocity_m_s": 0.03151267873219527,
+          "settled_velocity_m_s": 0.03145467979468046,
+          "peak_velocity_m_s": 0.034864235746172124,
+          "velocity_error": -0.0018404953132580614,
+          "overshoot": 0.1083958245242821,
+          "settling_time_s": 0.24777448976173003,
+          "settling_distance_m": 0.008256063134634308,
+          "stroke_m": 0.2,
+          "stroke_fraction_settling": 0.04128031567317154,
+          "relief_opened": false,
+          "steps": 4433,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "slide_working_feed",
+          "quasi_static_velocity_m_s": 0.008833333333297999,
+          "settled_velocity_m_s": 0.008814773583087125,
+          "peak_velocity_m_s": 0.008814773583087125,
+          "velocity_error": -0.002101103797465829,
+          "overshoot": 0.0,
+          "settling_time_s": 0.0671000000000009,
+          "settling_distance_m": 0.0005660877091196643,
+          "stroke_m": 0.1,
+          "stroke_fraction_settling": 0.005660877091196643,
+          "relief_opened": false,
+          "steps": 871,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "slide_full_return",
+          "quasi_static_velocity_m_s": 0.0875352187005424,
+          "settled_velocity_m_s": 0.08748049918080793,
+          "peak_velocity_m_s": 0.10440841602570608,
+          "velocity_error": -0.000625114331657383,
+          "overshoot": 0.1935050325891592,
+          "settling_time_s": 0.09660000000000174,
+          "settling_distance_m": 0.009379839554685743,
+          "stroke_m": 0.3,
+          "stroke_fraction_settling": 0.03126613184895248,
+          "relief_opened": false,
+          "steps": 1166,
+          "diverged": false,
+          "notes": []
+        }
+      ]
+    },
+    "P7-05": {
+      "summary": {
+        "phases": 4,
+        "usable": 4,
+        "unsettled": [],
+        "diverged": [],
+        "max_abs_velocity_error": 0.000752000753271307,
+        "median_abs_velocity_error": 0.00022607604793151338,
+        "max_overshoot": 0.5589574302911452,
+        "median_stroke_fraction_settling": 0.12905599954779687,
+        "phases_never_reaching_steady_state": [],
+        "phases_mostly_transient": [
+          "clamp_extend_to_workpiece"
+        ]
+      },
+      "phases": [
+        {
+          "phase_id": "clamp_extend_to_workpiece",
+          "quasi_static_velocity_m_s": 0.03151267873219527,
+          "settled_velocity_m_s": 0.031488981174051064,
+          "peak_velocity_m_s": 0.03546101551077801,
+          "velocity_error": -0.000752000753271307,
+          "overshoot": 0.1261404525847332,
+          "settling_time_s": 0.19482557668940018,
+          "settling_distance_m": 0.006547918968003141,
+          "stroke_m": 0.02,
+          "stroke_fraction_settling": 0.32739594840015707,
+          "relief_opened": false,
+          "steps": 4419,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "clamp_release_after_drill_retract",
+          "quasi_static_velocity_m_s": 0.04591007973804672,
+          "settled_velocity_m_s": 0.04591058594806756,
+          "peak_velocity_m_s": 0.07157264909276016,
+          "velocity_error": 1.1026119399632197e-05,
+          "overshoot": 0.5589574302911452,
+          "settling_time_s": 0.036287807646896805,
+          "settling_distance_m": 0.0025811199909559373,
+          "stroke_m": 0.02,
+          "stroke_fraction_settling": 0.12905599954779687,
+          "relief_opened": false,
+          "steps": 1832,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "drill_feed_stroke",
+          "quasi_static_velocity_m_s": 0.0017667020000000002,
+          "settled_velocity_m_s": 0.0017667020000000002,
+          "peak_velocity_m_s": 0.0017667020000000002,
+          "velocity_error": 0.0,
+          "overshoot": 0.0,
+          "settling_time_s": 0.0043417449144552865,
+          "settling_distance_m": 3.8994713543912744e-05,
+          "stroke_m": 0.1,
+          "stroke_fraction_settling": 0.00038994713543912744,
+          "relief_opened": false,
+          "steps": 348,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "drill_retract_stroke",
+          "quasi_static_velocity_m_s": 0.07202897995930348,
+          "settled_velocity_m_s": 0.07204526398642921,
+          "peak_velocity_m_s": 0.11212138635337064,
+          "velocity_error": 0.00022607604793151338,
+          "overshoot": 0.556263106683742,
+          "settling_time_s": 0.045680100024686955,
+          "settling_distance_m": 0.004725173626459925,
+          "stroke_m": 0.1,
+          "stroke_fraction_settling": 0.04725173626459925,
+          "relief_opened": false,
+          "steps": 1522,
+          "diverged": false,
+          "notes": []
+        }
+      ]
+    },
+    "P7-06": {
+      "summary": {
+        "phases": 2,
+        "usable": 2,
+        "unsettled": [],
+        "diverged": [],
+        "max_abs_velocity_error": 0.023970622629391855,
+        "median_abs_velocity_error": 0.023970622629391855,
+        "max_overshoot": 0.8407598822271185,
+        "median_stroke_fraction_settling": 0.5509925773260403,
+        "phases_never_reaching_steady_state": [],
+        "phases_mostly_transient": [
+          "platen_advance",
+          "platen_return"
+        ]
+      },
+      "phases": [
+        {
+          "phase_id": "platen_advance",
+          "quasi_static_velocity_m_s": 0.11548658002132996,
+          "settled_velocity_m_s": 0.11825486524978032,
+          "peak_velocity_m_s": 0.12880604352566966,
+          "velocity_error": 0.023970622629391855,
+          "overshoot": 0.08922405225022176,
+          "settling_time_s": 2.4531000000007523,
+          "settling_distance_m": 0.2754962886630202,
+          "stroke_m": 0.5,
+          "stroke_fraction_settling": 0.5509925773260403,
+          "relief_opened": false,
+          "steps": 24731,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "platen_return",
+          "quasi_static_velocity_m_s": 0.1714800733650051,
+          "settled_velocity_m_s": 0.17310420959689388,
+          "peak_velocity_m_s": 0.3186432844705968,
+          "velocity_error": 0.009471282581222821,
+          "overshoot": 0.8407598822271185,
+          "settling_time_s": 1.3405999999998688,
+          "settling_distance_m": 0.23211324510854361,
+          "stroke_m": 0.5,
+          "stroke_fraction_settling": 0.46422649021708723,
+          "relief_opened": false,
+          "steps": 13607,
+          "diverged": false,
+          "notes": []
+        }
+      ]
+    },
+    "P7-07": {
+      "summary": {
+        "phases": 4,
+        "usable": 4,
+        "unsettled": [],
+        "diverged": [],
+        "max_abs_velocity_error": 0.0035769865536922265,
+        "median_abs_velocity_error": 0.0029434640941935694,
+        "max_overshoot": 0.5811034625934619,
+        "median_stroke_fraction_settling": 0.16734174288469883,
+        "phases_never_reaching_steady_state": [
+          "clamp_extend_apply_force"
+        ],
+        "phases_mostly_transient": []
+      },
+      "phases": [
+        {
+          "phase_id": "clamp_extend_apply_force",
+          "quasi_static_velocity_m_s": 0.08504842271473156,
+          "settled_velocity_m_s": 0.08479808573620295,
+          "peak_velocity_m_s": 0.11073781723812492,
+          "velocity_error": -0.0029434640941935694,
+          "overshoot": 0.30589996550886156,
+          "settling_time_s": 0.9370999999999131,
+          "settling_distance_m": 0.08042448736367237,
+          "stroke_m": 0.05,
+          "stroke_fraction_settling": 1.6084897472734474,
+          "relief_opened": false,
+          "steps": 9572,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "clamp_retract_release",
+          "quasi_static_velocity_m_s": 0.12441369265697874,
+          "settled_velocity_m_s": 0.12440440423262186,
+          "peak_velocity_m_s": 0.19669623429407515,
+          "velocity_error": -7.465757312170043e-05,
+          "overshoot": 0.5811034625934619,
+          "settling_time_s": 0.04717937734185243,
+          "settling_distance_m": 0.008367087144234942,
+          "stroke_m": 0.05,
+          "stroke_fraction_settling": 0.16734174288469883,
+          "relief_opened": false,
+          "steps": 1688,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "working_advance",
+          "quasi_static_velocity_m_s": 0.0544309905374282,
+          "settled_velocity_m_s": 0.05423629161617167,
+          "peak_velocity_m_s": 0.06104120076587213,
+          "velocity_error": -0.0035769865536922265,
+          "overshoot": 0.12546781770882434,
+          "settling_time_s": 0.5450999999999563,
+          "settling_distance_m": 0.028611785560241697,
+          "stroke_m": 0.2,
+          "stroke_fraction_settling": 0.1430589278012085,
+          "relief_opened": false,
+          "steps": 5652,
+          "diverged": false,
+          "notes": []
+        },
+        {
+          "phase_id": "working_retract",
+          "quasi_static_velocity_m_s": 0.07929922863844432,
+          "settled_velocity_m_s": 0.07929909459954225,
+          "peak_velocity_m_s": 0.09913718244626678,
+          "velocity_error": -1.6902926343205322e-06,
+          "overshoot": 0.25016789847231174,
+          "settling_time_s": 0.019069618497766224,
+          "settling_distance_m": 0.0030230535588546166,
+          "stroke_m": 0.2,
+          "stroke_fraction_settling": 0.015115267794273083,
+          "relief_opened": false,
+          "steps": 886,
+          "diverged": false,
+          "notes": []
+        }
+      ]
+    }
+  }
+}

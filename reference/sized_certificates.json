@@ -30,9 +30,9 @@
     "displacement_cm3": 19.0,
     "speed_rpm": 1500.0,
     "flow_m3s": 0.0004275,
-    "relief_pa": 6381801.171948666,
+    "relief_pa": 5925958.231,
     "overall_efficiency": 0.85,
-    "motor_kw": 4.0,
+    "motor_kw": 3.0,
     "reservoir_l": 80,
     "pressure_class_bar": 100.0,
     "peak_return_lpm": 37.368881118881106,
@@ -45,10 +45,10 @@
   "throttle_k": {},
   "certificate": {
    "problem_id": "P7-01",
-   "verdict": "UNDECIDED",
+   "verdict": "PROVED",
    "counts": {
-    "PROVED": 6,
-    "UNDECIDED": 1,
+    "PROVED": 7,
+    "UNDECIDED": 0,
     "REFUTED": 0
    },
    "criteria": [
@@ -74,10 +74,10 @@
      "kind": "force",
      "phase_id": "slide_approach_extend",
      "required": ">= 15 kn",
-     "achieved": "44.9 kn available at the relief setting",
+     "achieved": "[40.96, 42.82] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 29859.632736369735,
+     "method": "monotone-corner",
+     "margin": 25958.213904119242,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -89,27 +89,27 @@
      "kind": "velocity_range",
      "phase_id": "slide_cutting_feed_extend",
      "required": "adjustable 0.5 .. 1 m/min",
-     "achieved": "[0.75, 0.75] m/min",
-     "verdict": "UNDECIDED",
+     "achieved": "attainable up to [1.858, 3.338] m/min with the control open",
+     "verdict": "PROVED",
      "method": "monotone-corner",
-     "margin": 0.004166666666666666,
+     "margin": 0.014299492080881052,
      "governing_equations": [
       "force_balance",
       "continuity",
       "orifice_law",
       "relief_complementarity"
      ],
-     "note": ""
+     "note": "the span is reachable by throttling down from this maximum"
     },
     {
      "criterion_id": "slide_cutting_feed_extend__force",
      "kind": "force",
      "phase_id": "slide_cutting_feed_extend",
      "required": ">= 35 kn",
-     "achieved": "45.1 kn available at the relief setting",
+     "achieved": "[40.96, 42.82] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 10103.684523116812,
+     "method": "monotone-corner",
+     "margin": 5958.213904119242,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -138,10 +138,10 @@
      "kind": "force",
      "phase_id": "slide_retract_return",
      "required": ">= 5 kn",
-     "achieved": "30.1 kn available at the relief setting",
+     "achieved": "[28.11, 29.39] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 25141.13889366733,
+     "method": "monotone-corner",
+     "margin": 23113.718023787456,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -153,10 +153,10 @@
      "kind": "pressure_ceiling",
      "phase_id": null,
      "required": "<= 70 bar",
-     "achieved": "49.6 bar worst phase",
+     "achieved": "[41.21, 58.27] bar worst phase",
      "verdict": "PROVED",
-     "method": "worst-phase-nominal",
-     "margin": 20.446863070937255,
+     "method": "monotone-corner",
+     "margin": 1172681.7235480314,
      "governing_equations": [
       "pressure_ceiling"
      ],
@@ -203,10 +203,69 @@
    },
    "assumptions": [
     "slide_cutting_feed_extend: speed stated as an adjustable span; both endpoints must be reachable."
+   ],
+   "coverage": {
+    "stated": 15,
+    "answered": 8,
+    "unanswered": 7,
+    "checks": 7
+   },
+   "uncovered": [
+    {
+     "criterion_id": "ac_approach_distance",
+     "metric": "approach distance",
+     "description": "Slide shall travel 250 mm toward the workpiece during approach.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_cutting_distance",
+     "metric": "cutting stroke distance",
+     "description": "Cutting stroke shall continue for 100 mm.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_cutting_feed_speed_range",
+     "metric": "cutting feed speed adjustment range",
+     "description": "Cutting feed speed shall be adjustable between 0.5 and 1.0 m/min.",
+     "reason": "non_quantitative",
+     "explanation": "states no numeric target to check against"
+    },
+    {
+     "criterion_id": "ac_cutting_load_variation",
+     "metric": "cutting load variation tolerated without material feed speed change",
+     "description": "A cutting-load variation of plus or minus 15 percent shall not materially change the selected feed speed.",
+     "reason": "outside_quasi_static_scope",
+     "explanation": "requires transient or leakage behaviour a quasi-static model cannot see"
+    },
+    {
+     "criterion_id": "ac_position_feed_change",
+     "metric": "automatic feed-change position",
+     "description": "The change from approach to cutting feed shall occur automatically at the 250 mm position.",
+     "reason": "settled_at_topology_stage",
+     "explanation": "a structural claim already proved by the topology validator"
+    },
+    {
+     "criterion_id": "ac_no_stop_transition",
+     "metric": "approach-to-feed transition stop time",
+     "description": "The slide shall not stop during the change from approach to cutting feed.",
+     "reason": "outside_quasi_static_scope",
+     "explanation": "requires transient or leakage behaviour a quasi-static model cannot see"
+    },
+    {
+     "criterion_id": "ac_retract_distance",
+     "metric": "retract distance",
+     "description": "Slide shall retract the complete 350 mm after machining.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    }
    ]
   },
   "repairs": [],
-  "notes": []
+  "notes": [
+   "relief searched over 8 settings; chose 59.26 bar (worst working pressure 56.98 bar, ceiling 70.00 bar)"
+  ]
  },
  "P7-02": {
   "sizing": {
@@ -242,7 +301,7 @@
     "displacement_cm3": 32.0,
     "speed_rpm": 1500.0,
     "flow_m3s": 0.00072,
-    "relief_pa": 7977739.61793224,
+    "relief_pa": 7692820.346,
     "overall_efficiency": 0.85,
     "motor_kw": 7.5,
     "reservoir_l": 160,
@@ -303,10 +362,10 @@
      "kind": "force",
      "phase_id": "ram_working_feed_down",
      "required": ">= 12 kn",
-     "achieved": "56.4 kn available at the relief setting",
+     "achieved": "[53.17, 55.58] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 44369.97345548672,
+     "method": "monotone-corner",
+     "margin": 41170.16573102954,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -335,10 +394,10 @@
      "kind": "force",
      "phase_id": "ram_final_press_down",
      "required": ">= 50 kn",
-     "achieved": "56.4 kn available at the relief setting",
+     "achieved": "[53.17, 55.58] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 6369.973455486717,
+     "method": "monotone-corner",
+     "margin": 3170.1657310295413,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -367,10 +426,10 @@
      "kind": "force",
      "phase_id": "ram_return_up",
      "required": ">= 3 kn",
-     "achieved": "37.8 kn available at the relief setting",
+     "achieved": "[36.5, 38.15] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 34763.97296118112,
+     "method": "monotone-corner",
+     "margin": 33496.001757778686,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -382,10 +441,10 @@
      "kind": "pressure_ceiling",
      "phase_id": null,
      "required": "<= 100 bar",
-     "achieved": "70.9 bar worst phase",
+     "achieved": "[69.32, 72.47] bar worst phase",
      "verdict": "PROVED",
-     "method": "worst-phase-nominal",
-     "margin": 29.140897798388526,
+     "method": "monotone-corner",
+     "margin": 2753491.6235860363,
      "governing_equations": [
       "pressure_ceiling"
      ],
@@ -439,10 +498,62 @@
      "feasible": true
     }
    },
-   "assumptions": []
+   "assumptions": [],
+   "coverage": {
+    "stated": 14,
+    "answered": 8,
+    "unanswered": 6,
+    "checks": 8
+   },
+   "uncovered": [
+    {
+     "criterion_id": "ac_total_downward_travel",
+     "metric": "total_downward_travel",
+     "description": "Total downward press travel shall be 1.0 m.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_rapid_down_distance",
+     "metric": "distance",
+     "description": "Rapid downward approach distance shall be 0.80 m.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_working_feed_distance",
+     "metric": "distance",
+     "description": "Working feed downward distance shall be 0.12 m.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_final_press_distance",
+     "metric": "distance",
+     "description": "Final pressing stroke distance shall be 0.08 m.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_return_distance",
+     "metric": "distance",
+     "description": "Return stroke shall cover the full 1.0 m travel.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_upper_hold_duration",
+     "metric": "duration",
+     "description": "Ram shall remain securely at the upper position for at least 10 minutes with the power unit unloaded.",
+     "reason": "settled_at_topology_stage",
+     "explanation": "a structural claim already proved by the topology validator"
+    }
+   ]
   },
   "repairs": [],
-  "notes": []
+  "notes": [
+   "relief searched over 9 settings; chose 76.93 bar (worst working pressure 71.23 bar, ceiling 100.00 bar)"
+  ]
  },
  "P7-03": {
   "sizing": {
@@ -471,7 +582,7 @@
     "displacement_cm3": 8.0,
     "speed_rpm": 1500.0,
     "flow_m3s": 0.00018,
-    "relief_pa": 9530146.57651941,
+    "relief_pa": 9189784.199,
     "overall_efficiency": 0.85,
     "motor_kw": 2.2,
     "reservoir_l": 40,
@@ -515,10 +626,10 @@
      "kind": "force",
      "phase_id": "carriage_advance",
      "required": ">= 15 kn",
-     "achieved": "16.8 kn available at the relief setting",
+     "achieved": "[15.88, 16.6] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 1760.3364169828528,
+     "method": "monotone-corner",
+     "margin": 879.1680721912744,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -547,10 +658,10 @@
      "kind": "force",
      "phase_id": "carriage_return",
      "required": ">= 9.5 kn",
-     "achieved": "11 kn available at the relief setting",
+     "achieved": "[10.9, 11.39] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 1529.318392217985,
+     "method": "monotone-corner",
+     "margin": 1399.4609647520938,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -562,10 +673,10 @@
      "kind": "force",
      "phase_id": "carriage_hold_any_position",
      "required": ">= 15 kn",
-     "achieved": "16.8 kn sustainable",
+     "achieved": "[15.88, 16.6] kn sustainable",
      "verdict": "PROVED",
-     "method": "static-hold-balance",
-     "margin": 1841.159140740354,
+     "method": "monotone-corner",
+     "margin": 879.1680721912744,
      "governing_equations": [
       "force_balance",
       "load_lock_retention"
@@ -577,10 +688,10 @@
      "kind": "pressure_ceiling",
      "phase_id": null,
      "required": "<= 100 bar",
-     "achieved": "86.8 bar worst phase",
+     "achieved": "[84.83, 88.77] bar worst phase",
      "verdict": "PROVED",
-     "method": "worst-phase-nominal",
-     "margin": 13.24574062653914,
+     "method": "monotone-corner",
+     "margin": 1123454.0277031958,
      "governing_equations": [
       "pressure_ceiling"
      ],
@@ -608,10 +719,41 @@
      "feasible": true
     }
    },
-   "assumptions": []
+   "assumptions": [],
+   "coverage": {
+    "stated": 9,
+    "answered": 6,
+    "unanswered": 3,
+    "checks": 6
+   },
+   "uncovered": [
+    {
+     "criterion_id": "ac_carriage_travel",
+     "metric": "travel",
+     "description": "Carriage shall provide the specified total positioning travel.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_hold_duration",
+     "metric": "hold duration",
+     "description": "Carriage shall hold position for the specified duration when stopped at any point.",
+     "reason": "settled_at_topology_stage",
+     "explanation": "a structural claim already proved by the topology validator"
+    },
+    {
+     "criterion_id": "ac_hold_drift",
+     "metric": "hold drift",
+     "description": "Carriage drift during the hold interval shall be negligible.",
+     "reason": "non_quantitative",
+     "explanation": "states no numeric target to check against"
+    }
+   ]
   },
   "repairs": [],
-  "notes": []
+  "notes": [
+   "relief searched over 7 settings; chose 91.90 bar (worst working pressure 85.09 bar, ceiling 100.00 bar)"
+  ]
  },
  "P7-04": {
   "sizing": {
@@ -640,9 +782,9 @@
     "displacement_cm3": 11.0,
     "speed_rpm": 1500.0,
     "flow_m3s": 0.0002475,
-    "relief_pa": 2000000.0,
+    "relief_pa": 1836180.0,
     "overall_efficiency": 0.85,
-    "motor_kw": 0.75,
+    "motor_kw": 0.55,
     "reservoir_l": 60,
     "pressure_class_bar": 100.0,
     "peak_return_lpm": 41.249999999999986,
@@ -653,15 +795,15 @@
    }
   },
   "throttle_k": {
-   "RodEndMeterOutFlowControl": 3.1239892846237596e-08
+   "RodEndMeterOutFlowControl": 5.8207050024712725e-08
   },
   "certificate": {
    "problem_id": "P7-04",
-   "verdict": "REFUTED",
+   "verdict": "UNDECIDED",
    "counts": {
-    "PROVED": 4,
+    "PROVED": 5,
     "UNDECIDED": 1,
-    "REFUTED": 1
+    "REFUTED": 0
    },
    "criteria": [
     {
@@ -669,10 +811,10 @@
      "kind": "velocity",
      "phase_id": "slide_rapid_approach",
      "required": ">= 1.5 m/min",
-     "achieved": "[1.41, 1.416] m/min",
-     "verdict": "REFUTED",
+     "achieved": "[1.849, 1.933] m/min",
+     "verdict": "PROVED",
      "method": "monotone-corner",
-     "margin": -0.001506915266074639,
+     "margin": 0.005813097264340539,
      "governing_equations": [
       "force_balance",
       "continuity",
@@ -686,10 +828,10 @@
      "kind": "force",
      "phase_id": "slide_rapid_approach",
      "required": ">= 2.5 kn",
-     "achieved": "2.57 kn available at the relief setting",
+     "achieved": "[12.69, 13.27] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 72.5499211479123,
+     "method": "monotone-corner",
+     "margin": 10191.053543550648,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -701,10 +843,10 @@
      "kind": "velocity",
      "phase_id": "slide_working_feed",
      "required": ">= 0.5 m/min",
-     "achieved": "[0.4819, 0.5723] m/min",
+     "achieved": "[0.3384, 0.6634] m/min",
      "verdict": "UNDECIDED",
      "method": "monotone-corner",
-     "margin": -0.00030203314873676265,
+     "margin": -0.0026927690321969597,
      "governing_equations": [
       "force_balance",
       "continuity",
@@ -718,10 +860,10 @@
      "kind": "force",
      "phase_id": "slide_working_feed",
      "required": ">= 12.5 kn",
-     "achieved": "12.5 kn available at the relief setting",
+     "achieved": "[12.69, 13.27] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 10.206636468081342,
+     "method": "monotone-corner",
+     "margin": 191.0535435506481,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -733,10 +875,10 @@
      "kind": "force",
      "phase_id": "slide_full_return",
      "required": ">= 2.5 kn",
-     "achieved": "4.09 kn available at the relief setting",
+     "achieved": "[4.569, 4.776] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 1587.0770520109895,
+     "method": "monotone-corner",
+     "margin": 2068.7792756782346,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -748,41 +890,33 @@
      "kind": "pressure_ceiling",
      "phase_id": null,
      "required": "<= 20 bar",
-     "achieved": "20 bar worst phase",
+     "achieved": "[18.36, 18.36] bar worst phase",
      "verdict": "PROVED",
-     "method": "worst-phase-nominal",
-     "margin": 0.0,
+     "method": "monotone-corner",
+     "margin": 163820.0,
      "governing_equations": [
       "pressure_ceiling"
      ],
      "note": ""
     }
    ],
-   "findings": [
-    {
-     "layer": "V7",
-     "code": "RELIEF_MARGIN_THIN",
-     "severity": "warning",
-     "message": "only 0.00 bar between the worst working pressure and the relief setting; the valve will simmer",
-     "related": []
-    }
-   ],
+   "findings": [],
    "operating_points": {
     "slide_rapid_approach": {
-     "regime": "pressure_limited",
-     "velocity_m_min": 1.4130353235583646,
-     "pump_pressure_bar": 20.0,
-     "supply_pressure_bar": 19.89736285714118,
-     "exhaust_pressure_bar": 45.44607317774429,
-     "relief_flow_lpm": 3.752046520615411,
+     "regime": "flow_limited",
+     "velocity_m_min": 1.8907607239317163,
+     "pump_pressure_bar": 12.164539544331033,
+     "supply_pressure_bar": 11.980770794331033,
+     "exhaust_pressure_bar": 23.455539669938336,
+     "relief_flow_lpm": 0.0,
      "feasible": true
     },
     "slide_working_feed": {
      "regime": "pressure_limited",
      "velocity_m_min": 0.52999999999788,
-     "pump_pressure_bar": 20.0,
-     "supply_pressure_bar": 19.98556056314456,
-     "exhaust_pressure_bar": 6.393549992717812,
+     "pump_pressure_bar": 18.3618,
+     "supply_pressure_bar": 18.347360563144562,
+     "exhaust_pressure_bar": 1.84299443716226,
      "relief_flow_lpm": 10.687389734010175,
      "feasible": true
     },
@@ -796,14 +930,52 @@
      "feasible": true
     }
    },
-   "assumptions": []
+   "assumptions": [],
+   "coverage": {
+    "stated": 10,
+    "answered": 6,
+    "unanswered": 4,
+    "checks": 6
+   },
+   "uncovered": [
+    {
+     "criterion_id": "ac_approach_distance_200_mm",
+     "metric": "distance",
+     "description": "Rapid approach stroke distance shall be 200 mm.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_working_distance_100_mm",
+     "metric": "distance",
+     "description": "Working movement distance shall be 100 mm.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_return_distance_300_mm",
+     "metric": "distance",
+     "description": "Return stroke shall cover the complete 300 mm travel.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_total_travel_300_mm",
+     "metric": "total_travel",
+     "description": "Total slide travel shall be 300 mm.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    }
+   ]
   },
   "repairs": [
    "SlideCylinder: rod 70 -> 80 mm (more area ratio for the load-actuated speed change)"
   ],
   "notes": [
    "SlideCylinder: rod chosen for a 3.0:1 speed ratio, not for force alone",
-   "machine_slide_linear_motion: a 3.0:1 load-actuated speed ratio at 20.0 bar needs a cap area of 6944..7639 mm2, and no preferred bore lies in that window. The requirement is unreachable at this ceiling for any rod diameter.",
+   "relief searched over 5 settings; chose 18.18 bar (worst working pressure 18.00 bar, ceiling 20.00 bar)",
+   "machine_slide_linear_motion: the required 3.0:1 load-actuated speed ratio is governed by how close the relief sits to the slow phase's stall pressure, not by the bore. Lowering the relief toward 13889 N / A_cap raises the attainable ratio; raising it collapses the ratio toward 1.",
+   "relief searched over 5 settings; chose 18.36 bar (worst working pressure 18.18 bar, ceiling 20.00 bar)",
    "repair stopped: the last change did not move any verdict"
   ]
  },
@@ -849,7 +1021,7 @@
     "displacement_cm3": 11.0,
     "speed_rpm": 1500.0,
     "flow_m3s": 0.0002475,
-    "relief_pa": 800000.0,
+    "relief_pa": 727200.0,
     "overall_efficiency": 0.85,
     "motor_kw": 0.25,
     "reservoir_l": 60,
@@ -862,7 +1034,7 @@
    }
   },
   "throttle_k": {
-   "DrillFeedFlowControl": 1.0092466813149988e-08
+   "DrillFeedFlowControl": 1.2014424062088382e-08
   },
   "certificate": {
    "problem_id": "P7-05",
@@ -895,10 +1067,10 @@
      "kind": "force",
      "phase_id": "clamp_extend_to_workpiece",
      "required": ">= 4 kn",
-     "achieved": "5.57 kn available at the relief setting",
+     "achieved": "[5.026, 5.254] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 1570.850027538454,
+     "method": "monotone-corner",
+     "margin": 1026.1598192279798,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -910,10 +1082,10 @@
      "kind": "force",
      "phase_id": "clamp_hold_during_drilling",
      "required": ">= 4 kn",
-     "achieved": "5.65 kn sustainable",
+     "achieved": "[5.026, 5.254] kn sustainable",
      "verdict": "PROVED",
-     "method": "static-hold-balance",
-     "margin": 1654.8667764616284,
+     "method": "monotone-corner",
+     "margin": 1026.1598192279798,
      "governing_equations": [
       "force_balance",
       "load_lock_retention"
@@ -925,10 +1097,10 @@
      "kind": "velocity",
      "phase_id": "drill_feed_stroke",
      "required": ">= 0.1 m/min",
-     "achieved": "[0.1033, 0.1085] m/min",
+     "achieved": "[0.1021, 0.1096] m/min",
      "verdict": "PROVED",
      "method": "monotone-corner",
-     "margin": 5.461660240820834e-05,
+     "margin": 3.533319135598295e-05,
      "governing_equations": [
       "force_balance",
       "continuity",
@@ -942,10 +1114,10 @@
      "kind": "force",
      "phase_id": "drill_feed_stroke",
      "required": ">= 2.5 kn",
-     "achieved": "2.5 kn available at the relief setting",
+     "achieved": "[3.217, 3.363] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 0.21405724285796168,
+     "method": "monotone-corner",
+     "margin": 716.7422843059067,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -957,25 +1129,17 @@
      "kind": "pressure_ceiling",
      "phase_id": null,
      "required": "<= 8 bar",
-     "achieved": "8 bar worst phase",
+     "achieved": "[7.272, 7.272] bar worst phase",
      "verdict": "PROVED",
-     "method": "worst-phase-nominal",
-     "margin": 0.0,
+     "method": "monotone-corner",
+     "margin": 72800.0,
      "governing_equations": [
       "pressure_ceiling"
      ],
      "note": ""
     }
    ],
-   "findings": [
-    {
-     "layer": "V7",
-     "code": "RELIEF_MARGIN_THIN",
-     "severity": "warning",
-     "message": "only 0.00 bar between the worst working pressure and the relief setting; the valve will simmer",
-     "related": []
-    }
-   ],
+   "findings": [],
    "operating_points": {
     "clamp_extend_to_workpiece": {
      "regime": "flow_limited",
@@ -989,17 +1153,41 @@
     "drill_feed_stroke": {
      "regime": "pressure_limited",
      "velocity_m_min": 0.10600212,
-     "pump_pressure_bar": 8.0,
-     "supply_pressure_bar": 7.999526829606869,
-     "exhaust_pressure_bar": 3.6181043606746646,
+     "pump_pressure_bar": 7.272,
+     "supply_pressure_bar": 7.27152682960687,
+     "exhaust_pressure_bar": 2.5531443606746658,
      "relief_flow_lpm": 14.31717522966889,
      "feasible": true
     }
    },
-   "assumptions": []
+   "assumptions": [],
+   "coverage": {
+    "stated": 8,
+    "answered": 6,
+    "unanswered": 2,
+    "checks": 6
+   },
+   "uncovered": [
+    {
+     "criterion_id": "ac_clamp_travel",
+     "metric": "clamp extension travel",
+     "description": "Clamp shall move through 20 mm before clamping the workpiece.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_drill_feed_travel",
+     "metric": "drill feed travel",
+     "description": "Drill feed stroke shall travel 100 mm.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    }
+   ]
   },
   "repairs": [],
-  "notes": []
+  "notes": [
+   "relief searched over 5 settings; chose 7.27 bar (worst working pressure 7.20 bar, ceiling 8.00 bar)"
+  ]
  },
  "P7-06": {
   "sizing": {
@@ -1031,7 +1219,7 @@
     "displacement_cm3": 32.0,
     "speed_rpm": 1500.0,
     "flow_m3s": 0.00072,
-    "relief_pa": 8000000.0,
+    "relief_pa": 7776000.0,
     "overall_efficiency": 0.85,
     "motor_kw": 7.5,
     "reservoir_l": 160,
@@ -1075,10 +1263,10 @@
      "kind": "force",
      "phase_id": "platen_advance",
      "required": ">= 40 kn",
-     "achieved": "44.8 kn available at the relief setting",
+     "achieved": "[42.66, 44.6] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 4821.69426179638,
+     "method": "monotone-corner",
+     "margin": 2662.840768944792,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -1090,10 +1278,10 @@
      "kind": "force",
      "phase_id": "platen_return",
      "required": ">= 12 kn",
-     "achieved": "29.7 kn available at the relief setting",
+     "achieved": "[28.73, 30.04] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 17749.930030082316,
+     "method": "monotone-corner",
+     "margin": 16732.117252554654,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -1105,10 +1293,10 @@
      "kind": "pressure_ceiling",
      "phase_id": null,
      "required": "<= 80 bar",
-     "achieved": "71.8 bar worst phase",
+     "achieved": "[70.23, 73.44] bar worst phase",
      "verdict": "PROVED",
-     "method": "worst-phase-nominal",
-     "margin": 8.204425003137878,
+     "method": "monotone-corner",
+     "margin": 656311.394253592,
      "governing_equations": [
       "pressure_ceiling"
      ],
@@ -1136,10 +1324,48 @@
      "feasible": true
     }
    },
-   "assumptions": []
+   "assumptions": [],
+   "coverage": {
+    "stated": 8,
+    "answered": 4,
+    "unanswered": 4,
+    "checks": 4
+   },
+   "uncovered": [
+    {
+     "criterion_id": "ac_advance_travel_500_mm",
+     "metric": "distance",
+     "description": "Platen advance stroke travel shall be 500 mm.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_advance_average_speed_100_mm_s",
+     "metric": "speed",
+     "description": "Average platen advance speed implied by 500 mm in 5 s shall be approximately 100 mm/s.",
+     "reason": "restated_by_another_criterion",
+     "explanation": "the same physical fact another criterion already carries"
+    },
+    {
+     "criterion_id": "ac_return_travel_500_mm",
+     "metric": "distance",
+     "description": "Platen return stroke travel shall be 500 mm.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_two_drive_points",
+     "metric": "synchronization.actuator_count",
+     "description": "The platen drive shall use two drive points that remain synchronized through the rigid platen structure.",
+     "reason": "settled_at_topology_stage",
+     "explanation": "a structural claim already proved by the topology validator"
+    }
+   ]
   },
   "repairs": [],
-  "notes": []
+  "notes": [
+   "relief searched over 5 settings; chose 77.76 bar (worst working pressure 72.00 bar, ceiling 80.00 bar)"
+  ]
  },
  "P7-07": {
   "sizing": {
@@ -1188,7 +1414,7 @@
     "displacement_cm3": 19.0,
     "speed_rpm": 1500.0,
     "flow_m3s": 0.0004275,
-    "relief_pa": 4896098.191874135,
+    "relief_pa": 4721237.542,
     "overall_efficiency": 0.85,
     "motor_kw": 3.0,
     "reservoir_l": 80,
@@ -1215,10 +1441,10 @@
      "kind": "force",
      "phase_id": "clamp_extend_apply_force",
      "required": ">= 12 kn",
-     "achieved": "18 kn available at the relief setting",
+     "achieved": "[17.69, 18.5] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 6046.714008822793,
+     "method": "monotone-corner",
+     "margin": 5693.8519488773745,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -1230,10 +1456,10 @@
      "kind": "force",
      "phase_id": "clamp_hold_during_work",
      "required": ">= 12 kn",
-     "achieved": "18.1 kn sustainable",
+     "achieved": "[17.69, 18.5] kn sustainable",
      "verdict": "PROVED",
-     "method": "static-hold-balance",
-     "margin": 6095.573684677209,
+     "method": "monotone-corner",
+     "margin": 5693.8519488773745,
      "governing_equations": [
       "force_balance",
       "load_lock_retention"
@@ -1245,9 +1471,9 @@
      "kind": "pressure_ceiling",
      "phase_id": null,
      "required": "<= 40 bar",
-     "achieved": "40 bar worst phase",
+     "achieved": "[40, 40] bar worst phase",
      "verdict": "PROVED",
-     "method": "worst-phase-nominal",
+     "method": "monotone-corner",
      "margin": 0.0,
      "governing_equations": [
       "pressure_ceiling"
@@ -1276,10 +1502,10 @@
      "kind": "force",
      "phase_id": "working_advance",
      "required": ">= 30 kn",
-     "achieved": "34.5 kn available at the relief setting",
+     "achieved": "[32.63, 34.11] kn available",
      "verdict": "PROVED",
-     "method": "static-force-balance",
-     "margin": 4483.147979315749,
+     "method": "monotone-corner",
+     "margin": 2631.5930014178666,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -1291,10 +1517,10 @@
      "kind": "pressure_ceiling",
      "phase_id": null,
      "required": "<= 60 bar",
-     "achieved": "43.7 bar worst phase",
+     "achieved": "[42.74, 44.74] bar worst phase",
      "verdict": "PROVED",
-     "method": "worst-phase-nominal",
-     "margin": 16.284837572552366,
+     "method": "monotone-corner",
+     "margin": 1526406.2148054997,
      "governing_equations": [
       "pressure_ceiling"
      ],
@@ -1305,10 +1531,10 @@
      "kind": "pressure_ceiling",
      "phase_id": null,
      "required": "<= 70 bar",
-     "achieved": "43.7 bar worst phase",
+     "achieved": "[42.74, 44.74] bar worst phase",
      "verdict": "PROVED",
-     "method": "worst-phase-nominal",
-     "margin": 26.284837572552366,
+     "method": "monotone-corner",
+     "margin": 2526406.2148054997,
      "governing_equations": [
       "pressure_ceiling"
      ],
@@ -1338,9 +1564,41 @@
    },
    "assumptions": [
     "working_advance: velocity stated as approximate; judged within +/-10%."
+   ],
+   "coverage": {
+    "stated": 9,
+    "answered": 6,
+    "unanswered": 3,
+    "checks": 7
+   },
+   "uncovered": [
+    {
+     "criterion_id": "ac_clamp_travel",
+     "metric": "clamp actuator travel",
+     "description": "Clamp actuator travel shall be 50 mm.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_working_advance_travel",
+     "metric": "working advance travel",
+     "description": "Working actuator advance travel shall be 200 mm.",
+     "reason": "geometric_choice_not_an_outcome",
+     "explanation": "fixes a dimension the design chooses; nothing to solve for"
+    },
+    {
+     "criterion_id": "ac_working_average_advance_speed",
+     "metric": "working advance average speed",
+     "description": "Working actuator average advance speed implied by 200 mm in approximately 4 s is approximately 50 mm/s.",
+     "reason": "restated_by_another_criterion",
+     "explanation": "the same physical fact another criterion already carries"
+    }
    ]
   },
   "repairs": [],
-  "notes": []
+  "notes": [
+   "relief searched over 10 settings; chose 47.21 bar (worst working pressure 43.72 bar, ceiling 70.00 bar)",
+   "working_advance: the band 2.7 .. 3.3 m/min is fed straight from the pump, so the attainable speed steps with the displacement series and no standard pump lands inside it. A speed control on this branch would close it; a larger cylinder would not."
+  ]
  }
 }

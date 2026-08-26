@@ -376,17 +376,34 @@ def test_these_problems_certify_clean(problems, problem_id) -> None:
     ]
 
 
-def test_p7_04_speed_ratio_is_reported_unreachable(problems) -> None:
-    """No preferred bore can deliver a 3:1 load-actuated ratio at 20 bar.
+def test_p7_04_speed_ratio_is_sensitive_to_the_relief_setting(problems) -> None:
+    """P7-04 defeats the deterministic arm's *fixed relief policy*, not the bores.
 
-    The window follows in closed form from the force balance at both operating
-    points, and the annulus area cancels - so no rod diameter rescues it either.
-    Saying that beats enlarging parts at random.
+    When both throttled operating points sit at the relief, the cap pressure is
+    common to both and the ratio is
+
+        r = sqrt( (p_relief*A_cap - F_fast/eta) / (p_relief*A_cap - F_slow/eta) )
+
+    which rises steeply as the relief approaches the slow phase's stall
+    pressure. The deterministic arm clamps the relief to a fixed margin over the
+    worst load and so lands on the flat part of that curve; the LLM arm, free to
+    choose the margin, reaches 3:1 at 19.44 bar with a 100/70 cylinder. The
+    diagnosis must therefore name the setting, not declare the requirement
+    unreachable.
     """
     entry = problems["P7-04"]
     result = size_problem("P7-04", entry["topology"], entry["requirements"])
-    assert result.certificate.verdict == "REFUTED"
-    assert any("unreachable at this ceiling" in note for note in result.notes)
+    # Searching the setting instead of clamping it turns a refutation into an
+    # open question: five of the six criteria now certify, and the one that does
+    # not is the feed speed, whose enclosure is wide precisely because the
+    # operating point sits close to the relief.
+    assert result.certificate.verdict == "UNDECIDED"
+    assert result.certificate.counts()["REFUTED"] == 0
+    feed = next(item for item in result.certificate.certificates
+                if item.criterion_id == "slide_working_feed__velocity")
+    assert feed.verdict == "UNDECIDED"
+    assert any("relief searched over" in note for note in result.notes)
+    assert any("governed by how close the relief sits" in note for note in result.notes)
 
 
 def test_certificates_carry_their_reasoning(problems) -> None:

@@ -275,6 +275,17 @@ def size_problem(problem_id: str, topology: dict, requirements: dict,
         return settings
 
     # ---- iterate relief, then certify and repair -------------------------
+    envelope = standard_envelope(_load_tolerance(requirements))
+
+    def attempt(relief_pa: float):
+        """Build, settle and certify the whole design at one relief setting."""
+        candidate = build_sizing(relief_pa)
+        throttles = fit_throttles(candidate)
+        _size_auxiliaries(candidate, topology, requirements, cylinders, relief_pa, contract)
+        certificate = certify(problem_id, topology, requirements, contract, candidate,
+                              throttles, envelope)
+        return candidate, throttles, certificate
+
     for round_number in range(1, max_rounds + 1):
         throttles = fit_throttles(sizing)
         # The relief has to clear the worst case the design is *judged* over, not
@@ -294,14 +305,8 @@ def size_problem(problem_id: str, topology: dict, requirements: dict,
             point = solve_phase(model)
             if point.feasible:
                 worst = max(worst, point.pump_pressure_pa)
-        if worst:
-            relief = min(system_ceiling, worst * RELIEF_MARGIN)
-            sizing = build_sizing(relief)
-            throttles = fit_throttles(sizing)
-
-        _size_auxiliaries(sizing, topology, requirements, cylinders, relief, contract)
-        certificate = certify(problem_id, topology, requirements, contract, sizing,
-                              throttles, standard_envelope(_load_tolerance(requirements)))
+        relief, sizing, throttles, certificate = _search_relief(
+            attempt, worst, system_ceiling, relief, result)
         result.sizing, result.throttle_k, result.certificate = sizing, throttles, certificate
 
         signature = tuple(sorted(
@@ -314,6 +319,7 @@ def size_problem(problem_id: str, topology: dict, requirements: dict,
             break
         last_signature = signature
         _diagnose_speed_ratio(certificate, requirements, cylinders, contract, relief, result)
+        _diagnose_unmetered_band(certificate, topology, requirements, result)
         repaired = _repair(certificate, bores, rods, cylinders, requirements, result)
         if not repaired:
             break
@@ -321,31 +327,147 @@ def size_problem(problem_id: str, topology: dict, requirements: dict,
     return result
 
 
-def _diagnose_speed_ratio(certificate, requirements, cylinders, contract, relief, result) -> None:
-    """Explain a load-actuated speed ratio that no standard bore can deliver.
+def _diagnose_unmetered_band(certificate, topology, requirements, result) -> None:
+    """Name the real obstacle when a two-sided speed band cannot be hit.
 
-    For one fixed orifice serving two speeds in the same direction, requiring a
-    ratio r means requiring r^2 in orifice pressure drop. Writing the force
-    balance at both operating points with the cap pinned at the relief setting,
-    the annulus area cancels and the cap area is squeezed between
-
-        F_slow / (eta * p_relief)  <=  A_cap  <=  (r^2*F_slow - F_fast) / (eta * (r^2 - 1) * p_relief)
-
-    If no preferred bore lands in that window the requirement is unreachable at
-    this ceiling, whatever the rod. Saying so beats enlarging parts at random.
+    A phase fed straight from a fixed pump runs at whatever the displacement
+    delivers, and displacements come in a preferred series. Where the band is
+    narrower than the gap between two neighbouring sizes, no choice of pump lands
+    inside it and enlarging the cylinder only moves the problem. The circuit needs
+    a speed control on that branch - a topology change, not a sizing one - and
+    saying so is more use than another round of arithmetic.
     """
-    from .catalog_sizing import BORE_SERIES
-    from .quantities import area_of_bore
-
-    refuted = {
-        item.phase_id for item in certificate.certificates
-        if item.kind in {"velocity", "velocity_range"} and item.verdict == "REFUTED"
+    metered = {
+        str(component.get("function_id"))
+        for component in topology.get("components", [])
+        if component.get("comp_type") in {"one_way_flow_control", "pressure_comp_flow_control"}
     }
-    if not refuted:
+    for item in certificate.certificates:
+        if item.kind != "velocity" or item.verdict == "PROVED" or not item.phase_id:
+            continue
+        if ".." not in item.required:
+            continue
+        function_id = _phase_function_id(requirements, item.phase_id)
+        if function_id in metered:
+            continue
+        note = (
+            f"{item.phase_id}: the band {item.required} is fed straight from the pump, so the "
+            "attainable speed steps with the displacement series and no standard pump lands "
+            "inside it. A speed control on this branch would close it; a larger cylinder "
+            "would not."
+        )
+        if note not in result.notes:
+            result.notes.append(note)
+
+
+def _phase_function_id(requirements: dict, phase_id: str) -> str | None:
+    for function in requirements.get("functions", []):
+        for phase in function.get("motion_phases") or []:
+            if str(phase.get("id")) == str(phase_id):
+                return str(function.get("id"))
+    return None
+
+
+def _certificate_score(certificate) -> float:
+    """Rank two certificates of the same design at different relief settings.
+
+    Deliberately the same shape as the score the LLM arm's candidates are ranked
+    by, so the two arms are compared on one yardstick rather than on whichever
+    one happens to flatter the arm being reported.
+    """
+    counts = certificate.counts()
+    score = 10.0 * counts["PROVED"] - 25.0 * counts["REFUTED"] - 8.0 * counts["UNDECIDED"]
+    score -= 20.0 * sum(1 for item in certificate.findings if item.severity == "error")
+    score -= 4.0 * sum(1 for item in certificate.findings if item.severity == "warning")
+    return score
+
+
+def _search_relief(attempt, worst_pressure: float, system_ceiling: float,
+                   fallback: float, result) -> tuple:
+    """Choose the relief setting, by search rather than by a fixed margin.
+
+    The old policy was one line - ``min(ceiling, worst * 1.12)`` - and it has a
+    failure mode that matters for the ablation this planner exists to be. When
+    the worst working pressure sits within the margin of the ceiling, the clamp
+    puts the relief *at* the ceiling, which pins every pressure-limited phase to
+    it and leaves no band for the valve to regulate in. P7-04 and P7-05 both land
+    there.
+
+    It is also the wrong control to hold fixed. Where a load-actuated speed ratio
+    is wanted, the attainable ratio is governed almost entirely by how close the
+    relief sits to the slow phase's stall pressure, so a planner that cannot move
+    the relief cannot reach requirements that are perfectly reachable. Comparing
+    an LLM that chooses this setting against a baseline forbidden from choosing
+    it measures the freedom, not the intelligence - which would make the headline
+    ablation a strawman.
+
+    So the baseline searches too. The grid is coarse and fixed, and every point on
+    it is scored by the same verifier: no gradient, no tuning to the benchmark.
+    """
+    if not worst_pressure:
+        candidate, throttles, certificate = attempt(fallback)
+        return fallback, candidate, throttles, certificate
+
+    settings: list[float] = []
+    for margin in (1.04, 1.08, 1.12, 1.20, 1.30, 1.45):
+        settings.append(worst_pressure * margin)
+    for fraction in (0.80, 0.88, 0.94, 1.00):
+        settings.append(system_ceiling * fraction)
+    # Never below the pressure the design actually needs, never above the ceiling
+    # it is allowed; then deduplicated so a clamped grid does not solve the same
+    # point five times.
+    usable = sorted({
+        round(min(system_ceiling, max(value, worst_pressure * 1.01)), 3)
+        for value in settings
+    })
+
+    best = None
+    for value in usable:
+        candidate, throttles, certificate = attempt(value)
+        score = _certificate_score(certificate)
+        # Ties go to the lower setting: same proof, less pressure across the
+        # relief, less heat into the tank.
+        if best is None or score > best[0] + 1e-9:
+            best = (score, value, candidate, throttles, certificate)
+    score, value, candidate, throttles, certificate = best
+    result.notes.append(
+        f"relief searched over {len(usable)} settings; chose {value/1e5:.2f} bar "
+        f"(worst working pressure {worst_pressure/1e5:.2f} bar, ceiling {system_ceiling/1e5:.2f} bar)"
+    )
+    return value, candidate, throttles, certificate
+
+
+def _diagnose_speed_ratio(certificate, requirements, cylinders, contract, relief, result) -> None:
+    """Report a load-actuated speed ratio the current *relief setting* cannot deliver.
+
+    Through one fixed orifice, a speed ratio r needs r^2 in orifice pressure drop.
+    When both operating points sit at the relief, the cap pressure is the same in
+    both and the whole ratio comes from the load difference:
+
+        r = sqrt( (p_relief*A_cap - F_fast/eta) / (p_relief*A_cap - F_slow/eta) )
+
+    The ratio therefore rises steeply as the relief approaches the slow phase's
+    stall pressure, so this is a statement about the *setting*, not about the
+    bore. An earlier version of this function claimed a bore window and called
+    the requirement unreachable outright; that derivation assumed the fast phase
+    ran flow-limited below the relief and so excluded the very regime that makes
+    the ratio attainable. The LLM planner found a 100/70 design at 19.44 bar that
+    meets a 3:1 ratio the old check called impossible.
+    """
+    # Fires on UNDECIDED as well as REFUTED. Once the relief is searched rather
+    # than clamped, the shortfall usually stops being a refutation and becomes a
+    # wide enclosure - the same physics, reported one notch softer - and the
+    # explanation is just as useful there.
+    unmet = {
+        item.phase_id for item in certificate.certificates
+        if item.kind in {"velocity", "velocity_range"}
+        and item.verdict in {"REFUTED", "UNDECIDED"}
+    }
+    if not unmet:
         return
     for function_id in set(cylinders.values()):
-        ratio = _needs_high_area_ratio(requirements, function_id)
-        if ratio is None:
+        ratio_needed = _needs_high_area_ratio(requirements, function_id)
+        if ratio_needed is None:
             continue
         phases = [
             phase for phase in _phases_of(requirements, function_id)
@@ -358,23 +480,12 @@ def _diagnose_speed_ratio(certificate, requirements, cylinders, contract, relief
             continue
         fast = max(pairs, key=lambda item: item[0])
         slow = min(pairs, key=lambda item: item[0])
-        r2 = (fast[0] / slow[0]) ** 2
-        lower = slow[1] / (ETA_M * relief)
-        upper = (r2 * slow[1] - fast[1]) / (ETA_M * (r2 - 1.0) * relief)
-        if upper <= lower:
-            window = "empty"
-        else:
-            window = f"{lower*1e6:.0f}..{upper*1e6:.0f} mm2"
-        available = [
-            bore for bore in BORE_SERIES
-            if lower - 1e-12 <= area_of_bore(bore).value <= upper + 1e-12
-        ]
-        if not available:
-            result.notes.append(
-                f"{function_id}: a {fast[0]/slow[0]:.1f}:1 load-actuated speed ratio at "
-                f"{relief/1e5:.1f} bar needs a cap area of {window}, and no preferred bore lies in "
-                "that window. The requirement is unreachable at this ceiling for any rod diameter."
-            )
+        result.notes.append(
+            f"{function_id}: the required {fast[0] / slow[0]:.1f}:1 load-actuated speed ratio is "
+            f"governed by how close the relief sits to the slow phase's stall pressure, not by the "
+            f"bore. Lowering the relief toward {slow[1] / (ETA_M):.0f} N / A_cap raises the "
+            "attainable ratio; raising it collapses the ratio toward 1."
+        )
 
 
 def _speed_span(phase: dict) -> tuple[float, float] | None:

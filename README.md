@@ -55,14 +55,49 @@ A verdict of `PROVED` means the guaranteed enclosure lies inside the requirement
 *everywhere in that envelope*, not merely at nominal. `UNDECIDED` means the
 enclosure straddles the requirement, and `REFUTED` means it does not meet it.
 
+Every criterion is bounded this way, including force and pressure ceilings. Until
+v0.7.0 those were nominal point evaluations wearing the same `PROVED` label as the
+enclosures, which certified two designs on margins inside the efficiency spread.
+
+A verdict is reported with its **coverage**, because a verdict is only as strong
+as the set of statements it ranges over. Across the benchmark the checks answer 44
+of 73 stated acceptance criteria; the remaining 29 are classified individually and
+none of them is a quantitative in-scope statement simply left unchecked.
+
 The planner is an LLM confined to engineering judgement - which phase governs a
 dimension, what pressure to design against, whether a rod is chosen for force or
 for area ratio - with every number produced by a tool. Configure no sizing model
-and the deterministic planner runs instead, which is also the control arm for
-comparing the two.
+and the deterministic planner runs instead.
 
 Exit codes: `0` sized and proved, `2` topology unresolved, `3` topology valid but
 sizing not certified.
+
+## The ablation and the evidence
+
+`hydraulic_mas/ablation/` defines the four conditions the neuro-symbolic claim is
+tested against, all judged by the same verifier on the same contract:
+
+| Arm | Neural | Arithmetic tools | Verifier | Repair |
+| --- | --- | --- | --- | --- |
+| A0 | ✓ | ✗ | ✗ | ✗ |
+| A0.5 | ✓ | ✓ | ✗ | ✗ |
+| A1 (shipped) | ✓ | ✓ | ✓ | ✓ |
+| A2 (deterministic) | ✗ | ✓ | ✓ | ✓ |
+
+Beyond pass rates, the direct arms state what they believe their design achieves,
+so *prediction error* (the model's own arithmetic) is measured separately from
+*requirement error* (design quality).
+
+```powershell
+python run_evidence.py                       # every offline table, no model needed
+python run_evidence.py --sweep --seeds 10    # run the live arms, then report
+python run_evidence.py --runs evidence/runs.jsonl
+```
+
+The offline tables — coverage, seeded defects with their false-positive rate and
+detection curve, and the transient cross-check — need no API key. `reference/
+generate_report.py` regenerates the sized-solution document from the certificates
+so the two cannot drift.
 
 ## What “validated” means
 

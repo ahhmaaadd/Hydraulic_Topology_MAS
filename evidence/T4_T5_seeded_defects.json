@@ -1,0 +1,751 @@
+{
+  "table": {
+    "gross": {
+      "injections": 15,
+      "detected": 15,
+      "detection_rate": 1.0,
+      "missed": []
+    },
+    "null": {
+      "injections": 10,
+      "false_positives": 0,
+      "false_positive_rate": 0.0
+    },
+    "subtle": {
+      "injections": 15,
+      "detected": 15,
+      "detection_rate": 1.0,
+      "missed": []
+    },
+    "by_defect": {
+      "actuator_one_size_down": {
+        "n": 5,
+        "detected": 5,
+        "rate": 1.0
+      },
+      "actuator_two_sizes_down": {
+        "n": 5,
+        "detected": 5,
+        "rate": 1.0
+      },
+      "cosmetic_annotation": {
+        "n": 5,
+        "detected": 0,
+        "rate": 0.0
+      },
+      "none": {
+        "n": 5,
+        "detected": 0,
+        "rate": 0.0
+      },
+      "prime_mover_one_frame_down": {
+        "n": 4,
+        "detected": 4,
+        "rate": 1.0
+      },
+      "prime_mover_three_frames_down": {
+        "n": 4,
+        "detected": 4,
+        "rate": 1.0
+      },
+      "relief_25pct_low": {
+        "n": 5,
+        "detected": 5,
+        "rate": 1.0
+      },
+      "relief_5pct_low": {
+        "n": 5,
+        "detected": 5,
+        "rate": 1.0
+      },
+      "speed_control_10pct_shut": {
+        "n": 1,
+        "detected": 1,
+        "rate": 1.0
+      },
+      "speed_control_half_shut": {
+        "n": 1,
+        "detected": 1,
+        "rate": 1.0
+      }
+    }
+  },
+  "curve": {
+    "relief_low": [
+      {
+        "magnitude": 0.005,
+        "n": 5,
+        "detection_rate": 0.0
+      },
+      {
+        "magnitude": 0.01,
+        "n": 5,
+        "detection_rate": 0.4
+      },
+      {
+        "magnitude": 0.02,
+        "n": 5,
+        "detection_rate": 0.6
+      },
+      {
+        "magnitude": 0.03,
+        "n": 5,
+        "detection_rate": 0.8
+      },
+      {
+        "magnitude": 0.05,
+        "n": 5,
+        "detection_rate": 1.0
+      },
+      {
+        "magnitude": 0.08,
+        "n": 5,
+        "detection_rate": 1.0
+      },
+      {
+        "magnitude": 0.12,
+        "n": 5,
+        "detection_rate": 1.0
+      },
+      {
+        "magnitude": 0.2,
+        "n": 5,
+        "detection_rate": 1.0
+      }
+    ],
+    "speed_control_shut": [
+      {
+        "magnitude": 0.005,
+        "n": 1,
+        "detection_rate": 0.0
+      },
+      {
+        "magnitude": 0.01,
+        "n": 1,
+        "detection_rate": 0.0
+      },
+      {
+        "magnitude": 0.02,
+        "n": 1,
+        "detection_rate": 0.0
+      },
+      {
+        "magnitude": 0.03,
+        "n": 1,
+        "detection_rate": 1.0
+      },
+      {
+        "magnitude": 0.05,
+        "n": 1,
+        "detection_rate": 1.0
+      },
+      {
+        "magnitude": 0.08,
+        "n": 1,
+        "detection_rate": 1.0
+      },
+      {
+        "magnitude": 0.12,
+        "n": 1,
+        "detection_rate": 1.0
+      },
+      {
+        "magnitude": 0.2,
+        "n": 1,
+        "detection_rate": 1.0
+      }
+    ]
+  },
+  "outcomes": [
+    {
+      "problem_id": "P7-01",
+      "defect": "none",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-01",
+      "defect": "cosmetic_annotation",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-01",
+      "defect": "actuator_one_size_down",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "slide_cutting_feed_extend__velocity_range",
+        "slide_cutting_feed_extend__force"
+      ]
+    },
+    {
+      "problem_id": "P7-01",
+      "defect": "actuator_two_sizes_down",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "slide_approach_extend__velocity",
+        "slide_approach_extend__force",
+        "slide_cutting_feed_extend__velocity_range",
+        "slide_cutting_feed_extend__force",
+        "slide_retract_return__velocity",
+        "slide_retract_return__force",
+        "system__pressure_ceiling"
+      ]
+    },
+    {
+      "problem_id": "P7-01",
+      "defect": "relief_5pct_low",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": [
+        "slide_cutting_feed_extend__velocity_range",
+        "slide_cutting_feed_extend__force",
+        "system__pressure_ceiling"
+      ]
+    },
+    {
+      "problem_id": "P7-01",
+      "defect": "relief_25pct_low",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "slide_cutting_feed_extend__velocity_range",
+        "slide_cutting_feed_extend__force"
+      ]
+    },
+    {
+      "problem_id": "P7-01",
+      "defect": "prime_mover_one_frame_down",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PRIME_MOVER_UNDERSIZED",
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-01",
+      "defect": "prime_mover_three_frames_down",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PRIME_MOVER_UNDERSIZED",
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-02",
+      "defect": "none",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-02",
+      "defect": "cosmetic_annotation",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-02",
+      "defect": "actuator_one_size_down",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "ram_final_press_down__velocity",
+        "ram_final_press_down__force"
+      ]
+    },
+    {
+      "problem_id": "P7-02",
+      "defect": "actuator_two_sizes_down",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE",
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": [
+        "ram_working_feed_down__velocity",
+        "ram_working_feed_down__force",
+        "ram_final_press_down__velocity",
+        "ram_final_press_down__force"
+      ]
+    },
+    {
+      "problem_id": "P7-02",
+      "defect": "relief_5pct_low",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "UNDECIDED",
+      "detected": true,
+      "codes": [
+        "RELIEF_MARGIN_THIN",
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-02",
+      "defect": "relief_25pct_low",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "ram_final_press_down__velocity",
+        "ram_final_press_down__force"
+      ]
+    },
+    {
+      "problem_id": "P7-02",
+      "defect": "prime_mover_one_frame_down",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PRIME_MOVER_UNDERSIZED",
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-02",
+      "defect": "prime_mover_three_frames_down",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PRIME_MOVER_UNDERSIZED",
+        "THERMAL_CAPACITY_EXCEEDED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-03",
+      "defect": "none",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-03",
+      "defect": "cosmetic_annotation",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-03",
+      "defect": "actuator_one_size_down",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "carriage_advance__velocity",
+        "carriage_advance__force",
+        "carriage_return__velocity",
+        "carriage_return__force",
+        "carriage_hold_any_position__force"
+      ]
+    },
+    {
+      "problem_id": "P7-03",
+      "defect": "actuator_two_sizes_down",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "carriage_advance__velocity",
+        "carriage_advance__force",
+        "carriage_return__velocity",
+        "carriage_return__force",
+        "carriage_hold_any_position__force"
+      ]
+    },
+    {
+      "problem_id": "P7-03",
+      "defect": "relief_5pct_low",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "UNDECIDED",
+      "detected": true,
+      "codes": [
+        "RELIEF_MARGIN_THIN"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-03",
+      "defect": "relief_25pct_low",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "carriage_advance__velocity",
+        "carriage_advance__force",
+        "carriage_return__velocity",
+        "carriage_return__force",
+        "carriage_hold_any_position__force"
+      ]
+    },
+    {
+      "problem_id": "P7-03",
+      "defect": "prime_mover_one_frame_down",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PRIME_MOVER_UNDERSIZED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-03",
+      "defect": "prime_mover_three_frames_down",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PRIME_MOVER_UNDERSIZED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-05",
+      "defect": "none",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-05",
+      "defect": "cosmetic_annotation",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-05",
+      "defect": "actuator_one_size_down",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "clamp_extend_to_workpiece__velocity",
+        "clamp_extend_to_workpiece__force",
+        "clamp_hold_during_drilling__force",
+        "drill_feed_stroke__velocity",
+        "drill_feed_stroke__force"
+      ]
+    },
+    {
+      "problem_id": "P7-05",
+      "defect": "actuator_two_sizes_down",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "clamp_extend_to_workpiece__velocity",
+        "clamp_extend_to_workpiece__force",
+        "clamp_hold_during_drilling__force",
+        "drill_feed_stroke__velocity",
+        "drill_feed_stroke__force"
+      ]
+    },
+    {
+      "problem_id": "P7-05",
+      "defect": "relief_5pct_low",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [],
+      "refuted_criteria": [
+        "drill_feed_stroke__velocity"
+      ]
+    },
+    {
+      "problem_id": "P7-05",
+      "defect": "relief_25pct_low",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "clamp_extend_to_workpiece__velocity",
+        "clamp_extend_to_workpiece__force",
+        "clamp_hold_during_drilling__force",
+        "drill_feed_stroke__velocity",
+        "drill_feed_stroke__force"
+      ]
+    },
+    {
+      "problem_id": "P7-05",
+      "defect": "speed_control_10pct_shut",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [],
+      "refuted_criteria": [
+        "drill_feed_stroke__velocity"
+      ]
+    },
+    {
+      "problem_id": "P7-05",
+      "defect": "speed_control_half_shut",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [],
+      "refuted_criteria": [
+        "drill_feed_stroke__velocity"
+      ]
+    },
+    {
+      "problem_id": "P7-06",
+      "defect": "none",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-06",
+      "defect": "cosmetic_annotation",
+      "severity": "null",
+      "expected_detectable": false,
+      "baseline_verdict": "PROVED",
+      "verdict": "PROVED",
+      "detected": false,
+      "codes": [],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-06",
+      "defect": "actuator_one_size_down",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE",
+        "RELIEF_MARGIN_THIN"
+      ],
+      "refuted_criteria": [
+        "platen_advance__velocity",
+        "platen_advance__force"
+      ]
+    },
+    {
+      "problem_id": "P7-06",
+      "defect": "actuator_two_sizes_down",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "platen_advance__velocity",
+        "platen_advance__force",
+        "platen_return__force"
+      ]
+    },
+    {
+      "problem_id": "P7-06",
+      "defect": "relief_5pct_low",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "UNDECIDED",
+      "detected": true,
+      "codes": [
+        "RELIEF_MARGIN_THIN"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-06",
+      "defect": "relief_25pct_low",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PHASE_NOT_FEASIBLE"
+      ],
+      "refuted_criteria": [
+        "platen_advance__velocity",
+        "platen_advance__force"
+      ]
+    },
+    {
+      "problem_id": "P7-06",
+      "defect": "prime_mover_one_frame_down",
+      "severity": "subtle",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PRIME_MOVER_UNDERSIZED"
+      ],
+      "refuted_criteria": []
+    },
+    {
+      "problem_id": "P7-06",
+      "defect": "prime_mover_three_frames_down",
+      "severity": "gross",
+      "expected_detectable": true,
+      "baseline_verdict": "PROVED",
+      "verdict": "REFUTED",
+      "detected": true,
+      "codes": [
+        "PRIME_MOVER_UNDERSIZED"
+      ],
+      "refuted_criteria": []
+    }
+  ]
+}

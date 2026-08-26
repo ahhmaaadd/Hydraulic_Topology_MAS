@@ -1,0 +1,173 @@
+{
+  "per_problem": [
+    {
+      "problem_id": "P7-01",
+      "stated": 15,
+      "answered": 8,
+      "unanswered": 7,
+      "checks": 7,
+      "verdict": "PROVED",
+      "counts": {
+        "PROVED": 7,
+        "UNDECIDED": 0,
+        "REFUTED": 0
+      },
+      "uncovered_reasons": {
+        "geometric_choice_not_an_outcome": 3,
+        "non_quantitative": 1,
+        "outside_quasi_static_scope": 2,
+        "settled_at_topology_stage": 1
+      },
+      "methods": {
+        "monotone-corner": 7
+      }
+    },
+    {
+      "problem_id": "P7-02",
+      "stated": 14,
+      "answered": 8,
+      "unanswered": 6,
+      "checks": 8,
+      "verdict": "PROVED",
+      "counts": {
+        "PROVED": 8,
+        "UNDECIDED": 0,
+        "REFUTED": 0
+      },
+      "uncovered_reasons": {
+        "geometric_choice_not_an_outcome": 5,
+        "settled_at_topology_stage": 1
+      },
+      "methods": {
+        "monotone-corner": 8
+      }
+    },
+    {
+      "problem_id": "P7-03",
+      "stated": 9,
+      "answered": 6,
+      "unanswered": 3,
+      "checks": 6,
+      "verdict": "PROVED",
+      "counts": {
+        "PROVED": 6,
+        "UNDECIDED": 0,
+        "REFUTED": 0
+      },
+      "uncovered_reasons": {
+        "geometric_choice_not_an_outcome": 1,
+        "settled_at_topology_stage": 1,
+        "non_quantitative": 1
+      },
+      "methods": {
+        "monotone-corner": 6
+      }
+    },
+    {
+      "problem_id": "P7-04",
+      "stated": 10,
+      "answered": 6,
+      "unanswered": 4,
+      "checks": 6,
+      "verdict": "UNDECIDED",
+      "counts": {
+        "PROVED": 5,
+        "UNDECIDED": 1,
+        "REFUTED": 0
+      },
+      "uncovered_reasons": {
+        "geometric_choice_not_an_outcome": 4
+      },
+      "methods": {
+        "monotone-corner": 6
+      }
+    },
+    {
+      "problem_id": "P7-05",
+      "stated": 8,
+      "answered": 6,
+      "unanswered": 2,
+      "checks": 6,
+      "verdict": "PROVED",
+      "counts": {
+        "PROVED": 6,
+        "UNDECIDED": 0,
+        "REFUTED": 0
+      },
+      "uncovered_reasons": {
+        "geometric_choice_not_an_outcome": 2
+      },
+      "methods": {
+        "monotone-corner": 6
+      }
+    },
+    {
+      "problem_id": "P7-06",
+      "stated": 8,
+      "answered": 4,
+      "unanswered": 4,
+      "checks": 4,
+      "verdict": "PROVED",
+      "counts": {
+        "PROVED": 4,
+        "UNDECIDED": 0,
+        "REFUTED": 0
+      },
+      "uncovered_reasons": {
+        "geometric_choice_not_an_outcome": 2,
+        "restated_by_another_criterion": 1,
+        "settled_at_topology_stage": 1
+      },
+      "methods": {
+        "monotone-corner": 4
+      }
+    },
+    {
+      "problem_id": "P7-07",
+      "stated": 9,
+      "answered": 6,
+      "unanswered": 3,
+      "checks": 7,
+      "verdict": "UNDECIDED",
+      "counts": {
+        "PROVED": 6,
+        "UNDECIDED": 1,
+        "REFUTED": 0
+      },
+      "uncovered_reasons": {
+        "geometric_choice_not_an_outcome": 2,
+        "restated_by_another_criterion": 1
+      },
+      "methods": {
+        "monotone-corner": 7
+      }
+    }
+  ],
+  "totals": {
+    "stated": 73,
+    "answered": 44,
+    "unanswered": 29,
+    "checks": 44
+  },
+  "answered_fraction": 0.6027397260273972,
+  "uncovered_reasons": {
+    "geometric_choice_not_an_outcome": 19,
+    "non_quantitative": 2,
+    "outside_quasi_static_scope": 2,
+    "settled_at_topology_stage": 4,
+    "restated_by_another_criterion": 2
+  },
+  "reason_glossary": {
+    "certified": "checked by a criterion in this certificate",
+    "settled_at_topology_stage": "a structural claim already proved by the topology validator",
+    "geometric_choice_not_an_outcome": "fixes a dimension the design chooses; nothing to solve for",
+    "restated_by_another_criterion": "the same physical fact another criterion already carries",
+    "outside_quasi_static_scope": "requires transient or leakage behaviour a quasi-static model cannot see",
+    "not_modelled": "quantitative and in scope, but no check exists for it yet",
+    "non_quantitative": "states no numeric target to check against"
+  },
+  "methods": {
+    "monotone-corner": 44
+  },
+  "interval_fraction": 1.0
+}
