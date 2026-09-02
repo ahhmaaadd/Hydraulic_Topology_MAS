@@ -1,0 +1,182 @@
+{
+  "verdicts": {
+    "A0": {
+      "runs": 70,
+      "counts": {
+        "PROVED": 21,
+        "UNDECIDED": 29,
+        "REFUTED": 19,
+        "ERROR": 1
+      },
+      "proved_rate": 0.3,
+      "per_problem_proved": {
+        "P7-01": 0.9,
+        "P7-02": 0.4,
+        "P7-03": 0.8,
+        "P7-04": 0.0,
+        "P7-05": 0.0,
+        "P7-06": 0.0,
+        "P7-07": 0.0
+      },
+      "mean_within_problem_sd": 0.16998542122237653,
+      "median_oversizing_index": 1.414
+    },
+    "A0.5": {
+      "runs": 70,
+      "counts": {
+        "PROVED": 24,
+        "UNDECIDED": 29,
+        "REFUTED": 17,
+        "ERROR": 0
+      },
+      "proved_rate": 0.34285714285714286,
+      "per_problem_proved": {
+        "P7-01": 1.0,
+        "P7-02": 0.9,
+        "P7-03": 0.5,
+        "P7-04": 0.0,
+        "P7-05": 0.0,
+        "P7-06": 0.0,
+        "P7-07": 0.0
+      },
+      "mean_within_problem_sd": 0.1142857142857143,
+      "median_oversizing_index": 1.414
+    },
+    "A1": {
+      "runs": 70,
+      "counts": {
+        "PROVED": 48,
+        "UNDECIDED": 1,
+        "REFUTED": 21,
+        "ERROR": 0
+      },
+      "proved_rate": 0.6857142857142857,
+      "per_problem_proved": {
+        "P7-01": 1.0,
+        "P7-02": 1.0,
+        "P7-03": 0.8,
+        "P7-04": 1.0,
+        "P7-05": 0.0,
+        "P7-06": 1.0,
+        "P7-07": 0.0
+      },
+      "mean_within_problem_sd": 0.05714285714285715,
+      "median_oversizing_index": 1.414
+    },
+    "A2": {
+      "runs": 7,
+      "counts": {
+        "PROVED": 5,
+        "UNDECIDED": 2,
+        "REFUTED": 0,
+        "ERROR": 0
+      },
+      "proved_rate": 0.7142857142857143,
+      "per_problem_proved": {
+        "P7-01": 1.0,
+        "P7-02": 1.0,
+        "P7-03": 1.0,
+        "P7-04": 0.0,
+        "P7-05": 1.0,
+        "P7-06": 1.0,
+        "P7-07": 0.0
+      },
+      "mean_within_problem_sd": 0.0,
+      "median_oversizing_index": 1.414
+    }
+  },
+  "errors": {
+    "prediction_error": {
+      "A0": {
+        "n": 337,
+        "median": -1.4360200803559017e-16,
+        "p25": -0.0009027986758953095,
+        "p75": 3.7589274527025314e-05,
+        "worst": 12095.286440062902,
+        "mean_abs": 142.8637672337671,
+        "within_5pct": 0.7418397626112759,
+        "within_1pct": 0.7329376854599406
+      },
+      "A0.5": {
+        "n": 336,
+        "median": -6.90021645013466e-05,
+        "p25": -0.15110356536502556,
+        "p75": 0.0,
+        "worst": 11854.127395241101,
+        "mean_abs": 347.7464638617045,
+        "within_5pct": 0.6369047619047619,
+        "within_1pct": 0.6369047619047619
+      }
+    },
+    "requirement_error": {
+      "A0": {
+        "n": 344,
+        "median": 0.13079999999999997,
+        "p25": 0.017916666666666654,
+        "p75": 0.6189473684210526,
+        "worst": 14.861666666666666,
+        "mean_abs": 1.1885272671505,
+        "within_5pct": 0.24127906976744187,
+        "within_1pct": 0.11918604651162791
+      },
+      "A0.5": {
+        "n": 346,
+        "median": 0.14899999999999994,
+        "p25": 0.06839999999999999,
+        "p75": 1.5191666666666663,
+        "worst": 18.791666666666668,
+        "mean_abs": 1.2840044649501983,
+        "within_5pct": 0.1936416184971098,
+        "within_1pct": 0.13583815028901733
+      },
+      "A1": {
+        "n": 350,
+        "median": 0.2004035087719298,
+        "p25": 0.09960000000000008,
+        "p75": 0.9238,
+        "worst": 13.4,
+        "mean_abs": 1.1417206712015784,
+        "within_5pct": 0.03428571428571429,
+        "within_1pct": 0.0
+      },
+      "A2": {
+        "n": 35,
+        "median": 0.17315789473684207,
+        "p25": 0.0826666666666668,
+        "p75": 0.5079166666666666,
+        "worst": 11.441666666666668,
+        "mean_abs": 0.9813837151178342,
+        "within_5pct": 0.08571428571428572,
+        "within_1pct": 0.02857142857142857
+      }
+    }
+  },
+  "catalog_violation_rate": {
+    "A0": 0.0,
+    "A0.5": 0.0,
+    "A1": 0.0,
+    "A2": 0.0
+  },
+  "unreachable": {
+    "A0": {
+      "mean_fraction_unreachable": 0.014285714285714285,
+      "runs_entirely_unreachable": 1,
+      "runs": 70
+    },
+    "A0.5": {
+      "mean_fraction_unreachable": 0.007142857142857143,
+      "runs_entirely_unreachable": 0,
+      "runs": 70
+    },
+    "A1": {
+      "mean_fraction_unreachable": 0.0,
+      "runs_entirely_unreachable": 0,
+      "runs": 70
+    },
+    "A2": {
+      "mean_fraction_unreachable": 0.0,
+      "runs_entirely_unreachable": 0,
+      "runs": 7
+    }
+  }
+}

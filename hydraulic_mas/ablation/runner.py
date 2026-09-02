@@ -57,6 +57,10 @@ def run_cell(arm: str, suite: Suite, problem_id: str, seed: int, *,
 
     if arm == "A2":
         return run_deterministic_arm(problem_id, topology, requirements, seed=seed)
+    if arm == "A-rand":
+        from .random_policy import run_random_arm
+
+        return run_random_arm(problem_id, topology, requirements, seed=seed)
     if arm == "A1":
         if full_planner is None:
             raise ValueError("A1 needs a planner; pass full_planner=")
@@ -90,7 +94,8 @@ def run_sweep(suite: Suite, *, arms: Iterable[str] = ARMS, seeds: Iterable[int] 
         handle = path.open("w", encoding="utf-8")
     try:
         for arm in arms:
-            # A2 is deterministic; running it ten times measures nothing.
+            # A2 is deterministic; running it ten times measures nothing. Every
+            # other arm - including the random control - is a distribution.
             arm_seeds = [0] if arm == "A2" else list(seeds)
             for problem_id in suite.ids():
                 for seed in arm_seeds:

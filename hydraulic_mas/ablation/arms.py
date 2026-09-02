@@ -25,19 +25,21 @@ from ..sizing.apply import oversizing_index
 from ..sizing.certify import SizingCertificate
 from ..sizing.contract import AcceptanceContract, compile_contract
 from ..sizing.planner import size_problem
+from ..sizing.selection import OVERSIZING_CEILING
 from ..sizing.tools import build_sizing_tools
 from .apply_direct import apply_direct
 from .prompts import SYSTEM_A0, SYSTEM_A05, build_direct_prompt
 from .schemas import DirectSizing
 
 
-ARMS = ("A0", "A0.5", "A1", "A2")
+ARMS = ("A0", "A0.5", "A1", "A2", "A-rand")
 
 ARM_DESCRIPTION = {
     "A0": "neural only: catalog as text, no tools, no verifier, single shot",
     "A0.5": "neural plus arithmetic tools, no verifier and no repair, single shot",
     "A1": "full system: tools, interval verifier, scored candidates, repair loop",
     "A2": "symbolic only: deterministic planner with a searched relief policy",
+    "A-rand": "null control: policy sampled uniformly from the same schema, same tools, same verifier",
 }
 
 
@@ -89,6 +91,14 @@ def _finish(result: ArmResult, certificate: SizingCertificate | None,
             oversizing_index(sizing, contract, topology, requirements), 3)
     except Exception:  # noqa: BLE001 - a metric failing must not lose the result
         result.oversizing_index = None
+    # Meeting the requirements by being enormous is not meeting them. Applied
+    # here rather than inside the certificate so that every arm is held to the
+    # same ceiling, including the ones that never see a scoring function.
+    if result.oversizing_index is not None and result.oversizing_index > OVERSIZING_CEILING:
+        result.verdict = "REFUTED"
+        result.errors.append(
+            f"oversizing index {result.oversizing_index:.2f} exceeds the "
+            f"{OVERSIZING_CEILING:.2f} ceiling")
     return result
 
 

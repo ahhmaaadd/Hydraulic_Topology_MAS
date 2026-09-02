@@ -176,8 +176,26 @@ class AcceptanceContract:
         return [item for item in self.criteria if item.kind == kind]
 
 
+def load_tolerance(requirements: dict[str, Any]) -> float:
+    """Fractional load variation the brief declares, if any.
+
+    Canonical here rather than in the planner. It is consumed in two places -
+    the envelope the design is judged over, and the force target a phase must
+    develop - and when those two disagreed the force check silently ignored the
+    variation entirely.
+    """
+    text = " ".join(
+        str(criterion.get("description") or "")
+        for criterion in requirements.get("acceptance_criteria", []) or []
+    ).casefold()
+    if "15 percent" in text or "15%" in text or "plus or minus 15" in text:
+        return 0.15
+    return 0.0
+
+
 def compile_contract(requirements: dict[str, Any], problem_id: str = "") -> AcceptanceContract:
     contract = AcceptanceContract(problem_id=problem_id)
+    load_variation = load_tolerance(requirements)
     seen_assumptions: set[str] = set()
 
     def note(text: str) -> None:
@@ -246,9 +264,25 @@ def compile_contract(requirements: dict[str, Any], problem_id: str = "") -> Acce
                 if tolerance:
                     note(f"{phase_id}: velocity {rationale}.")
 
-            # Force: the phase must be able to develop the stated resistance.
+            # Force: the phase must be able to develop the stated resistance -
+            # and where the brief says that resistance varies, the *top of the
+            # stated band* is the load the actuator has to cover. Judging
+            # against the nominal instead was worth a fourfold overstatement of
+            # margin on P7-01: 1.20x reported where the honest figure is 1.04x.
             force = from_requirement(phase.get("force"))
             if force is not None and force.value > 0:
+                worst = Q(force.value * (1.0 + load_variation), force.dimension)
+                rationale = "the phase must develop at least the stated load"
+                if load_variation > 0:
+                    rationale = (
+                        f"the phase must develop the stated load at the top of the "
+                        f"+/-{load_variation:.0%} variation the brief declares"
+                    )
+                    note(
+                        f"{phase_id}: load stated as varying +/-{load_variation:.0%}; the force "
+                        f"criterion is judged against {worst.to('kn'):.4g} kn, not the nominal "
+                        f"{force.to('kn'):.4g} kn."
+                    )
                 contract.criteria.append(
                     Criterion(
                         id=f"{phase_id}__force",
@@ -256,9 +290,9 @@ def compile_contract(requirements: dict[str, Any], problem_id: str = "") -> Acce
                         phase_id=phase_id,
                         function_id=function_id,
                         relation=">=",
-                        target=force,
+                        target=worst,
                         unit="kn",
-                        rationale="the phase must develop at least the stated load",
+                        rationale=rationale,
                     )
                 )
 

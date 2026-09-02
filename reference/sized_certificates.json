@@ -73,11 +73,11 @@
      "criterion_id": "slide_approach_extend__force",
      "kind": "force",
      "phase_id": "slide_approach_extend",
-     "required": ">= 15 kn",
+     "required": ">= 17.25 kn",
      "achieved": "[40.96, 42.82] kn available",
      "verdict": "PROVED",
      "method": "monotone-corner",
-     "margin": 25958.213904119242,
+     "margin": 23708.213904119242,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -105,11 +105,11 @@
      "criterion_id": "slide_cutting_feed_extend__force",
      "kind": "force",
      "phase_id": "slide_cutting_feed_extend",
-     "required": ">= 35 kn",
+     "required": ">= 40.25 kn",
      "achieved": "[40.96, 42.82] kn available",
      "verdict": "PROVED",
      "method": "monotone-corner",
-     "margin": 5958.213904119242,
+     "margin": 708.2139041192422,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -137,11 +137,11 @@
      "criterion_id": "slide_retract_return__force",
      "kind": "force",
      "phase_id": "slide_retract_return",
-     "required": ">= 5 kn",
+     "required": ">= 5.75 kn",
      "achieved": "[28.11, 29.39] kn available",
      "verdict": "PROVED",
      "method": "monotone-corner",
-     "margin": 23113.718023787456,
+     "margin": 22363.718023787456,
      "governing_equations": [
       "force_balance",
       "pressure_ceiling"
@@ -202,7 +202,10 @@
     }
    },
    "assumptions": [
-    "slide_cutting_feed_extend: speed stated as an adjustable span; both endpoints must be reachable."
+    "slide_approach_extend: load stated as varying +/-15%; the force criterion is judged against 17.25 kn, not the nominal 15 kn.",
+    "slide_cutting_feed_extend: speed stated as an adjustable span; both endpoints must be reachable.",
+    "slide_cutting_feed_extend: load stated as varying +/-15%; the force criterion is judged against 40.25 kn, not the nominal 35 kn.",
+    "slide_retract_return: load stated as varying +/-15%; the force criterion is judged against 5.75 kn, not the nominal 5 kn."
    ],
    "coverage": {
     "stated": 15,

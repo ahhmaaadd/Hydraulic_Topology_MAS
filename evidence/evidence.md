@@ -23,6 +23,33 @@ Statements not answered, by reason:
 - **2** — outside_quasi_static_scope: requires transient or leakage behaviour a quasi-static model cannot see
 - **2** — restated_by_another_criterion: the same physical fact another criterion already carries
 
+## T2 — Arms
+
+| Arm | Runs | Proved | Within-problem SD | Oversizing | Catalog violations |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| A0 | 70 | 30% | 0.170 | 1.414 | 0% |
+| A0.5 | 70 | 34% | 0.114 | 1.414 | 0% |
+| A1 | 70 | 69% | 0.057 | 1.414 | 0% |
+| A2 | 7 | 71% | 0.000 | 1.414 | 0% |
+
+## T3 — Error distributions
+
+### prediction error
+
+| Arm | n | Median | p25 | p75 | Worst | Within 1% | Within 5% |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A0 | 337 | -0.0% | -0.1% | 0.0% | 1209528.6% | 73% | 74% |
+| A0.5 | 336 | -0.0% | -15.1% | 0.0% | 1185412.7% | 64% | 64% |
+
+### requirement error
+
+| Arm | n | Median | p25 | p75 | Worst | Within 1% | Within 5% |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A0 | 344 | 13.1% | 1.8% | 61.9% | 1486.2% | 12% | 24% |
+| A0.5 | 346 | 14.9% | 6.8% | 151.9% | 1879.2% | 14% | 19% |
+| A1 | 350 | 20.0% | 10.0% | 92.4% | 1340.0% | 0% | 3% |
+| A2 | 35 | 17.3% | 8.3% | 50.8% | 1144.2% | 3% | 9% |
+
 ## T4 — Seeded defects
 
 False-positive rate: **0%** over 10 null injections.

@@ -14,6 +14,17 @@ from __future__ import annotations
 from typing import Any
 
 from .apply import apply_candidate, oversizing_index
+
+
+# A design this far above the smallest that meets the requirements is not a
+# design, it is a way of passing the verifier. Priced as a penalty it lost to
+# brute force: +10 per proved criterion against -2 per unit of waste means a
+# 5.8x oversized clamp still outscores a tight one. So it is a constraint.
+#
+# The number is a policy choice, not physics. Rounding a bore up to the ISO
+# series already costs about 1.3x on area in the worst case, and a second size
+# up costs about 1.6x - so anything past that is deliberate, not granularity.
+OVERSIZING_CEILING = 1.75
 from .certify import SizingCertificate
 from .contract import AcceptanceContract
 from .schemas_sizing import SizingCandidate, SizingCandidateScore, SizingPlanSet
@@ -41,6 +52,10 @@ def score_candidate(
     counts = certificate.counts()
     index = oversizing_index(sizing, contract, topology, requirements)
     errors = list(problems)
+    if index > OVERSIZING_CEILING:
+        errors.append(
+            f"oversizing index {index:.2f} exceeds the {OVERSIZING_CEILING:.2f} ceiling: "
+            "the design meets the requirements by being large rather than by being right")
     errors.extend(
         finding.message for finding in certificate.findings if finding.severity == "error"
     )

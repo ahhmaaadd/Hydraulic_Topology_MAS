@@ -496,13 +496,15 @@ def _speed_span(phase: dict) -> tuple[float, float] | None:
 
 
 def _load_tolerance(requirements: dict) -> float:
-    text = " ".join(
-        str(criterion.get("description") or "")
-        for criterion in requirements.get("acceptance_criteria", [])
-    ).casefold()
-    if "15 percent" in text or "15%" in text or "plus or minus 15" in text:
-        return 0.15
-    return 0.0
+    """Alias for the canonical definition in ``contract``.
+
+    It used to be a second implementation here. Two copies of the same rule is
+    exactly how the force criterion ended up ignoring a variation the envelope
+    was already applying.
+    """
+    from .contract import load_tolerance
+
+    return load_tolerance(requirements)
 
 
 def _size_auxiliaries(sizing, topology, requirements, cylinders, relief, contract) -> None:

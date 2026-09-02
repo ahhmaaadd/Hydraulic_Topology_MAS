@@ -1289,6 +1289,10 @@ class Workflow:
         )["structured_response"]
         score, sizing, throttles, revised = score_candidate(
             result.candidate, topology, requirements, contract, tolerance)
+        # The repair path produces exactly one candidate and adopts it, so it is
+        # by definition the selected one. Leaving the flag false made P7-07's
+        # final trace report a winning design as unselected.
+        score.selected = True
         return {
             "sizing_plan": result.candidate.model_dump(mode="json"),
             "sizing_scores": [score.model_dump(mode="json")],

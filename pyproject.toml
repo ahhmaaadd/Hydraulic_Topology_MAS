@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hydraulic-topology-mas"
-version = "0.7.0"
+version = "0.7.1"
 description = "Terminal-only LangGraph multi-agent workflow for hydraulic topology research, design, and validation"
 readme = "README.md"
 requires-python = ">=3.11"

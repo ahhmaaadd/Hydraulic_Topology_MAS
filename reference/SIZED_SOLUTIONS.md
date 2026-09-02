@@ -60,11 +60,11 @@ statements it ranges over.
 | Criterion | Required | Achieved (enclosure) | Verdict | Method |
 | --- | --- | --- | --- | --- |
 | slide_approach_extend__velocity | >= 3 m/min | [3.193, 3.338] m/min | PROVED | monotone-corner |
-| slide_approach_extend__force | >= 15 kn | [40.96, 42.82] kn available | PROVED | monotone-corner |
+| slide_approach_extend__force | >= 17.25 kn | [40.96, 42.82] kn available | PROVED | monotone-corner |
 | slide_cutting_feed_extend__velocity_range | adjustable 0.5 .. 1 m/min | attainable up to [1.858, 3.338] m/min with the control open | PROVED | monotone-corner |
-| slide_cutting_feed_extend__force | >= 35 kn | [40.96, 42.82] kn available | PROVED | monotone-corner |
+| slide_cutting_feed_extend__force | >= 40.25 kn | [40.96, 42.82] kn available | PROVED | monotone-corner |
 | slide_retract_return__velocity | >= 4.2 m/min | [4.652, 4.864] m/min | PROVED | monotone-corner |
-| slide_retract_return__force | >= 5 kn | [28.11, 29.39] kn available | PROVED | monotone-corner |
+| slide_retract_return__force | >= 5.75 kn | [28.11, 29.39] kn available | PROVED | monotone-corner |
 | system__pressure_ceiling | <= 70 bar | [41.21, 58.27] bar worst phase | PROVED | monotone-corner |
 
 **Coverage**
