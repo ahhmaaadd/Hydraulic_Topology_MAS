@@ -1,0 +1,37 @@
+{
+  "study": "E1",
+  "started": "2026-09-07T07:52:29Z",
+  "arms": [
+    "A0-V"
+  ],
+  "problems": [
+    "P7-01",
+    "P7-02",
+    "P7-03",
+    "P7-04",
+    "P7-05",
+    "P7-06",
+    "P7-07"
+  ],
+  "seeds": 10,
+  "dry_run": false,
+  "oversizing_ceiling_applied": false,
+  "candidates": 3,
+  "repair_rounds": 3,
+  "model": "gpt-5.5-2026-04-24",
+  "git": {
+    "commit": "e6d5566620bacf1bf20ab74bf4604dfed4143527",
+    "dirty": true,
+    "branch": "main"
+  },
+  "prompt_sha256_16": {
+    "SYSTEM_A0": "9c777d59b14b721b",
+    "SYSTEM_A05": "e947b60c09495193",
+    "SYSTEM_A0V": "1153d4aa3c82aa63",
+    "CATALOG_TEXT": "bde2c279687f8652",
+    "DESIGN_BASIS": "4b2edc42b5d58592",
+    "INSTRUCTIONS": "2066b0de1d183ef9",
+    "CANDIDATE_INSTRUCTIONS": "fb25318b8d5ebda8",
+    "REPAIR_INSTRUCTIONS": "07cc53a0e51595a6"
+  }
+}
