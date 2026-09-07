@@ -1,3 +1,109 @@
+# v0.7.2 — the cell the ablation was missing
+
+One change, and a pre-registration that binds what is done with it.
+
+---
+
+## A0-V: the verifier without the tools
+
+The ablation was a ladder, not an experiment. A0 has neither tools nor a
+verifier; A1 has both. **The gap between them cannot be attributed to either**,
+because the two factors move together. Every number the v0.7.1 evidence reports
+about what tools contributed is, strictly, unattributable - and no re-analysis of
+the collected runs can fix that, because the cell that would separate the factors
+was never run.
+
+`A0-V` is that cell: the verifier and a bounded repair loop, with no arithmetic
+tool ever bound to the call. The grid is now a 2x2.
+
+|              | no verifier | verifier + repair |
+| ------------ | ----------- | ----------------- |
+| **no tools** | A0          | **A0-V**          |
+| **tools**    | A0.5        | A1                |
+
+`A0-V vs A1` reads the tools manipulation with the verifier held constant.
+`A0.5 vs A0-V` puts a calculator against a checker head to head, which is the
+comparison the v0.7.1 results actually set up: A0 predicts its own design's
+performance to within 1 % on 73 % of criteria and still misses the requirement by
+a median 13 %. The model computes correctly and specifies wrongly. A calculator
+fixes the half that was not broken, which is why A0 to A0.5 came out at p = 0.55.
+
+Structurally `A0-V` mirrors A1 exactly - propose a set of candidates, score them
+all by the same weights, keep the best, revise against the certificate - so that
+the only difference left is who does the multiplying.
+
+### The certificate is handed over whole, on purpose
+
+`A0-V` sees the full certificate, computed enclosures included. Those numbers came
+out of the tools it is defined as not having, and there is no way round that: the
+feedback *is* tool output, so any feedback at all leaks computation and a partial
+disclosure would only draw an arbitrary line somewhere less defensible.
+
+So the leak is made total and declared, which makes `A0-V` an explicit **upper
+bound** on toolless performance and the experiment readable either way. If A1 wins
+anyway, tools matter even against a toolless arm handed every advantage. If `A0-V`
+catches up, tool access was never the binding constraint. An experiment where only
+one outcome is interesting is not worth the budget.
+
+### The oversizing rejection now reaches the loop that could act on it
+
+In v0.7.1 the repair loop terminated on `certificate.verdict == "PROVED"`, while
+the reported verdict applied the oversizing ceiling *afterwards*. A design that
+proved every criterion and was then rejected for bulk therefore stopped the loop
+dead. That is the mechanism behind all ten P7-07 seeds returning the identical
+refused design at an oversizing index of exactly 1.858: the rejection never
+reached the only thing that could respond to it.
+
+In `A0-V`, "clean" means *would be reported as proved*, and the feedback says the
+word REJECTED rather than printing a bare ratio. A regression test asserts that
+`converged` and the final verdict can never disagree.
+
+**Not backported to A1.** Changing A1 would invalidate the three collected cells,
+and that is a decision about the experiment rather than about the code.
+
+### The ceiling is switchable
+
+`APPLY_OVERSIZING_CEILING` still defaults to `True`, so every v0.7.1 record
+reproduces exactly. E1 turns it off, on every arm, for the reasons registered in
+`docs/PREREGISTRATION_E1.md` section 4.5: it produced 100 % of A1's refutations
+while being identical across every arm and seed on four of seven problems, so it
+discriminated designs barely at all and verdicts entirely.
+
+---
+
+## docs/PREREGISTRATION_E1.md
+
+Written before the arm was run, and it says so. It is a **data-dependent**
+pre-registration - three of the four cells were already collected and inspected -
+so section 2 lists everything already observed and the document binds only the
+predictions about `A0-V`. A pre-registration that hides what its author already
+knew is decoration.
+
+Two deviations are already recorded, both found during implementation and both
+before any E1 data:
+
+- **D1** - the repair budgets are not structurally comparable. A1 in the ablation
+  harness has no outer repair loop at all; its iteration is internal to the ReAct
+  agent and unbounded, while `A0-V` is capped at three. The comparison is
+  therefore reported against *measured* certificate evaluations, which both arms
+  now record. This favours A1, and the direction is stated so it cannot later be
+  presented as neutral.
+- **D2** - the ceiling fix above.
+
+---
+
+## Tests
+
+404, up from 389. (Earlier docs said 388; that figure was stale, and the correction
+is noted rather than quietly applied.) The fifteen new ones run against a scripted
+stub client, because
+a harness that can only be checked by spending API budget stops being checked.
+They assert the properties a live run would hide behind sampling noise: the budget
+is never exceeded, the tool list is empty on every call, a failed revision does not
+discard the design that prompted it, the best attempt wins rather than the last,
+and `_direct_score` still matches the weights `sizing/selection.py` ranks A1 by.
+
+
 # v0.7.0 — soundness, and the experiment the paper actually needs
 
 Two kinds of change. The first fixes things that were wrong inside the

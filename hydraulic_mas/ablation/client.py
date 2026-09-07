@@ -44,6 +44,35 @@ def build_direct_client(model: Any, *, temperature: float | None = None):
     return client
 
 
+def build_verified_client(model: Any, *, temperature: float | None = None):
+    """Wrap a chat model as ``(system, prompt, tools, schema) -> schema``.
+
+    A0-V needs a schema argument because it fills two different shapes: a set of
+    candidates on the opening call, one design on each repair. Kept as a separate
+    factory from ``build_direct_client`` rather than a parameter on it, so that
+    adding this arm cannot change the behaviour of A0 or A0.5 - the two cells
+    whose data is already collected and must stay reproducible.
+
+    ``tools`` is accepted and asserted empty. A0-V is the *no tools* cell of the
+    factorial, and the assertion is what stops that from silently ceasing to be
+    true after some later refactor.
+    """
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    def client(system: str, prompt: str, tools: list[Any], schema: type) -> Any:
+        assert not tools, "A0-V is the toolless cell; binding tools would collapse the factorial"
+        runnable = model
+        if temperature is not None:
+            try:
+                runnable = model.bind(temperature=temperature)
+            except Exception:  # noqa: BLE001 - an unsupported knob is not a failure
+                runnable = model
+        structured = runnable.with_structured_output(schema)
+        return structured.invoke([SystemMessage(system), HumanMessage(prompt)])
+
+    return client
+
+
 def build_full_planner(model: Any, load_tolerance_lookup=None):
     """Wrap the shipped A1 planner as the callable ``run_full_arm`` expects."""
     from langchain_core.messages import HumanMessage

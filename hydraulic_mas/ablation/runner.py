@@ -23,6 +23,7 @@ from .arms import (
     ArmResult,
     run_deterministic_arm,
     run_direct_arm,
+    run_direct_verified_arm,
     run_full_arm,
 )
 
@@ -48,6 +49,7 @@ def load_suite(path: str | pathlib.Path) -> Suite:
 
 def run_cell(arm: str, suite: Suite, problem_id: str, seed: int, *,
              direct_client_factory: Callable[[int], Any] | None = None,
+             verified_client_factory: Callable[[int], Any] | None = None,
              full_planner: Callable | None = None) -> ArmResult:
     entry = suite.problems[problem_id]
     topology = entry["topology"]
@@ -66,6 +68,12 @@ def run_cell(arm: str, suite: Suite, problem_id: str, seed: int, *,
             raise ValueError("A1 needs a planner; pass full_planner=")
         return run_full_arm(full_planner, problem_id, topology, requirements,
                             seed=seed, load_tolerance=tolerance)
+    if arm == "A0-V":
+        if verified_client_factory is None:
+            raise ValueError("A0-V needs a model; pass verified_client_factory=")
+        return run_direct_verified_arm(
+            verified_client_factory(seed), problem_id, query, topology, requirements,
+            seed=seed, load_tolerance=tolerance)
     if arm in {"A0", "A0.5"}:
         if direct_client_factory is None:
             raise ValueError(f"{arm} needs a model; pass direct_client_factory=")
@@ -77,6 +85,7 @@ def run_cell(arm: str, suite: Suite, problem_id: str, seed: int, *,
 
 def run_sweep(suite: Suite, *, arms: Iterable[str] = ARMS, seeds: Iterable[int] = (0,),
               direct_client_factory: Callable[[int], Any] | None = None,
+              verified_client_factory: Callable[[int], Any] | None = None,
               full_planner: Callable | None = None,
               on_result: Callable[[ArmResult], None] | None = None,
               out_path: str | pathlib.Path | None = None) -> list[dict[str, Any]]:
@@ -102,6 +111,7 @@ def run_sweep(suite: Suite, *, arms: Iterable[str] = ARMS, seeds: Iterable[int] 
                     result = run_cell(
                         arm, suite, problem_id, seed,
                         direct_client_factory=direct_client_factory,
+                        verified_client_factory=verified_client_factory,
                         full_planner=full_planner)
                     record = result.to_dict()
                     records.append(record)

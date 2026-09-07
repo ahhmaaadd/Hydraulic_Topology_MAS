@@ -64,3 +64,20 @@ class DirectSizing(BaseModel):
     settings: list[DirectSetting] = Field(default_factory=list)
     predictions: list[PhasePrediction] = Field(default_factory=list)
     reasoning: str = Field("", description="Brief account of how the sizes were arrived at.")
+
+
+class DirectSizingSet(BaseModel):
+    """Several complete designs, for the arm that gets to see a certificate.
+
+    A1 proposes two or three strategies and lets a deterministic score pick
+    between them. A0-V has to be given the same number of attempts or the
+    comparison measures how many shots each arm had rather than whether tools
+    helped - so this is the direct-arm equivalent of ``SizingPlanSet``, and the
+    same score decides the winner.
+    """
+
+    candidates: list[DirectSizing] = Field(
+        ..., min_length=1, max_length=4,
+        description="Two or three genuinely different sizings, not variations of one.")
+    preferred_candidate_index: int = Field(
+        0, description="Which one you would pick. Breaks ties in the score only.")

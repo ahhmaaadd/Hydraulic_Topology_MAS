@@ -1,18 +1,26 @@
-"""The four conditions the paper compares, behind one interface.
+"""The conditions the paper compares, behind one interface.
 
-    A0    neural only            no tools, no verifier, one shot
-    A0.5  neural + arithmetic    tools, no verifier, no repair, one shot
-    A1    the full system        tools, verifier, repair loop
-    A2    symbolic only          deterministic planner, no model at all
+                       tools   verifier   repair
+    A0    neural only    no       no        no     one shot
+    A0.5  + arithmetic   yes      no        no     one shot
+    A0-V  + verifier     no       yes       yes    the E1 cell
+    A1    full system    yes      yes       yes
+    A2    symbolic only  yes      yes       -      no model at all
 
 Every arm returns the same record and every arm is judged by the same verifier on
-the same contract, including the two that never see it while designing. That is
+the same contract, including the ones that never see it while designing. That is
 the whole design of the experiment: the judge is constant, so a difference
 between arms is a difference in the designs, not in how they were marked.
 
-A0 and A0.5 need a live model. They take a client callable rather than
-constructing one, so the harness can be exercised offline against a stub - a
-suite that cannot run without an API key is a suite that stops being run.
+**A0-V is what makes this a factorial rather than a ladder.** A0 and A1 differ in
+two ways at once - tools *and* the verifier - so the gap between them cannot be
+attributed to either. Crossing the two factors puts a fourth cell in the corner
+that was empty, and `A0-V vs A1` then reads the tools manipulation with the
+verifier held constant. See ``docs/PREREGISTRATION_E1.md``.
+
+The model arms take a client callable rather than constructing one, so the
+harness can be exercised offline against a stub - a suite that cannot run without
+an API key is a suite that stops being run.
 """
 
 from __future__ import annotations
@@ -28,19 +36,40 @@ from ..sizing.planner import size_problem
 from ..sizing.selection import OVERSIZING_CEILING
 from ..sizing.tools import build_sizing_tools
 from .apply_direct import apply_direct
-from .prompts import SYSTEM_A0, SYSTEM_A05, build_direct_prompt
-from .schemas import DirectSizing
+from .feedback import render_certificate_feedback, summarise_round
+from .prompts import (
+    SYSTEM_A0,
+    SYSTEM_A05,
+    SYSTEM_A0V,
+    build_candidate_prompt,
+    build_direct_prompt,
+    build_repair_prompt,
+)
+from .schemas import DirectSizing, DirectSizingSet
 
 
-ARMS = ("A0", "A0.5", "A1", "A2", "A-rand")
+ARMS = ("A0", "A0.5", "A0-V", "A1", "A2", "A-rand")
 
 ARM_DESCRIPTION = {
     "A0": "neural only: catalog as text, no tools, no verifier, single shot",
     "A0.5": "neural plus arithmetic tools, no verifier and no repair, single shot",
+    "A0-V": "neural plus the verifier but no arithmetic tools: scored candidates and a bounded repair loop",
     "A1": "full system: tools, interval verifier, scored candidates, repair loop",
     "A2": "symbolic only: deterministic planner with a searched relief policy",
     "A-rand": "null control: policy sampled uniformly from the same schema, same tools, same verifier",
 }
+
+# E1 runs with the oversizing ceiling out of the certificate path: it produced
+# 100% of A1's refutations in v0.7.1 while being identical across every arm and
+# seed on four of seven problems, so it discriminated designs barely at all and
+# verdicts entirely. Registered in PREREGISTRATION_E1 §4.5. Left switchable
+# rather than deleted so the historical runs can still be reproduced exactly.
+APPLY_OVERSIZING_CEILING = True
+
+# Matched to A1's candidate count. Giving A0-V one shot against A1's three would
+# measure how many attempts each arm had, not whether tools helped.
+DEFAULT_CANDIDATES = 3
+DEFAULT_REPAIR_ROUNDS = 3
 
 
 @dataclass
@@ -77,7 +106,8 @@ DirectClient = Callable[[str, str, list[Any]], DirectSizing]
 
 def _finish(result: ArmResult, certificate: SizingCertificate | None,
             sizing: dict, contract: AcceptanceContract,
-            topology: dict, requirements: dict) -> ArmResult:
+            topology: dict, requirements: dict, *,
+            apply_ceiling: bool | None = None) -> ArmResult:
     if certificate is None:
         result.verdict = "ERROR"
         return result
@@ -94,7 +124,9 @@ def _finish(result: ArmResult, certificate: SizingCertificate | None,
     # Meeting the requirements by being enormous is not meeting them. Applied
     # here rather than inside the certificate so that every arm is held to the
     # same ceiling, including the ones that never see a scoring function.
-    if result.oversizing_index is not None and result.oversizing_index > OVERSIZING_CEILING:
+    ceiling = APPLY_OVERSIZING_CEILING if apply_ceiling is None else apply_ceiling
+    if (ceiling and result.oversizing_index is not None
+            and result.oversizing_index > OVERSIZING_CEILING):
         result.verdict = "REFUTED"
         result.errors.append(
             f"oversizing index {result.oversizing_index:.2f} exceeds the "
@@ -182,5 +214,191 @@ def run_full_arm(planner: Callable[[dict, dict, AcceptanceContract, float], Any]
         "scores": [item.model_dump(mode="json") for item in scores],
     }
     _finish(result, certificate, sizing, contract, topology, requirements)
+    result.elapsed_s = time.monotonic() - started
+    return result
+
+
+# ---------------------------------------------------------------------------
+# A0-V: the verifier without the tools
+# ---------------------------------------------------------------------------
+
+# The model states finished numbers, so the client must be told which schema to
+# fill: a set of candidates on the opening call, a single design on each repair.
+VerifiedClient = Callable[[str, str, list[Any], type], Any]
+
+
+def _direct_score(certificate: SizingCertificate | None, index: float | None,
+                  install_faults: int) -> float:
+    """The selection score from ``sizing/selection.py``, over a stated design.
+
+    Reimplemented rather than imported because ``score_candidate`` takes a
+    *policy* and applies it with the tools - which is precisely what this arm is
+    defined as not having. The weights are copied deliberately: if they diverge,
+    the two arms are being ranked by different objectives and the comparison
+    stops meaning anything. A test asserts they stay equal.
+    """
+    if certificate is None:
+        return -1e6
+    counts = certificate.counts()
+    score = (
+        10.0 * counts.get("PROVED", 0)
+        - 25.0 * counts.get("REFUTED", 0)
+        - 8.0 * counts.get("UNDECIDED", 0)
+        - 20.0 * install_faults
+    )
+    if index is not None:
+        score -= 2.0 * max(index - 1.0, 0.0)
+    return score
+
+
+@dataclass
+class _Attempt:
+    """One design that was tried, whether it came from the opening set or a repair."""
+
+    proposal: Any
+    applied: Any
+    score: float
+    index: float | None
+    over_ceiling: bool = False
+
+    @property
+    def clean(self) -> bool:
+        """Would this be *reported* as proved?
+
+        Not merely "does the certificate say PROVED". Under the default
+        configuration a design above the oversizing ceiling is reported REFUTED,
+        and a loop that stopped on the certificate alone would halt on a design
+        it is about to be marked down for - which is exactly the defect found in
+        A1's v0.7.1 runs, where ten seeds produced the identical rejected design
+        because the rejection never reached the thing that could act on it.
+        """
+        return (self.applied.certificate is not None
+                and self.applied.certificate.verdict == "PROVED"
+                and not self.applied.install_errors
+                and not self.over_ceiling)
+
+
+def _evaluate(proposal: DirectSizing, topology: dict, requirements: dict,
+              contract: AcceptanceContract, load_tolerance: float,
+              *, apply_ceiling: bool = True) -> _Attempt:
+    applied = apply_direct(proposal, topology, requirements, contract, load_tolerance)
+    index = None
+    if applied.certificate is not None and not applied.install_errors:
+        try:
+            index = round(oversizing_index(applied.sizing, contract, topology, requirements), 3)
+        except Exception:  # noqa: BLE001 - a metric failing must not lose the attempt
+            index = None
+    score = _direct_score(
+        None if applied.install_errors else applied.certificate,
+        index, len(applied.install_errors))
+    over = bool(apply_ceiling and index is not None and index > OVERSIZING_CEILING)
+    return _Attempt(proposal=proposal, applied=applied, score=score, index=index,
+                    over_ceiling=over)
+
+
+def run_direct_verified_arm(
+    client: VerifiedClient, problem_id: str, user_query: str,
+    topology: dict, requirements: dict, *, seed: int = 0,
+    load_tolerance: float = 0.0,
+    candidates: int = DEFAULT_CANDIDATES,
+    rounds: int = DEFAULT_REPAIR_ROUNDS,
+    apply_ceiling: bool | None = None,
+) -> ArmResult:
+    """A0-V: the model computes every number itself, and the verifier answers back.
+
+    Structure mirrors A1 exactly - propose a set, score them all deterministically,
+    keep the best, then revise against the certificate - with one factor removed:
+    no arithmetic tool is ever bound to the call. The only thing that differs is
+    who does the multiplying.
+
+    Termination is the first clean certificate. Failing that, the best-scoring
+    attempt across every round is returned, not the last one, so a repair that
+    makes matters worse cannot be reported as the arm's answer. Every round is
+    recorded either way, which is what the convergence curves and H5 are read from.
+    """
+    started = time.monotonic()
+    result = ArmResult(arm="A0-V", problem_id=problem_id, seed=seed)
+    contract = compile_contract(requirements, problem_id)
+    base_prompt = build_direct_prompt(user_query, topology, requirements, contract)
+    trajectory: list[dict[str, Any]] = []
+    calls = 0
+
+    # --- opening round: several candidates, scored, best kept ---------------
+    try:
+        proposed = client(SYSTEM_A0V, build_candidate_prompt(
+            user_query, topology, requirements, contract), [], DirectSizingSet)
+        calls += 1
+    except Exception as error:  # noqa: BLE001 - a failed generation is a data point
+        result.errors.append(f"{type(error).__name__}: {error}")
+        result.elapsed_s = time.monotonic() - started
+        return result
+
+    ceiling = APPLY_OVERSIZING_CEILING if apply_ceiling is None else apply_ceiling
+    attempts = [
+        _evaluate(candidate, topology, requirements, contract, load_tolerance,
+                  apply_ceiling=ceiling)
+        for candidate in proposed.candidates[:candidates]
+    ]
+    if not attempts:
+        result.errors.append("the model returned no candidates")
+        result.elapsed_s = time.monotonic() - started
+        return result
+
+    best = max(attempts, key=lambda item: item.score)
+    trajectory.append({
+        "round": 0, "kind": "candidates", "n": len(attempts),
+        "scores": [round(item.score, 3) for item in attempts],
+        **summarise_round(best.applied.certificate, best.score, best.index),
+    })
+
+    # --- repair rounds ------------------------------------------------------
+    used = 0
+    while not best.clean and used < rounds:
+        used += 1
+        feedback = render_certificate_feedback(
+            best.applied.certificate,
+            install_errors=best.applied.install_errors,
+            catalog_violations=best.applied.catalog_violations,
+            oversizing_index=best.index,
+            over_ceiling=best.over_ceiling,
+        )
+        try:
+            revised = client(SYSTEM_A0V, build_repair_prompt(
+                base_prompt, best.proposal, feedback,
+                attempt=used, attempts_left=rounds - used + 1), [], DirectSizing)
+            calls += 1
+        except Exception as error:  # noqa: BLE001
+            # A failed revision ends the loop but does not lose the design that
+            # prompted it; the arm is scored on what it actually produced.
+            result.errors.append(f"round {used}: {type(error).__name__}: {error}")
+            break
+        attempt = _evaluate(revised, topology, requirements, contract, load_tolerance,
+                            apply_ceiling=ceiling)
+        trajectory.append({
+            "round": used, "kind": "repair",
+            **summarise_round(attempt.applied.certificate, attempt.score, attempt.index),
+        })
+        if attempt.score > best.score:
+            best = attempt
+
+    # --- record -------------------------------------------------------------
+    result.proposal = {
+        "selected": best.proposal.model_dump(mode="json"),
+        "candidates": [item.proposal.model_dump(mode="json") for item in attempts],
+        "candidate_scores": [round(item.score, 3) for item in attempts],
+        "trajectory": trajectory,
+        "repair_rounds_used": used,
+        "repair_rounds_allowed": rounds,
+        "model_calls": calls,
+        "converged": best.clean,
+    }
+    result.catalog_violations = best.applied.catalog_violations
+    result.errors.extend(best.applied.install_errors)
+    if best.applied.install_errors:
+        result.verdict = "REFUTED"
+        result.elapsed_s = time.monotonic() - started
+        return result
+    _finish(result, best.applied.certificate, best.applied.sizing, contract,
+            topology, requirements, apply_ceiling=apply_ceiling)
     result.elapsed_s = time.monotonic() - started
     return result

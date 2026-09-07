@@ -1,4 +1,4 @@
-# The five arms, and how to run each
+# The six arms, and how to run each
 
 The ablation exists to answer one question: **which part of the system is actually doing
 the work?** Each arm removes one thing and keeps everything else. Every arm is judged by
@@ -14,9 +14,13 @@ difference in the designs rather than a difference in marking.
 | --- | :---: | :---: | :---: | :---: | --- |
 | **A0** | ✓ | ✗ | ✗ | ✗ | everything except the model |
 | **A0.5** | ✓ | ✓ | ✗ | ✗ | the verifier and the repair loop |
+| **A0-V** | ✓ | ✗ | ✓ | ✓ | the arithmetic tools, and nothing else |
 | **A1** | ✓ | ✓ | ✓ | ✓ | nothing — this is the shipped system |
 | **A2** | ✗ | ✓ | ✓ | ✓ | the model |
 | **A-rand** | ✗ | ✓ | ✓ | ✗ | the *meaning* of the model's choices |
+
+Read down the tools column and across the verifier column and the four model arms
+form a 2×2. That is deliberate, and it is new in v0.7.2 — see `A0-V` below.
 
 ### A0 — the language model on its own
 
@@ -45,6 +49,35 @@ problem was judgement, and a calculator was never going to help.
 
 The verifier tool `evaluate_sizing_policy` is deliberately withheld — that single tool is
 the difference between A0.5 and A1, and a test asserts it never leaks across.
+
+### A0-V — the verifier, without the arithmetic
+
+**The cell that turns the ladder into an experiment.** A0 and A1 differ in two
+ways at once — tools *and* the verifier — so the gap between them belongs to
+neither. `A0-V` holds the verifier fixed and removes only the tools, which is
+what makes `A0-V vs A1` a reading of the tools manipulation rather than a
+reading of both at once.
+
+It gets the same prompt as A0, the same catalog as text, and computes every
+number itself. Then it gets the same treatment A1 gets: propose two or three
+candidate designs, have all of them scored by the same deterministic weights,
+keep the best, and revise against the certificate up to three times.
+
+It is shown the **whole** certificate, computed enclosures included. Those numbers
+came out of the tools it does not have, and that is not an oversight — the
+feedback *is* tool output, so any feedback leaks computation, and a partial
+disclosure would only be an arbitrary line somewhere harder to defend. Made total
+and declared, the leak turns this arm into an explicit **upper bound** on what a
+toolless proposer can do, and the experiment reads either way: if A1 wins against
+an arm handed every advantage, tools matter; if `A0-V` catches up, they never did.
+
+**What it tests:** whether the bottleneck is computing the numbers or knowing
+whether they are right. The v0.7.1 evidence points hard at the second — the model
+predicts its own design's performance to within 1 % on 73 % of criteria and still
+misses the requirement by a median 13 % — and a calculator repairs the half that
+was never broken. `A0-V` is the arm that repairs the other half.
+
+Registered in full in `docs/PREREGISTRATION_E1.md` before it was run.
 
 ### A1 — the full system
 
@@ -108,7 +141,7 @@ Two things to expect, both of which are publishable:
 ### Everything that needs no model
 
 ```bash
-python -m pytest                      # 388 offline tests, no network, no API key
+python -m pytest                      # 404 offline tests, no network, no API key
 python run_evidence.py                # coverage, seeded defects, detection curve, transient
 ```
 
@@ -142,6 +175,40 @@ for pid in sorted(suite.problems):
     print(pid, dict(tally))
 "
 ```
+
+### A0-V — needs an API key
+
+```bash
+python -c "
+from hydraulic_mas.ablation import load_suite, run_cell
+from hydraulic_mas.ablation.client import build_verified_client
+from hydraulic_mas.config import Settings
+from hydraulic_mas.models import build_chat_model
+
+model = build_chat_model(Settings.from_env(), fast=False)
+suite = load_suite('reference/validated_topologies.json')
+r = run_cell('A0-V', suite, 'P7-01', 0,
+             verified_client_factory=lambda s: build_verified_client(model))
+p = r.proposal
+print(r.verdict, 'rounds', p['repair_rounds_used'], 'calls', p['model_calls'],
+      'converged', p['converged'])
+print([t['verdict'] for t in p['trajectory']])
+"
+```
+
+Every round is recorded in `proposal.trajectory`, which is what the convergence
+curves and the H5 mechanism test are read from — not the final verdict alone.
+
+**Before running E1, turn the oversizing ceiling off**, on every arm, per
+`PREREGISTRATION_E1` §4.5:
+
+```python
+from hydraulic_mas.ablation import arms
+arms.APPLY_OVERSIZING_CEILING = False
+```
+
+It defaults to `True` so the v0.7.1 records still reproduce exactly. Set it in the
+E1 sweep script, not in the module.
 
 ### A0, A0.5 and A1 — these need an API key
 
@@ -185,8 +252,9 @@ print(r.verdict, r.counts, r.catalog_violations, r.errors)
 
 | Arm | Result | Notes |
 | --- | --- | --- |
-| A0 | **not run** | the paper's central claim has no data |
-| A0.5 | **not run** | separates "cannot calculate" from "cannot self-check" |
+| A0 | **30 % proved** over 70 runs | 0/40 on P7-04 … P7-07; 0.9 on P7-01 |
+| A0.5 | **34 % proved** over 70 runs | exact McNemar vs A0: p = 0.55. A calculator changes nothing |
+| A0-V | **not run** | the missing cell; E1 exists to fill it |
 | A1 | 7/7 PROVED on v0.7.0 | but two of those were oversized designs the ceiling now rejects |
 | A2 | **5/7 PROVED**, nothing refuted | P7-04 and P7-07 remain UNDECIDED for substantive reasons |
 | A-rand | **17/70 = 24 % PROVED** | 0/10 on P7-04, P7-05 and P7-07 |

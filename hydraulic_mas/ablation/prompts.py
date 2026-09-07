@@ -131,3 +131,64 @@ You have arithmetic tools available and should use them for every calculation.
 There is no verifier and no repair round: whatever you return is the design, so
 satisfy yourself that it meets every criterion before returning it.
 """
+
+SYSTEM_A0V = """\
+You are a hydraulic design engineer sizing a verified circuit topology.
+
+Work entirely from your own knowledge and the tables you are given. You have no
+tools and no calculator: every number you state, you worked out yourself.
+
+You do, however, have a verifier. After you answer, an independent checker will
+solve your design and tell you exactly which acceptance criteria it meets, which
+it misses, and by how much. You will then get a limited number of chances to
+revise. Use them: a design that misses on the first attempt and is corrected is
+worth more than one that is defended.
+"""
+
+CANDIDATE_INSTRUCTIONS = """\
+Return TWO OR THREE genuinely different sizings, not small variations on one.
+Different in approach - which phase you sized the actuator against, what
+pressure you designed to, how much headroom you carried. A deterministic score
+will pick between them; you do not choose the winner.
+"""
+
+
+def build_candidate_prompt(user_query: str, topology: dict[str, Any],
+                           requirements: dict[str, Any],
+                           contract: AcceptanceContract) -> str:
+    """A0-V's opening call: the A0 prompt, asking for a set instead of one design."""
+    return build_direct_prompt(user_query, topology, requirements, contract) \
+        + "\n\n" + CANDIDATE_INSTRUCTIONS
+
+
+REPAIR_INSTRUCTIONS = """\
+Revise the design so that every criterion is met.
+
+Change only what the report gives you a reason to change. Sizes must still come
+from the standard series, and the topology is still fixed. State your predicted
+velocity, force and pressure for every phase again - they are recorded each
+round, and how they move is itself part of the measurement.
+
+Return one complete sizing, not a diff.
+"""
+
+
+def build_repair_prompt(base_prompt: str, previous: Any, feedback: str,
+                        *, attempt: int, attempts_left: int) -> str:
+    """Everything the arm needs to revise, restated from scratch.
+
+    Deliberately stateless. Re-sending the whole problem each round costs tokens
+    but makes every call reproducible from the record alone, and keeps the
+    information the arm was given auditable rather than buried in a conversation
+    the transcript does not fully capture.
+    """
+    return "\n\n".join([
+        base_prompt,
+        "=" * 68,
+        f"YOUR PREVIOUS ATTEMPT (round {attempt}):\n"
+        + json.dumps(previous.model_dump(mode="json"), indent=2),
+        "=" * 68,
+        "WHAT THE VERIFIER FOUND:\n" + feedback,
+        "=" * 68,
+        f"You have {attempts_left} revision(s) left.\n\n" + REPAIR_INSTRUCTIONS,
+    ])
