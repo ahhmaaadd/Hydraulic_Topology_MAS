@@ -28,6 +28,11 @@ class Settings:
     max_requirements_rounds: int = 2
     enable_sizing: bool = True
     max_sizing_rounds: int = 3
+    # Named deployments kept as optional model choices. Defaults preserve
+    # compatibility with callers that construct Settings directly.
+    gpt_o3_mini: str = "o3-mini-2025-01-31"
+    gpt_4_1: str = "gpt-4.1-2025-04-14"
+    gpt_5_1: str = "gpt-5.1-2025-11-13"
 
     @property
     def uses_azure(self) -> bool:
@@ -67,6 +72,9 @@ class Settings:
         settings = cls(
             model=os.getenv("HYDRAULIC_MODEL", "gpt-5.5-2026-04-24"),
             fast_model=os.getenv("HYDRAULIC_FAST_MODEL", "gpt-4o-2024-11-20"),
+            gpt_o3_mini=os.getenv("HYDRAULIC_GPT_O3_MINI_MODEL", "o3-mini-2025-01-31"),
+            gpt_4_1=os.getenv("HYDRAULIC_GPT_4_1_MODEL", "gpt-4.1-2025-04-14"),
+            gpt_5_1=os.getenv("HYDRAULIC_GPT_5_1_MODEL", "gpt-5.1-2025-11-13"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_base_url=openai_base_url,
             default_headers=headers,

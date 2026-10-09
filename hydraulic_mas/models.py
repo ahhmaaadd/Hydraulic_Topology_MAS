@@ -18,6 +18,12 @@ def _aalto_headers(settings: Settings) -> dict[str, str]:
     return headers
 
 
+def _supports_reasoning(model_name: str) -> bool:
+    """Return whether an Aalto deployment accepts Responses reasoning options."""
+    name = model_name.strip().lower()
+    return name.startswith(("gpt-5", "o1", "o3", "o4"))
+
+
 def build_chat_model(settings: Settings, *, fast: bool = False):
     """Build the requested design or fast model for the configured API mode."""
     model_name = settings.fast_model if fast else settings.model
@@ -36,7 +42,10 @@ def build_chat_model(settings: Settings, *, fast: bool = False):
     if settings.uses_aalto_gateway:
         api_base = (settings.openai_base_url or "https://aalto-openai-apigw.azure-api.net").rstrip("/")
         headers = _aalto_headers(settings)
-        if fast:
+        # ``fast`` selects the configured model role; it must not decide which
+        # API or parameters that model supports. GPT-4o/GPT-4.1 can be used as
+        # either role, but reject ``reasoning.effort``.
+        if not _supports_reasoning(model_name):
             return ChatOpenAI(
                 model=model_name,
                 api_key=settings.openai_api_key,
@@ -65,4 +74,3 @@ def build_chat_model(settings: Settings, *, fast: bool = False):
         default_headers=settings.default_headers or None,
         **common,
     )
-

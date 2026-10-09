@@ -47,3 +47,29 @@ def test_aalto_fast_model_uses_deployment_endpoint(monkeypatch) -> None:
     assert result["base_url"].endswith("/v1/openai/deployments/gpt-4o-2024-11-20")
     assert "use_responses_api" not in result
     result["http_client"].close()
+
+
+def test_aalto_gpt4o_design_model_uses_deployment_endpoint(monkeypatch) -> None:
+    monkeypatch.setattr(models, "ChatOpenAI", lambda **kwargs: kwargs)
+
+    result = models.build_chat_model(
+        _settings(model="gpt-4o-2024-11-20"), fast=False
+    )
+
+    assert result["base_url"].endswith("/v1/openai/deployments/gpt-4o-2024-11-20")
+    assert "use_responses_api" not in result
+    assert "reasoning" not in result
+    result["http_client"].close()
+
+
+def test_aalto_reasoning_fast_model_still_uses_responses_api(monkeypatch) -> None:
+    monkeypatch.setattr(models, "ChatOpenAI", lambda **kwargs: kwargs)
+
+    result = models.build_chat_model(
+        _settings(fast_model="o3-mini-2025-01-31"), fast=True
+    )
+
+    assert result["base_url"] == "https://aalto-openai-apigw.azure-api.net"
+    assert result["use_responses_api"] is True
+    assert result["reasoning"] == {"effort": "medium", "summary": "auto"}
+    result["http_client"].close()
